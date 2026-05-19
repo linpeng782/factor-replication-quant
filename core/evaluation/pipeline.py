@@ -188,7 +188,14 @@ def evaluate_single_factor(
 
         # ==================== 6. 绘图 ====================
         if plot:
-            plot_path = report_dir / "evaluation.png"
+            # 根据评估区间自动命名，避免不同区间互相覆盖
+            if start_date and end_date:
+                start_str = str(start_date).replace("-", "")
+                end_str = str(end_date).replace("-", "")
+                plot_name = f"evaluation_{start_str}_{end_str}.png"
+            else:
+                plot_name = "evaluation.png"
+            plot_path = report_dir / plot_name
             plot_factor_report(
                 factor_name=factor_name,
                 factor_clean=factor_clean,  # 分布图用原始因子，不翻转

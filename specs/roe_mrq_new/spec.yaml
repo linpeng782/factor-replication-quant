@@ -1,0 +1,32 @@
+factor:
+  name: "roe_mrq_new"
+  name_cn: "单季度ROE"
+  category: "单因子"
+  direction: 1
+  description: "最近一个单季度的净资产收益率（ROE）"
+
+formula:
+  expression: "net_profit_mrq_0 / total_equity_mrq_0"
+
+data_source:
+  api: "get_factor"
+  fields:
+    - net_profit_mrq_0
+    - total_equity_mrq_0
+
+calculation_steps:
+  - step: 1
+    name: "获取单季度净利润和净资产"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["net_profit_mrq_0", "total_equity_mrq_0"]
+    output: "financial_data"
+
+  - step: 2
+    name: "计算单季度ROE"
+    action: "compute"
+    formula: "roe_mrq_new = net_profit_mrq_0 / total_equity_mrq_0"
+    output: "roe_mrq_new"
+
+universe:
+  primary_index: "ALL"

@@ -125,7 +125,7 @@ def evaluate_single_factor(
             )
 
             # 保存清洗后因子到外部目录（完整时间范围）
-            cleaned_path = factor_dir / f"{factor_name}.parquet"
+            cleaned_path = config.CLEANED_FACTOR_DIR / f"{factor_name}.parquet"
             factor_clean.to_parquet(cleaned_path)
             logger.info(
                 f"  -> 清洗后因子已保存: {cleaned_path} "

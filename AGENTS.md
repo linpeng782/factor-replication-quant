@@ -12,7 +12,8 @@ source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate  # Python 3.1
 
 | 变量 | 路径 |
 |------|------|
-| `FACTOR_OUTPUT_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/` |
+| `RAW_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/` | 原始因子（YOLO 输出） |
+| `CLEANED_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/` | 清洗后因子（MAD + zscore + mask） |
 | `OUTPUT_DIR` | `factor-repilcation-quant/output/` |
 | `COMBO_MASK_PATH` | `.../backtest_engine/cache_dir/combo_mask_long.parquet` |
 | `NEW_STOCK_MASK_PATH` | `.../backtest_engine/cache_dir/new_stock_mask_long.parquet` |

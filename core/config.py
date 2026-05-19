@@ -21,9 +21,12 @@ VWAP_POST_PATH = Path(
     "/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir/vwap_post.parquet"
 )
 
-# ==================== 输出目录 ====================
+# ==================== 项目内输出目录 ====================
 # 报告、图片等评估输出
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
-# 因子 parquet 输出（外部数据目录）
-FACTOR_OUTPUT_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication")
+# ==================== 外部因子数据目录 ====================
+# 所有原始因子统一放在 raw_factor/，清洗后统一放在 cleaned_factor/
+_BASE_FACTOR_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication")
+RAW_FACTOR_DIR = _BASE_FACTOR_DIR / "raw_factor"
+CLEANED_FACTOR_DIR = _BASE_FACTOR_DIR / "cleaned_factor"

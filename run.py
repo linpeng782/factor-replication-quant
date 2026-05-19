@@ -211,9 +211,8 @@ def run_single_factor(
             return
     else:
         # evaluate-only 模式：从磁盘读取已有因子值
-        from core.config import OUTPUT_DIR
-        from core.config import FACTOR_OUTPUT_DIR
-        factor_path = FACTOR_OUTPUT_DIR / factor_name / f"raw_{factor_name}.parquet"
+        from core.config import RAW_FACTOR_DIR
+        factor_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
         if not factor_path.exists():
             print(f"❌ 因子值文件不存在: {factor_path}")
             return

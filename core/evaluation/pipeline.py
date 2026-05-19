@@ -89,8 +89,8 @@ def evaluate_single_factor(
 
         report_dir = Path(output_dir or config.OUTPUT_DIR / factor_name)
         report_dir.mkdir(parents=True, exist_ok=True)
-        factor_dir = config.FACTOR_OUTPUT_DIR / factor_name
-        factor_dir.mkdir(parents=True, exist_ok=True)
+        config.RAW_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
+        config.CLEANED_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
 
         logger.info("=" * 60)
         logger.info(f"📊 开始评估因子: {factor_name}")

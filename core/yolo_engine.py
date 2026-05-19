@@ -19,7 +19,7 @@ import yaml
 
 warnings.filterwarnings("ignore")
 
-from core.config import FACTOR_OUTPUT_DIR as OUTPUT_DIR
+from core.config import RAW_FACTOR_DIR
 
 # 导入 operators 触发注册
 from .operators import OpRegistry
@@ -163,18 +163,17 @@ class YoloEngine:
             raise ValueError(f"最终输出未找到或不是 DataFrame: {final_output}")
 
         # 5. 转为宽表 (date × order_book_id) 并保存
-        factor_dir = OUTPUT_DIR / factor_name
-        factor_dir.mkdir(parents=True, exist_ok=True)
+        RAW_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
 
         if "date" in factor_df.columns and "order_book_id" in factor_df.columns:
             wide_df = factor_df.pivot(index="date", columns="order_book_id", values=factor_name)
             wide_df.index = pd.to_datetime(wide_df.index)
-            output_path = factor_dir / f"raw_{factor_name}.parquet"
+            output_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
             wide_df.to_parquet(output_path)
             print(f"\n✅ 宽表已保存: {output_path} (shape={wide_df.shape})")
             return wide_df
         else:
-            output_path = factor_dir / f"raw_{factor_name}.parquet"
+            output_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
             factor_df.to_parquet(output_path)
             print(f"\n✅ 因子值已保存: {output_path}")
             return factor_df

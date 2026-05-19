@@ -1,0 +1,53 @@
+factor:
+  name: "roe_pqoq_mrq"
+  name_cn: "单季度ROE环比"
+  category: "单因子"
+  direction: 1
+  description: "单季度ROE的环比增长率，仅保留上季度ROE大于0的样本"
+
+formula:
+  expression: "(roe_mrq_0 - roe_mrq_1) / abs(roe_mrq_1)"
+
+data_source:
+  api: "get_factor"
+  fields:
+    - net_profit_mrq_0
+    - net_profit_mrq_1
+    - total_equity_mrq_0
+    - total_equity_mrq_1
+
+calculation_steps:
+  - step: 1
+    name: "获取单季度数据"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["net_profit_mrq_0", "net_profit_mrq_1", "total_equity_mrq_0", "total_equity_mrq_1"]
+    output: "financial_data"
+
+  - step: 2
+    name: "计算单季度ROE（当期）"
+    action: "compute"
+    formula: "roe_mrq_0 = net_profit_mrq_0 / total_equity_mrq_0"
+    output: "roe_mrq_data"
+
+  - step: 3
+    name: "计算单季度ROE（上季度）"
+    action: "compute"
+    formula: "roe_mrq_1 = net_profit_mrq_1 / total_equity_mrq_1"
+    output: "roe_mrq_data_1"
+
+  - step: 4
+    name: "计算环比"
+    action: "compute"
+    formula: "roe_pqoq_mrq = (roe_mrq_0 - roe_mrq_1) / abs(roe_mrq_1)"
+    output: "roe_pqoq_mrq_raw"
+
+  - step: 5
+    name: "过滤分母"
+    action: "filter"
+    input: "roe_pqoq_mrq_raw"
+    condition: "roe_mrq_1 > 0"
+    output: "roe_pqoq_mrq"
+
+universe:
+  primary_index: "ALL"

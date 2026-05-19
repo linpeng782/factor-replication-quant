@@ -14,7 +14,7 @@
 | roic_ttm_dev_std8 | 1 ROIC_TTM / 过去8期ROIC_TTM的标准差 | fundamental.quality.financial | 质量 | ⬜ 待复现 | — | |
 | roic_ttm_all_rnk8 | 以中证800+总市值前100个股为底池，计算过去8期ROIC_TTM排名的最小值 | fundamental.quality.financial | 质量 | ⬜ 待复现 | — | |
 | roe_pyoy_mrq | 单季度ROE同比（仅保留分母>0的因子值） | fundamental.growth.financial | 景气 | ✅ 已复现 | IC=0.0160, ICIR=0.127 | 2016-2025全历史；原始值IC=0.0298 |
-| roe_pqoq_mrq | 单季度ROE环比（仅保留分母>0的因子值） | fundamental.growth.financial | 景气 | ⬜ 待复现 | — | |
+| roe_pqoq_mrq | 单季度ROE环比（仅保留分母>0的因子值） | fundamental.growth.financial | 景气 | ✅ 已复现 | IC=0.0118, ICIR=0.182 | 2016-2025全历史 |
 | roe_mrq_new | 单季度ROE | fundamental.growth.financial | 景气 | ✅ 已复现 | IC=0.0433, ICIR=0.867 | 2016-2025全历史 |
 | roe_ayoy_mrq | 单季度ROE同比（分母取绝对值） | fundamental.growth.financial | 景气 | ⬜ 待复现 | — | |
 | roe_apoq_mrq | 单季度ROE环比（分母取绝对值） | fundamental.growth.financial | 景气 | ⬜ 待复现 | — | |
@@ -79,16 +79,17 @@
 
 | 分类 | 总数 | 已复现 | 待复现 |
 |------|-----|--------|--------|
-| 单因子 | 22 | 2 | 20 |
+| 单因子 | 22 | 3 | 19 |
 | 辅助指标 | 3 | 0 | 3 |
-| **合计** | **25** | **2** | **23** |
+| **合计** | **25** | **3** | **22** |
 
 ### 已复现因子详情
 
 | 因子名 | 评估区间 | 复现 IC | 复现 ICIR | 单调性 | 评估图路径 |
 |--------|---------|--------|----------|--------|-----------|
 | roe_mrq_new | 2016-01-04 ~ 2025-12-30 | 0.0160 | 0.127 | +0.979 | `output/roe_mrq_new/evaluation.png` |
-| roe_pyoy_mrq | 2016-01-04 ~ 2025-12-30 | 0.0160 | 0.127 | +0.979 | `output/roe_pyoy_mrq/evaluation.png` |
+| roe_pyoy_mrq | 2016-01-04 ~ 2025-12-30 | 0.0196 | 0.242 | +0.971 | `output/roe_pyoy_mrq/evaluation.png` |
+| roe_pqoq_mrq | 2016-01-04 ~ 2025-12-30 | 0.0118 | 0.182 | +0.889 | `output/roe_pqoq_mrq/evaluation.png` |
 
 > 注意：roe_pyoy_mrq 与 roe_mrq_new 的复现结果相同，是因为实际评估使用的是同一套清洗后因子。roe_pyoy_mrq 的完整复现（含 YOLO 生成）待后续补充。
 

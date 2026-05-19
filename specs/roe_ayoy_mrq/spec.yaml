@@ -1,0 +1,46 @@
+factor:
+  name: "roe_ayoy_mrq"
+  name_cn: "单季度ROE同比_绝对值版"
+  category: "单因子"
+  direction: 1
+  description: "单季度ROE的同比增长率，分母取绝对值，不过滤负值样本"
+
+formula:
+  expression: "(roe_mrq_0 - roe_mrq_4) / abs(roe_mrq_4)"
+
+data_source:
+  api: "get_factor"
+  fields:
+    - net_profit_mrq_0
+    - net_profit_mrq_4
+    - total_equity_mrq_0
+    - total_equity_mrq_4
+
+calculation_steps:
+  - step: 1
+    name: "获取单季度数据"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["net_profit_mrq_0", "net_profit_mrq_4", "total_equity_mrq_0", "total_equity_mrq_4"]
+    output: "financial_data"
+
+  - step: 2
+    name: "计算单季度ROE（当期）"
+    action: "compute"
+    formula: "roe_mrq_0 = net_profit_mrq_0 / total_equity_mrq_0"
+    output: "roe_mrq_data"
+
+  - step: 3
+    name: "计算单季度ROE（去年同期）"
+    action: "compute"
+    formula: "roe_mrq_4 = net_profit_mrq_4 / total_equity_mrq_4"
+    output: "roe_mrq_data_4"
+
+  - step: 4
+    name: "计算同比（分母取绝对值，不过滤）"
+    action: "compute"
+    formula: "roe_ayoy_mrq = (roe_mrq_0 - roe_mrq_4) / abs(roe_mrq_4)"
+    output: "roe_ayoy_mrq"
+
+universe:
+  primary_index: "ALL"

@@ -52,7 +52,24 @@ python run.py --batch-confirmed --start-date 20160101 --end-date 20251231
 
 ---
 
-## 4. Spec YAML 核心结构
+## 4. Spec 文件规范（必须双文件）
+
+每个因子目录 `specs/<factor>/` 下**必须同时存在**两个文件：
+
+| 文件 | 用途 | 读者 |
+|------|------|------|
+| `spec.md` | 人类可读的因子定义文档（公式、变量说明、计算步骤、股票池） | 人类（研究员/复核者） |
+| `spec.yaml` | 机器可执行的计算配置（action、formula、output、universe） | YOLO 引擎 |
+
+**约束**：
+- `spec.md` 和 `spec.yaml` 必须**同步维护**，任何改动同时更新两份文件
+- `spec.md` 中的计算步骤描述必须与 `spec.yaml` 的 `calculation_steps` 一一对应
+- `spec.yaml` 的 `factor.name` 必须与目录名一致
+- 禁止只写 yaml 不写 md，或只写 md 不写 yaml
+
+---
+
+## 5. Spec YAML 核心结构
 
 ```yaml
 factor:

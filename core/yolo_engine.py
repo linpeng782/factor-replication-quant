@@ -43,44 +43,52 @@ from .operators import merge  # noqa: F401
 # rqdatac.get_factor 是网络 IO 阻塞调用，等待期间释放 GIL，多线程并发是安全且高效的。
 
 
-def _thread_get_factor(rq, batch_idx, batch, field, start_date, end_date):
-    """单批 fetch；返回 (batch_idx, df, elapsed_s, err_or_None)"""
+def _thread_get_factor(rq, batch_idx, batch, fields, start_date, end_date):
+    """单批 fetch；fields 是 list[str]，rqdatac 一次返回多列。
+    返回 (batch_idx, df, elapsed_s, err_or_None)
+    """
     t0 = time.time()
     try:
-        df = rq.get_factor(batch, field, start_date=start_date, end_date=end_date)
+        df = rq.get_factor(batch, fields, start_date=start_date, end_date=end_date)
         return batch_idx, df, time.time() - t0, None
     except Exception as e:
         return batch_idx, None, time.time() - t0, str(e)
 
 
-def _fetch_factor_sequential(rq, batches, field, start_date, end_date):
+def _fmt_fields(fields):
+    return fields[0] if len(fields) == 1 else f"[{', '.join(fields)}]"
+
+
+def _fetch_factor_sequential(rq, batches, fields, start_date, end_date):
     n_batches = len(batches)
-    logger.info(f"[fetcher] start field={field} | {n_batches} 批 | sequential")
+    label = _fmt_fields(fields)
+    logger.info(f"[fetcher] start fields={label} | {n_batches} 批 | sequential")
     t_start = time.time()
     dfs = []
     for i, batch in enumerate(batches, 1):
-        _, df, elapsed, err = _thread_get_factor(rq, i, batch, field, start_date, end_date)
+        _, df, elapsed, err = _thread_get_factor(rq, i, batch, fields, start_date, end_date)
         if err is not None:
             logger.warning(f"[fetcher] {i}/{n_batches} 失败 ({elapsed:.1f}s): {err}")
             continue
         if df is not None and len(df) > 0:
             dfs.append(df)
         logger.info(f"[fetcher] {i}/{n_batches} ✓ {elapsed:.1f}s")
-    logger.info(f"[fetcher] done field={field} in {time.time() - t_start:.1f}s")
+    logger.info(f"[fetcher] done fields={label} in {time.time() - t_start:.1f}s")
     if not dfs:
-        raise ValueError(f"get_factor 全部批次失败: field={field}")
+        raise ValueError(f"get_factor 全部批次失败: fields={label}")
     return pd.concat(dfs)
 
 
-def _fetch_factor_parallel(rq, batches, field, start_date, end_date, workers):
+def _fetch_factor_parallel(rq, batches, fields, start_date, end_date, workers):
     n_batches = len(batches)
-    logger.info(f"[fetcher] start field={field} | {n_batches} 批 × {workers} 线程")
+    label = _fmt_fields(fields)
+    logger.info(f"[fetcher] start fields={label} | {n_batches} 批 × {workers} 线程")
     t_start = time.time()
     dfs = []
     done = 0
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = [
-            ex.submit(_thread_get_factor, rq, i + 1, b, field, start_date, end_date)
+            ex.submit(_thread_get_factor, rq, i + 1, b, fields, start_date, end_date)
             for i, b in enumerate(batches)
         ]
         for fut in as_completed(futures):
@@ -92,9 +100,9 @@ def _fetch_factor_parallel(rq, batches, field, start_date, end_date, workers):
             if df is not None and len(df) > 0:
                 dfs.append(df)
             logger.info(f"[fetcher] {done}/{n_batches} ✓ {elapsed:.1f}s")
-    logger.info(f"[fetcher] done field={field} in {time.time() - t_start:.1f}s")
+    logger.info(f"[fetcher] done fields={label} in {time.time() - t_start:.1f}s")
     if not dfs:
-        raise ValueError(f"get_factor 全部批次失败: field={field}")
+        raise ValueError(f"get_factor 全部批次失败: fields={label}")
     return pd.concat(dfs)
 
 
@@ -146,22 +154,26 @@ class DataFetcher:
     def get_factor(
         self,
         order_book_ids: List[str],
-        field: str,
+        fields,
         date: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         batch_size: int = 500,
     ):
         """单日 (date) 或区间 (start_date+end_date) 获取因子值。
-        股票数 > batch_size 时自动分批；进程数由环境变量 FETCHER_WORKERS 控制（默认 12）。
+        fields 可以是 str 或 list[str]——多字段单次返回一个 DataFrame，比顺序拉每个字段快。
+        股票数 > batch_size 时自动分批；线程数由环境变量 FETCHER_WORKERS 控制（默认 12）。
         """
         self._init_rq()
+        if isinstance(fields, str):
+            fields = [fields]
+
         if date:
-            return self._rq.get_factor(order_book_ids, field, date=date)
+            return self._rq.get_factor(order_book_ids, fields, date=date)
 
         if len(order_book_ids) <= batch_size:
             return self._rq.get_factor(
-                order_book_ids, field, start_date=start_date, end_date=end_date
+                order_book_ids, fields, start_date=start_date, end_date=end_date
             )
 
         n_batches = (len(order_book_ids) + batch_size - 1) // batch_size
@@ -173,9 +185,9 @@ class DataFetcher:
         workers = min(workers, n_batches)
 
         if workers <= 1:
-            return _fetch_factor_sequential(self._rq, batches, field, start_date, end_date)
+            return _fetch_factor_sequential(self._rq, batches, fields, start_date, end_date)
 
-        return _fetch_factor_parallel(self._rq, batches, field, start_date, end_date, workers)
+        return _fetch_factor_parallel(self._rq, batches, fields, start_date, end_date, workers)
 
     def get_trading_dates(self, start_date: str, end_date: str) -> List[str]:
         self._init_rq()

@@ -87,32 +87,23 @@ def _resolve_output_columns(step: Dict) -> Dict[str, str]:
 def _fetch_get_factor(
     ctx: Context, fetcher: Any, fields: List[str]
 ) -> pd.DataFrame:
-    """get_factor：日频因子。区间或单日两种模式。"""
+    """get_factor：日频因子。一次拉所有字段（米筐 API 原生支持 fields list）。"""
     if not (ctx.start_date and ctx.end_date) and not ctx.trade_date:
         raise ValueError("get_factor 需要 ctx.start_date+end_date 或 ctx.trade_date")
 
-    field_dfs = []
-    for field in fields:
-        if ctx.start_date and ctx.end_date:
-            df_f = fetcher.get_factor(
-                ctx.universe,
-                field,
-                start_date=ctx.start_date,
-                end_date=ctx.end_date,
-            )
-        else:
-            df_f = fetcher.get_factor(ctx.universe, field, date=ctx.trade_date)
+    if ctx.start_date and ctx.end_date:
+        df = fetcher.get_factor(
+            ctx.universe,
+            fields,
+            start_date=ctx.start_date,
+            end_date=ctx.end_date,
+        )
+    else:
+        df = fetcher.get_factor(ctx.universe, fields, date=ctx.trade_date)
 
-        if df_f is None or len(df_f) == 0:
-            raise ValueError(f"get_factor 无返回: field={field}")
-
-        df_f = _normalize_to_long(df_f)
-        field_dfs.append(df_f)
-
-    df = field_dfs[0]
-    for other in field_dfs[1:]:
-        df = df.merge(other, on=["order_book_id", "date"], how="outer")
-    return df
+    if df is None or len(df) == 0:
+        raise ValueError(f"get_factor 无返回: fields={fields}")
+    return _normalize_to_long(df)
 
 
 def _fetch_pit(

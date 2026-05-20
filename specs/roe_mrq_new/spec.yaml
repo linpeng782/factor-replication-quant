@@ -1,32 +1,27 @@
 factor:
-  name: "roe_mrq_new"
-  name_cn: "单季度ROE"
-  category: "单因子"
+  name: roe_mrq_new
+  name_cn: "单季度 ROE"
+  category: 景气
   direction: 1
-  description: "最近一个单季度的净资产收益率（ROE）"
-
-formula:
-  expression: "net_profit_mrq_0 / total_equity_mrq_0"
-
-data_source:
-  api: "get_factor"
-  fields:
-    - net_profit_mrq_0
-    - total_equity_mrq_0
-
-calculation_steps:
-  - step: 1
-    name: "获取单季度净利润和净资产"
-    action: "fetch"
-    api: "get_factor"
-    fields: ["net_profit_mrq_0", "total_equity_mrq_0"]
-    output: "financial_data"
-
-  - step: 2
-    name: "计算单季度ROE"
-    action: "compute"
-    formula: "roe_mrq_new = net_profit_mrq_0 / total_equity_mrq_0"
-    output: "roe_mrq_new"
+  column: roe_mrq_new
+  description: >
+    最近一期单季度净资产收益率：单季度净利润 (mrq_0) / 单季度净资产 (mrq_0)。
+    ROE 越高质量越好，因子方向为正向。
 
 universe:
-  primary_index: "ALL"
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取单季度净利润与净资产
+    action: fetch
+    api: get_factor
+    fields: [net_profit_mrq_0, total_equity_mrq_0]
+    output_columns:
+      net_profit_mrq_0: net_profit_mrq_0
+      total_equity_mrq_0: total_equity_mrq_0
+
+  - name: 计算单季度 ROE
+    action: compute
+    formula: net_profit_mrq_0 / total_equity_mrq_0
+    source_columns: [net_profit_mrq_0, total_equity_mrq_0]
+    output_column: roe_mrq_new

@@ -97,6 +97,7 @@ universe:
 2. **PIT 模式**：财务数据用 `get_pit_financials_ex`，以 `info_date` 为公告日
 3. **`_mrq_n` 字段是单季度值**：米筐 `_mrq_0` / `_mrq_4` 等后缀字段已经预计算为单季度值，**无需手动 diff**。例如 `net_profit_mrq_0` 就是最近一期单季度净利润
 4. **清洗因子保留完整时间范围**：评估时根据 `start_date/end_date` 动态截取
+5. **市值字段统一用 `market_cap_3`**：米筐 `get_factor` 中市值有多个版本（`market_cap` / `market_cap_2` / `market_cap_3`），项目统一选用 `market_cap_3`。例：`rqdatac.get_factor('000001.XSHE', 'market_cap_3', start_date='20230101', end_date='20230110')`
 
 ---
 

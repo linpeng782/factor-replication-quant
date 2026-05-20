@@ -1,0 +1,30 @@
+factor:
+  name: "pe_mrq"
+  name_cn: "PE_MRQ（总市值/季度净利润）"
+  category: "价值"
+  direction: -1
+  description: "总市值除以最近一个季度的净利润。基于最新季度财报的市盈率，比TTM更及时。PE越低估值越便宜，因子方向为负向。"
+
+data_source:
+  api: "get_factor"
+  fields:
+    - market_cap
+    - net_profit_mrq_0
+
+calculation_steps:
+  - step: 1
+    name: "获取总市值和单季度净利润"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["market_cap", "net_profit_mrq_0"]
+    output: "financial_data"
+
+  - step: 2
+    name: "计算PE_MRQ"
+    action: "compute"
+    input: "financial_data"
+    formula: "pe_mrq = market_cap / net_profit_mrq_0"
+    output: "factor"
+
+universe:
+  primary_index: "ALL"

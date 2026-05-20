@@ -1,0 +1,56 @@
+factor:
+  name: "roic_ttm_all_rnk8"
+  name_cn: "过去8期ROIC_TTM全市场排名的最小值"
+  category: "质量"
+  direction: 1
+  description: >
+    以全市场个股为底池，计算过去8个财报期ROIC_TTM全市场排名的最小值。
+    与 roic_ttm_ind_rnk8 的唯一区别：排名范围是全市场，不分行业。
+
+data_source:
+  api: "get_factor"
+  fields:
+    - return_on_invested_capital_ttm
+
+calculation_steps:
+  - step: 1
+    name: "获取ROIC_TTM时间序列"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["return_on_invested_capital_ttm"]
+    output: "roic_data"
+
+  - step: 2
+    name: "全市场排名"
+    action: "rank"
+    method: "rank"
+    input: "roic_data"
+    rank_column: "return_on_invested_capital_ttm"
+    pct: false
+    ascending: false
+    rank_method: "min"
+    output_col: "all_rank"
+    output: "ranked_data"
+
+  - step: 3
+    name: "过去8期排名最小值（变化日rolling）"
+    action: "rolling"
+    input: "ranked_data"
+    columns: ["all_rank"]
+    window: 8
+    min_periods: 4
+    agg: "min"
+    group_by: "order_book_id"
+    "on": "return_on_invested_capital_ttm"
+    fill_method: "ffill"
+    output: "rolled_data"
+
+  - step: 4
+    name: "重命名为因子名"
+    action: "compute"
+    input: "rolled_data"
+    formula: "roic_ttm_all_rnk8 = all_rank"
+    output: "factor"
+
+universe:
+  primary_index: "ALL"

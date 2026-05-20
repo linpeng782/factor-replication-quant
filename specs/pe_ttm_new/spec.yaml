@@ -1,0 +1,29 @@
+factor:
+  name: "pe_ttm_new"
+  name_cn: "PE_TTM（总市值/TTM净利润）"
+  category: "价值"
+  direction: -1
+  description: "TTM市盈率。PE越低估值越便宜，因子方向为负向（低PE预期高收益）。"
+
+data_source:
+  api: "get_factor"
+  fields:
+    - pe_ratio_ttm
+
+calculation_steps:
+  - step: 1
+    name: "获取PE_TTM"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["pe_ratio_ttm"]
+    output: "pe_data"
+
+  - step: 2
+    name: "重命名为因子名"
+    action: "compute"
+    input: "pe_data"
+    formula: "pe_ttm_new = pe_ratio_ttm"
+    output: "factor"
+
+universe:
+  primary_index: "ALL"

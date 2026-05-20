@@ -39,11 +39,13 @@ def _resolve_input(ctx: Dict, var_name: Optional[str]) -> pd.DataFrame:
     raise ValueError(f"无法在上下文中找到输入变量: {var_name}")
 
 
-def _resolve_dataframe_for_expr(ctx: Dict, expr: str) -> pd.DataFrame:
+def _resolve_dataframe_for_expr(ctx: Dict, expr: str, extra_cols: list = None) -> pd.DataFrame:
     """从上下文中找到包含表达式所需列的数据框，支持跨表自动 merge"""
     skip_words = {"abs", "log", "exp", "sqrt", "if", "else", "and", "or", "not", "in", "is", "None", "True", "False"}
     tokens = set(re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", expr))
     needed_cols = tokens - skip_words
+    if extra_cols:
+        needed_cols |= set(extra_cols)
 
     best_df = None
     best_score = -1

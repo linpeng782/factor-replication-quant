@@ -53,8 +53,8 @@ def main():
                         help="跳过 YOLO，仅对已有因子值进行评估")
     parser.add_argument("--batch-confirmed", action="store_true",
                         help="批量执行所有已确认的因子")
-    parser.add_argument("--start-date", type=str, default="20200101", help="回测开始日期")
-    parser.add_argument("--end-date", type=str, default="20231231", help="回测结束日期")
+    parser.add_argument("--start-date", type=str, default="20160101", help="回测开始日期")
+    parser.add_argument("--end-date", type=str, default="20251231", help="回测结束日期")
     parser.add_argument("--trade-date", type=str, help="单交易日（用于构建股票池）")
     parser.add_argument("--auto-confirm", action="store_true",
                         help="自动跳过人机确认（仅对已确认过的因子有效）")
@@ -170,8 +170,8 @@ def run_single_factor(
     yolo_only: bool = False,
     evaluate: bool = False,
     skip_yolo: bool = False,
-    start_date: str = "20200101",
-    end_date: str = "20231231",
+    start_date: str = "20160101",
+    end_date: str = "20251231",
     trade_date: str = None,
 ):
     """执行单个因子的完整或部分流程"""

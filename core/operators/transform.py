@@ -29,6 +29,12 @@ def op_transform(ctx: Dict, step: Dict, fetcher: Any) -> pd.DataFrame:
         df = _compute_qoq(df, lag, step, ctx)
     elif method == "zscore":
         df = _compute_zscore(df, step, ctx)
+    elif method == "ffill":
+        df = _compute_ffill(df, step, ctx)
+    elif method == "bfill":
+        df = _compute_bfill(df, step, ctx)
+    elif method == "diff":
+        df = _compute_diff(df, step, ctx)
     else:
         raise ValueError(f"不支持的 transform method: {method}")
 
@@ -93,4 +99,92 @@ def _compute_zscore(df: pd.DataFrame, step: Dict, ctx: Dict) -> pd.DataFrame:
     else:
         for col in value_cols:
             df[f"{col}_zscore"] = (df[col] - df[col].mean()) / df[col].std()
+    return df
+
+
+def _compute_ffill(df: pd.DataFrame, step: Dict, ctx: Dict) -> pd.DataFrame:
+    """前向填充
+
+    支持两种模式:
+    1. wide 格式 (date × order_book_id): 直接 df.ffill(axis=0)
+    2. long 格式: 按 order_book_id groupby 后 ffill
+    """
+    group_col = step.get("group_column", "")
+    axis = step.get("axis", 0)
+    value_cols = step.get("columns")
+
+    if value_cols is None:
+        # 自动识别数值列，排除常见的非数值列
+        exclude = {"order_book_id", "date", "quarter", "info_date", "announcement_date", "if_adjusted", "rice_create_tm", group_col}
+        value_cols = [c for c in df.columns if c not in exclude and df[c].dtype.kind in "fi"]
+
+    # long 格式且有 group_col
+    if group_col and group_col in df.columns:
+        for col in value_cols:
+            if col in df.columns:
+                df[col] = df.groupby(group_col)[col].ffill()
+    else:
+        # wide 格式 或 无 group_col
+        for col in value_cols:
+            if col in df.columns:
+                df[col] = df[col].ffill()
+
+    return df
+
+
+def _compute_bfill(df: pd.DataFrame, step: Dict, ctx: Dict) -> pd.DataFrame:
+    """后向填充，逻辑同 ffill"""
+    group_col = step.get("group_column", "")
+    value_cols = step.get("columns")
+
+    if value_cols is None:
+        exclude = {"order_book_id", "date", "quarter", "info_date", "announcement_date", "if_adjusted", "rice_create_tm", group_col}
+        value_cols = [c for c in df.columns if c not in exclude and df[c].dtype.kind in "fi"]
+
+    if group_col and group_col in df.columns:
+        for col in value_cols:
+            if col in df.columns:
+                df[col] = df.groupby(group_col)[col].bfill()
+    else:
+        for col in value_cols:
+            if col in df.columns:
+                df[col] = df[col].bfill()
+
+    return df
+
+
+def _compute_diff(df: pd.DataFrame, step: Dict, ctx: Dict) -> pd.DataFrame:
+    """计算差分（日频/时频）
+
+    参数:
+        periods: int, 差分周期，默认 1（即 t - t-1）
+        group_column: str, long 格式下按该列 groupby 后 diff
+        columns: list[str], 需要差分的列，默认所有数值列
+    """
+    group_col = step.get("group_column", "")
+    periods = step.get("periods", 1)
+    value_cols = step.get("columns")
+
+    print(f"   [_compute_diff] ENTER: group_col={group_col}, periods={periods}, cols={value_cols}, df.shape={df.shape}, df.columns={list(df.columns)}")
+
+    if value_cols is None:
+        exclude = {"order_book_id", "date", "quarter", "info_date", "announcement_date", "if_adjusted", "rice_create_tm", group_col}
+        value_cols = [c for c in df.columns if c not in exclude and df[c].dtype.kind in "fi"]
+
+    if group_col and group_col in df.columns:
+        print(f"   [_compute_diff] path=groupby, group_col={group_col} found in df")
+        for col in value_cols:
+            if col in df.columns:
+                before = df[col].iloc[:5].tolist()
+                df[col] = df.groupby(group_col)[col].diff(periods=periods)
+                after = df[col].iloc[:5].tolist()
+                nonnull = df[col].notna().sum()
+                print(f"   [_compute_diff] {col}: before={before}, after={after}, nonnull={nonnull}/{len(df)}")
+    else:
+        print(f"   [_compute_diff] path=no_groupby, group_col={group_col} NOT found in df")
+        for col in value_cols:
+            if col in df.columns:
+                df[col] = df[col].diff(periods=periods)
+
+    print(f"   [_compute_diff] EXIT")
     return df

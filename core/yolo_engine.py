@@ -28,6 +28,7 @@ from .operators import compute  # noqa: F401
 from .operators import filter  # noqa: F401
 from .operators import rank  # noqa: F401
 from .operators import transform  # noqa: F401
+from .operators import rolling  # noqa: F401
 
 
 # ──────────────────────────────────────────
@@ -69,12 +70,35 @@ class DataFetcher:
         self._init_rq()
         return self._rq.index_components(index_code, date=date)
 
-    def get_factor(self, order_book_ids: List[str], field: str, date: str = None, start_date: str = None, end_date: str = None):
-        """获取某个因子/指标值。支持单日(date)或日期范围(start_date+end_date)。"""
+    def get_factor(self, order_book_ids: List[str], field: str, date: str = None, start_date: str = None, end_date: str = None, batch_size: int = 500):
+        """获取某个因子/指标值。支持单日(date)或日期范围(start_date+end_date)。
+        
+        当股票数量超过 batch_size 时，自动分批获取后合并，避免大数据量请求超时。
+        """
         self._init_rq()
         if date:
             return self._rq.get_factor(order_book_ids, field, date=date)
-        return self._rq.get_factor(order_book_ids, field, start_date=start_date, end_date=end_date)
+        
+        # 大数据量时分批获取
+        if len(order_book_ids) <= batch_size:
+            return self._rq.get_factor(order_book_ids, field, start_date=start_date, end_date=end_date)
+        
+        import pandas as pd
+        dfs = []
+        for i in range(0, len(order_book_ids), batch_size):
+            batch = order_book_ids[i:i + batch_size]
+            try:
+                df_batch = self._rq.get_factor(batch, field, start_date=start_date, end_date=end_date)
+                if df_batch is not None and len(df_batch) > 0:
+                    dfs.append(df_batch)
+            except Exception as e:
+                print(f"     ⚠️ get_factor batch {i//batch_size + 1} 失败: {e}")
+                continue
+        
+        if not dfs:
+            raise ValueError(f"get_factor 所有批次均失败: field={field}")
+        
+        return pd.concat(dfs)
 
     def get_trading_dates(self, start_date: str, end_date: str) -> List[str]:
         """获取交易日列表"""

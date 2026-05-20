@@ -17,7 +17,7 @@ from core.validation import analyze_factor
 
 def main():
     parser = argparse.ArgumentParser(description="因子生产")
-    parser.add_argument("--factor", default="roe_pyoy_mrq", help="因子名称（对应 specs/<factor>/spec.yaml），默认 roe_mrq_new")
+    parser.add_argument("--factor", default="pe_ttm_delta60", help="因子名称（对应 specs/<factor>/spec.yaml），默认 roe_mrq_new")
     parser.add_argument("--start", default="20100101", help="开始日期，默认 20100101")
     parser.add_argument("--end", default="20251231", help="结束日期，默认 20251231")
     args = parser.parse_args()

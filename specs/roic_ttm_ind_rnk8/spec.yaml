@@ -1,0 +1,74 @@
+factor:
+  name: "roic_ttm_ind_rnk8"
+  name_cn: "过去8期ROIC_TTM行业内排名的最小值"
+  category: "质量"
+  direction: 1
+  description: >
+    以全市场个股为底池，计算过去8个财报期ROIC_TTM行业内排名的最小值。
+    ROIC_TTM越高排名越靠前，取过去8期最好排名（最小值）。
+    因子方向为正向，数值越小表示历史上行业内表现越好。
+
+data_source:
+  api: "get_factor"
+  fields:
+    - return_on_invested_capital_ttm
+
+calculation_steps:
+  - step: 1
+    name: "获取ROIC_TTM时间序列"
+    action: "fetch"
+    api: "get_factor"
+    fields: ["return_on_invested_capital_ttm"]
+    output: "roic_data"
+
+  - step: 2
+    name: "获取中信行业分类"
+    action: "fetch"
+    api: "custom"
+    command: "__internal__zx2019_industry"
+    columns: ["first_industry_name", "order_book_id", "start_date"]
+    output: "industry_data"
+
+  - step: 3
+    name: "Merge行业分类到ROIC数据"
+    action: "compute"
+    input: "roic_data"
+    formula: "roic_ttm = return_on_invested_capital_ttm"
+    merge_columns: ["first_industry_name"]  # 显式指定需要从其他DataFrame merge的列
+    output: "merged_data"
+
+  - step: 4
+    name: "行业内排名"
+    action: "rank"
+    method: "industry_rank"
+    input: "merged_data"
+    rank_column: "roic_ttm"
+    group_column: "first_industry_name"
+    pct: false
+    ascending: false
+    rank_method: "min"
+    output_col: "ind_rank"
+    output: "ranked_data"
+
+  - step: 5
+    name: "过去8期排名最小值（变化日rolling）"
+    action: "rolling"
+    input: "ranked_data"
+    columns: ["ind_rank"]
+    window: 8
+    min_periods: 4
+    agg: "min"
+    group_by: "order_book_id"
+    "on": "return_on_invested_capital_ttm"
+    fill_method: "ffill"
+    output: "rolled_data"
+
+  - step: 6
+    name: "重命名为因子名"
+    action: "compute"
+    input: "rolled_data"
+    formula: "roic_ttm_ind_rnk8 = ind_rank"
+    output: "factor"
+
+universe:
+  primary_index: "ALL"

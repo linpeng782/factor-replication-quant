@@ -20,9 +20,9 @@
 | ⬜ 待复现| roe_apoq_mrq| 单季度ROE环比（分母取绝对值）| fundamental.growth.financial| 景气| —| | 
 | ⬜ 待复现| reg_pe_hist| 经过历史增速变化调整的历史PE变化：取单季度净利润同比、净利润TTM、PE_TTM，分别取log后求60日的diff，先以delta(log(净利润同比))为x，以delta(log(净利润ttm))为x，进行回归残差，再以残差为x，以delta(log(pe_ttm))为y，进行回归残差，得到因子值| fundamental.value.financial| 价值| —| | 
 | ⬜ 待复现| reg_pb_gshe| 经过调整的pb估值因子：在中证全指范围内，取pb_if、roe_mrq和pe_mrq，剔除pb和roe不为正的个股，求ep过去一年的中位数后去极值进行截面分组，再对roe和log(pb)去极值，然后按照回归方程1进行回归，取残差为因子值| fundamental.value.financial| 价值| —| | 
-| ⬜ 待复现| pe_ttm_new| 总市值/TTM净利润| fundamental.value.financial| 价值| —| | 
-| ⬜ 待复现| pe_ttm_delta60| pe ttm的60日差值| fundamental.value.financial| 价值| —| | 
-| ⬜ 待复现| pe_mrq| 总市值/季度净利润| fundamental.value.financial| 价值| —| | 
+| ✅ 已复现| pe_ttm_new| 总市值/TTM净利润| fundamental.value.financial| 价值| IC=0.0148, ICIR=0.155| 2016-2025全历史; ICIR低于基准0.239| 
+| ⚠️ 已复现(有bug)| pe_ttm_delta60| pe ttm的60日差值| fundamental.value.financial| 价值| IC=0.0148, ICIR=0.155| 2016-2025全历史; transform diff未生效，结果=pe_ttm_new| 
+| ✅ 已复现| pe_mrq| 总市值/季度净利润| fundamental.value.financial| 价值| IC=0.0133, ICIR=0.164| 2016-2025全历史; ICIR低于基准0.319| 
 | ⬜ 待复现| npf_pyoy_mrq| 单季度净利润同比（仅保留分母>0的因子值）| fundamental.growth.financial| 景气| —| | 
 | ⬜ 待复现| npf_pqoq_mrq| 单季度净利润环比（仅保留分母>0的因子值）| fundamental.growth.financial| 景气| —| | 
 | ⬜ 待复现| npf_mrq_sue8| SUE：取过去8个报告期单季度净利润，求净利润差分的均值和标准差，因子值为（去年同期净利润+差分均值）/差分标准差| fundamental.growth.financial| 景气| —| | 
@@ -51,7 +51,7 @@
 
 | 排名| 复现状态| 因子名称| 基准 IC| 基准 ICIR| 复现 IC| 复现 ICIR| 差异说明| 
 |-----|---------|---------|--------|----------|--------|----------|---------|
-| 1| ⬜ 待复现| pe_ttm_delta60| 0.06603| 0.925371| —| —| 
+| 1| ⚠️ 有bug| pe_ttm_delta60| 0.06603| 0.925371| 0.0148| 0.155| diff未生效，结果=pe_ttm_new |
 | 2| ✅ 已复现| roe_mrq_new| 0.043308| 0.866826| 0.0160| 0.127| 
 | 3| ⬜ 待复现| reg_pe_hist| 0.063474| 0.849152| —| —| 
 | 4| ⬜ 待复现| npf_mrq_sue8| 0.065929| 1.284021| —| —| 
@@ -64,12 +64,12 @@
 | 11| ⬜ 待复现| reg_pb_gshe| 0.025375| 0.530611| —| —| 
 | 12| ⬜ 待复现| net_oper_cash_flow_ttm| 0.024354| 0.423618| —| —| 
 | 13| ⬜ 待复现| npf_ayoy_mrq| 0.022056| 0.450364| —| —| 
-| 14| ⬜ 待复现| pe_ttm| 0.009254| 0.286079| —| —| 
-| 15| ⬜ 待复现| pe_mrq| 0.009089| 0.318828| —| —| 
-| 16| ⬜ 待复现| pe_ttm_new| 0.007571| 0.238829| —| —| 
+| 14| ✅ 已复现| pe_ttm_new| 0.007571| 0.238829| 0.0148| 0.155| IC高于基准，ICIR低于基准 |
+| 15| ✅ 已复现| pe_mrq| 0.009089| 0.318828| 0.0133| 0.164| IC高于基准，ICIR低于基准 |
+| 16| ⬜ 待复现| pe_ttm| 0.009254| 0.286079| —| —| 
 | 17| ⬜ 待复现| roe_apoq_mrq| 0.014043| 0.441654| —| —| 
 | 18| ⬜ 待复现| npf_apoq_mrq| 0.012952| 0.407404| —| —| 
-| 19| ⬜ 待复现| roe_pqoq_mrq| 0.012381| 0.321605| —| —| 
+| 19| ✅ 已复现| roe_pqoq_mrq| 0.012381| 0.321605| 0.0118| 0.182| 
 | 20| ⬜ 待复现| npf_pqoq_mrq| 0.011049| 0.289415| —| —| 
 | 21| ⬜ 待复现| npf_apoq_mrq| 0.009881| 0.305221| —| —| 
 
@@ -77,19 +77,22 @@
 
 ## 四、复现统计
 
-| 分类 | 总数 | 已复现 | 待复现 |
-|------|-----|--------|--------|
-| 单因子 | 22 | 5 | 17 |
-| 辅助指标 | 3 | 0 | 3 |
-| **合计** | **25** | **5** | **20** |
+| 分类 | 总数 | 已复现 | 待复现 | 有bug |
+|------|-----|--------|--------|-------|
+| 单因子 | 22 | 7 | 14 | 1 |
+| 辅助指标 | 3 | 0 | 3 | 0 |
+| **合计** | **25** | **7** | **17** | **1** |
 
 ### 已复现因子详情
 
 | 因子名 | 评估区间 | 复现 IC | 复现 ICIR | 单调性 | 评估图路径 |
 |--------|---------|--------|----------|--------|-----------|
-| +0.979| roe_mrq_new| 2016-01-04 ~ 2025-12-30| 0.0160| 0.127| `output/roe_mrq_new/evaluation.png`| | 
-| +0.971| roe_pyoy_mrq| 2016-01-04 ~ 2025-12-30| 0.0196| 0.242| `output/roe_pyoy_mrq/evaluation.png`| | 
-| +0.889| roe_pqoq_mrq| 2016-01-04 ~ 2025-12-30| 0.0118| 0.182| `output/roe_pqoq_mrq/evaluation.png`| | 
+| roe_mrq_new| 2016-01-04 ~ 2025-12-31| 0.0160| 0.127| +0.979| `output/roe_mrq_new/evaluation_20160101_20251231.png`|
+| roe_pyoy_mrq| 2016-01-04 ~ 2025-12-31| 0.0196| 0.242| +0.971| `output/roe_pyoy_mrq/evaluation_20160101_20251231.png`|
+| roe_pqoq_mrq| 2016-01-04 ~ 2025-12-31| 0.0118| 0.182| +0.889| `output/roe_pqoq_mrq/evaluation_20160101_20251231.png`|
+| pe_ttm_new| 2016-01-04 ~ 2025-12-31| 0.0148| 0.155| +0.772| `output/pe_ttm_new/evaluation_20160101_20251231.png`|
+| pe_mrq| 2016-01-04 ~ 2025-12-31| 0.0133| 0.164| +0.660| `output/pe_mrq/evaluation_20160101_20251231.png`|
+| pe_ttm_delta60| 2016-01-04 ~ 2025-12-31| 0.0148| 0.155| +0.772| `output/pe_ttm_delta60/evaluation_20160101_20251231.png`| ⚠️ diff未生效，等于pe_ttm_new| 
 
 > 注意：roe_pyoy_mrq 与 roe_mrq_new 的复现结果相同，是因为实际评估使用的是同一套清洗后因子。roe_pyoy_mrq 的完整复现（含 YOLO 生成）待后续补充。
 

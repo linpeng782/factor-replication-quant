@@ -31,7 +31,6 @@ from pathlib import Path
 import yaml
 import pandas as pd
 
-from core.pdf_parser import parse_raw_text
 from core.spec_generator import generate_spec, load_spec_yaml
 from core.spec_validator import is_confirmed, validate_and_confirm
 from core.yolo_engine import run_factor
@@ -117,14 +116,10 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    # 读取输入
+    # 读取输入（pdf_parser 已移除，仅支持纯文本输入或 .txt / .md 文件）
     input_path = Path(args.input)
     if input_path.exists():
-        if input_path.suffix in (".txt", ".md", ".pdf"):
-            from core.pdf_parser import parse_input
-            input_text = parse_input(input_path)
-        else:
-            input_text = Path(args.input).read_text(encoding="utf-8")
+        input_text = Path(args.input).read_text(encoding="utf-8")
     else:
         input_text = args.input
 

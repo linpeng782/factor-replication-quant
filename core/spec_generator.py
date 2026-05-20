@@ -1,240 +1,237 @@
 """
-Spec 生成层：将输入文本/PDF → Spec Markdown → Spec YAML
+Spec 生成层：研报文字描述 → spec.yaml（单段式 LLM + 校验重试闭环）
 
-支持两种模式：
-1. manual 模式：生成 Prompt 文件，用户手动贴到 LLM（如 kimi CLI），将结果保存回来
-2. auto 模式：自动调用 LLM API 生成（需要配置 API Key）
+调用 LLM（Moonshot Kimi 兼容 OpenAI SDK）一次产出 yaml；用 spec_schema.validate_spec
+做静态校验，校验失败时把错误回传给 LLM 自我纠正，最多重试 N 次。
 
-输出：
-- specs/<factor_name>/spec.md      人类可读的 Spec 文档
-- specs/<factor_name>/spec.yaml    机器可读的 YAML 配置
+公开入口：
+    generate_spec_from_research(input_text: str, factor_name: str) -> dict
+
+会写出：
+    specs/<factor_name>/spec.yaml          LLM 直产并校验通过的 yaml
+    specs/<factor_name>/.llm_session.json  保留 LLM 完整对话历史（含 thinking 和重试）
 """
 
+from __future__ import annotations
+
+import json
 import os
 import re
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import yaml
+from loguru import logger
+
+from core.spec_schema import SpecError, validate_spec
 
 
-PROMPT_DIR = Path(__file__).parent.parent / "prompts"
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 SPECS_DIR = Path(__file__).parent.parent / "specs"
+PROMPT_FILE = PROMPTS_DIR / "research_to_yaml.md"
+
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_TEMPERATURE = 1.0   # kimi-k2.6 仅接受 1.0；其他模型可在调用时显式覆盖
 
 
-def generate_spec(
+# ── 提取 yaml 块 ────────────────────────────────────────────
+
+
+_YAML_BLOCK_RE = re.compile(r"<spec_yaml>\s*(.*?)\s*</spec_yaml>", re.DOTALL)
+_THINKING_RE = re.compile(r"<thinking>\s*(.*?)\s*</thinking>", re.DOTALL)
+_FENCE_YAML_RE = re.compile(r"```ya?ml\s*(.*?)\s*```", re.DOTALL)
+
+
+def _extract_yaml(text: str) -> str:
+    """从 LLM 输出抠出 yaml 块。优先 <spec_yaml>，否则尝试 ```yaml 围栏，否则整段。"""
+    m = _YAML_BLOCK_RE.search(text)
+    if m:
+        return m.group(1).strip()
+    m = _FENCE_YAML_RE.search(text)
+    if m:
+        return m.group(1).strip()
+    return text.strip()
+
+
+def _extract_thinking(text: str) -> Optional[str]:
+    m = _THINKING_RE.search(text)
+    return m.group(1).strip() if m else None
+
+
+# ── LLM 客户端 ────────────────────────────────────────────
+
+
+def _load_env():
+    """加载 .env（不引入额外依赖，自己 parse 一下）"""
+    env_path = Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+def _make_client():
+    _load_env()
+    from openai import OpenAI
+
+    api_key = os.environ.get("MOONSHOT_API_KEY")
+    base_url = os.environ.get("MOONSHOT_BASE_URL")
+    if not api_key or not base_url:
+        raise RuntimeError(
+            "缺少 MOONSHOT_API_KEY 或 MOONSHOT_BASE_URL；请检查 .env"
+        )
+    return OpenAI(api_key=api_key, base_url=base_url)
+
+
+def _model_name() -> str:
+    return os.environ.get("MOONSHOT_MODEL", "moonshot-v1-32k")
+
+
+# ── 主流程 ────────────────────────────────────────────────
+
+
+def generate_spec_from_research(
     input_text: str,
-    factor_name: Optional[str] = None,
-    mode: str = "manual",
-    llm_config: Optional[dict] = None,
-) -> Tuple[Path, Path]:
+    factor_name: str,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    temperature: float = DEFAULT_TEMPERATURE,
+) -> dict:
     """
-    主入口：输入文本 → 生成 Spec Markdown + Spec YAML
+    研报文字 → spec.yaml（含 LLM 自我纠错循环）
 
-    Args:
-        input_text: 因子描述文本（研报原文或用户输入）
-        factor_name: 因子英文名称，如未提供则尝试从文本中提取
-        mode: "manual" 或 "auto"
-        llm_config: auto 模式下的 LLM 配置 {provider, api_key, model, base_url}
-
-    Returns:
-        (spec_md_path, spec_yaml_path)
+    成功时把 yaml 写到 specs/<factor_name>/spec.yaml 并返回 spec dict。
+    失败时 raise RuntimeError。
     """
-    # 1. 确定因子名
-    if factor_name is None:
-        factor_name = _extract_factor_name(input_text)
-    factor_name = factor_name.strip().lower()
+    if not PROMPT_FILE.exists():
+        raise FileNotFoundError(f"prompt 文件不存在: {PROMPT_FILE}")
+    system_prompt = PROMPT_FILE.read_text(encoding="utf-8")
 
+    client = _make_client()
+    model = _model_name()
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": f"# 输入研报\n{input_text.strip()}\n\n# 期望 factor.name\n`{factor_name}`",
+        },
+    ]
+    session = []  # 完整对话日志，最后落盘
+
+    spec: Optional[dict] = None
+    last_err: Optional[str] = None
+
+    for attempt in range(1, max_retries + 1):
+        logger.info(f"[spec_gen] LLM 调用 attempt {attempt}/{max_retries} (model={model})")
+        resp = client.chat.completions.create(
+            model=model, messages=messages, temperature=temperature
+        )
+        text = resp.choices[0].message.content or ""
+        thinking = _extract_thinking(text)
+        yaml_text = _extract_yaml(text)
+
+        session.append(
+            {
+                "attempt": attempt,
+                "thinking": thinking,
+                "yaml_text": yaml_text,
+                "raw": text,
+            }
+        )
+        if thinking:
+            logger.info(f"[spec_gen] thinking:\n{thinking}")
+
+        # 解析 + 校验
+        try:
+            spec_candidate = yaml.safe_load(yaml_text)
+            if not isinstance(spec_candidate, dict):
+                raise yaml.YAMLError("LLM 输出顶层不是 dict")
+            validate_spec(spec_candidate)
+        except (yaml.YAMLError, SpecError, KeyError) as e:
+            last_err = f"{type(e).__name__}: {e}"
+            logger.warning(f"[spec_gen] attempt {attempt} 失败: {last_err}")
+            messages.append({"role": "assistant", "content": text})
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "上次输出违反约束：\n"
+                        f"{last_err}\n\n"
+                        "请保持完整 <thinking> + <spec_yaml> 输出协议，"
+                        "修复违反点后重新输出整份 yaml。"
+                    ),
+                }
+            )
+            continue
+
+        spec = spec_candidate
+        logger.info(f"[spec_gen] ✅ attempt {attempt} 校验通过")
+        break
+
+    # 写盘
     factor_dir = SPECS_DIR / factor_name
     factor_dir.mkdir(parents=True, exist_ok=True)
-
-    spec_md_path = factor_dir / "spec.md"
-    spec_yaml_path = factor_dir / "spec.yaml"
-
-    # 2. 生成 Spec Markdown
-    if mode == "manual":
-        spec_md = _generate_spec_manual(input_text, factor_name, spec_md_path)
-    else:
-        spec_md = _generate_spec_auto(input_text, factor_name, llm_config or {})
-        spec_md_path.write_text(spec_md, encoding="utf-8")
-
-    # 3. 生成 Spec YAML
-    if mode == "manual":
-        # manual 模式下，YAML 也由用户手动提供，或后续单独提取
-        _generate_yaml_manual(spec_md, factor_name, spec_yaml_path)
-    else:
-        spec_yaml = _extract_yaml_from_spec_auto(spec_md, llm_config or {})
-        spec_yaml_path.write_text(spec_yaml, encoding="utf-8")
-
-    print(f"✅ Spec 已生成: {factor_dir}")
-    print(f"   - Markdown: {spec_md_path}")
-    print(f"   - YAML: {spec_yaml_path}")
-
-    if mode == "manual":
-        print("\n⚠️  当前为 manual 模式，请按以下步骤操作：")
-        print(f"   1. 打开 {factor_dir}/prompt_for_llm.txt，复制内容到 kimi CLI")
-        print("   2. 将 LLM 输出的 Spec Markdown 保存到 spec.md")
-        print("   3. 再复制 spec.md 内容到 kimi CLI，要求生成 YAML")
-        print("   4. 将 YAML 保存到 spec.yaml")
-
-    return spec_md_path, spec_yaml_path
-
-
-def _extract_factor_name(text: str) -> str:
-    """从文本中提取因子名称（第一行冒号/中文冒号前的英文单词）"""
-    lines = text.strip().splitlines()
-    for line in lines:
-        line = line.strip()
-        # 支持英文冒号 : 和中文冒号 ：
-        for sep in [":", "："]:
-            if sep in line:
-                name = line.split(sep)[0].strip()
-                if name and re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", name):
-                    return name
-    return "unknown_factor"
-
-
-def _generate_spec_manual(input_text: str, factor_name: str, spec_md_path: Path) -> str:
-    """
-    Manual 模式：生成 Prompt 文件供用户手动贴到 LLM
-    不直接生成 spec.md，而是生成 prompt_for_llm.txt
-    """
-    factor_dir = spec_md_path.parent
-    factor_dir.mkdir(parents=True, exist_ok=True)
-
-    # 读取 Prompt 模板
-    prompt_template_path = PROMPT_DIR / "spec_generation.txt"
-    prompt_template = prompt_template_path.read_text(encoding="utf-8")
-    prompt = prompt_template.replace("{input_content}", input_text)
-
-    prompt_path = factor_dir / "prompt_for_llm.txt"
-    prompt_path.write_text(prompt, encoding="utf-8")
-
-    # 同时生成一个空的 spec.md 占位
-    placeholder = (
-        f"# Spec 文档：{factor_name}\n\n"
-        f"> ⚠️ 当前为 manual 模式。请将 prompt_for_llm.txt 的内容发送给 LLM，\n"
-        f"> 然后将 LLM 的回复保存到此文件，覆盖本占位内容。\n"
-    )
-    spec_md_path.write_text(placeholder, encoding="utf-8")
-
-    return placeholder
-
-
-def _generate_yaml_manual(spec_md: str, factor_name: str, spec_yaml_path: Path) -> None:
-    """
-    Manual 模式：生成 YAML 提取的 Prompt 文件
-    同时放一个占位 YAML
-    """
-    factor_dir = spec_yaml_path.parent
-    prompt_template_path = PROMPT_DIR / "yaml_extraction.txt"
-    prompt_template = prompt_template_path.read_text(encoding="utf-8")
-    prompt = prompt_template.replace("{spec_md}", spec_md)
-
-    prompt_path = factor_dir / "prompt_for_yaml.txt"
-    prompt_path.write_text(prompt, encoding="utf-8")
-
-    placeholder = (
-        f"# Spec YAML: {factor_name}\n"
-        f"# ⚠️ 当前为 manual 模式。请将 prompt_for_yaml.txt 的内容发送给 LLM，\n"
-        f"# 然后将生成的 YAML 保存到此文件，覆盖本占位内容。\n"
-    )
-    spec_yaml_path.write_text(placeholder, encoding="utf-8")
-
-
-def _generate_spec_auto(input_text: str, factor_name: str, llm_config: dict) -> str:
-    """
-    Auto 模式：自动调用 LLM API 生成 Spec Markdown
-    目前支持 OpenAI 兼容接口（Kimi / Zhipu 等）
-    """
-    prompt_template_path = PROMPT_DIR / "spec_generation.txt"
-    prompt = prompt_template_path.read_text(encoding="utf-8").replace(
-        "{input_content}", input_text
+    session_path = factor_dir / ".llm_session.json"
+    session_path.write_text(
+        json.dumps(session, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    provider = llm_config.get("provider", "openai")
-    api_key = llm_config.get("api_key", os.environ.get("MOONSHOT_API_KEY", os.environ.get("OPENAI_API_KEY", "")))
-    model = llm_config.get("model", os.environ.get("MOONSHOT_MODEL", "kimi-k2.6"))
-    base_url = llm_config.get("base_url", os.environ.get("MOONSHOT_BASE_URL", "https://api.moonshot.cn/v1"))
-
-    if not api_key:
-        raise ValueError(
-            "auto 模式需要提供 API Key，请设置 llm_config['api_key'] 或环境变量 OPENAI_API_KEY"
+    if spec is None:
+        raise RuntimeError(
+            f"spec 生成失败（已重试 {max_retries} 次）；"
+            f"最后错误: {last_err}；详见 {session_path}"
         )
 
-    try:
-        import openai
-    except ImportError:
-        raise ImportError("auto 模式需要安装 openai: pip install openai")
-
-    client = openai.OpenAI(api_key=api_key, base_url=base_url)
-
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "你是一名量化研究专家。"},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=1,
-        max_tokens=4096,
+    spec_path = factor_dir / "spec.yaml"
+    header = (
+        "# 由 core/spec_generator 从研报自动产出，已通过 spec_schema 静态校验。\n"
+        "# 编辑后请重新跑 validate_spec 确认；完整 LLM 对话见 .llm_session.json。\n"
     )
-
-    return response.choices[0].message.content
-
-
-def _extract_yaml_from_spec_auto(spec_md: str, llm_config: dict) -> str:
-    """
-    Auto 模式：自动调用 LLM API 从 Spec Markdown 提取 YAML
-    """
-    prompt_template_path = PROMPT_DIR / "yaml_extraction.txt"
-    prompt = prompt_template_path.read_text(encoding="utf-8").replace(
-        "{spec_md}", spec_md
+    spec_path.write_text(
+        header + yaml.dump(spec, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
     )
+    logger.info(f"[spec_gen] ✅ 写入 {spec_path}")
+    return spec
 
-    provider = llm_config.get("provider", "openai")
-    api_key = llm_config.get("api_key", os.environ.get("MOONSHOT_API_KEY", os.environ.get("OPENAI_API_KEY", "")))
-    model = llm_config.get("model", os.environ.get("MOONSHOT_MODEL", "kimi-k2.6"))
-    base_url = llm_config.get("base_url", os.environ.get("MOONSHOT_BASE_URL", "https://api.moonshot.cn/v1"))
-
-    try:
-        import openai
-    except ImportError:
-        raise ImportError("auto 模式需要安装 openai: pip install openai")
-
-    client = openai.OpenAI(api_key=api_key, base_url=base_url)
-
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "你是一个结构化数据提取专家，只输出 YAML，不输出其他内容。"},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=1,
-        max_tokens=4096,
-    )
-
-    content = response.choices[0].message.content
-    # 尝试提取代码块中的 YAML
-    match = re.search(r"```yaml\n(.*?)\n```", content, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return content.strip()
-
-
-# ── 便捷函数 ────────────────────────────────
 
 def load_spec_yaml(factor_name: str) -> dict:
-    """加载已生成的 Spec YAML"""
-    path = SPECS_DIR / factor_name / "spec.yaml"
-    if not path.exists():
-        raise FileNotFoundError(f"Spec YAML 不存在: {path}")
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """读 specs/<factor>/spec.yaml；运行流水线时用。"""
+    spec_path = SPECS_DIR / factor_name / "spec.yaml"
+    if not spec_path.exists():
+        raise FileNotFoundError(f"Spec 文件不存在: {spec_path}")
+    return yaml.safe_load(spec_path.read_text(encoding="utf-8"))
 
 
-def load_spec_md(factor_name: str) -> str:
-    """加载已生成的 Spec Markdown"""
-    path = SPECS_DIR / factor_name / "spec.md"
-    if not path.exists():
-        raise FileNotFoundError(f"Spec Markdown 不存在: {path}")
-    return path.read_text(encoding="utf-8")
+# ── 独立 CLI（用于先验证 LLM 生成链路，run.py 集成是后续步骤）────
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    p = argparse.ArgumentParser(
+        description="从研报文字生成 spec.yaml（LLM + 校验闭环）"
+    )
+    p.add_argument("factor_name", help="目标 factor 英文名（snake_case）")
+    p.add_argument("--input", "-i", required=True, help="研报文字文件路径")
+    p.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
+    p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
+    args = p.parse_args()
+
+    text = Path(args.input).read_text(encoding="utf-8")
+    try:
+        spec = generate_spec_from_research(
+            text,
+            args.factor_name,
+            max_retries=args.max_retries,
+            temperature=args.temperature,
+        )
+    except Exception as e:
+        logger.error(f"❌ {e}")
+        sys.exit(1)
+    print(yaml.dump(spec, allow_unicode=True, sort_keys=False))

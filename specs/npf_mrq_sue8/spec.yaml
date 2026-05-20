@@ -1,0 +1,75 @@
+# 由 core/spec_generator 从研报自动产出，已通过 spec_schema 静态校验。
+# 编辑后请重新跑 validate_spec 确认；完整 LLM 对话见 .llm_session.json。
+factor:
+  name: npf_mrq_sue8
+  name_cn: 单季度净利润 SUE8
+  category: 景气
+  direction: 1
+  column: npf_mrq_sue8
+  description: '基于过去 8 个季度单季度净利润的 SUE。预期净利润 = 去年同期净利润 + 相邻季度差分均值； SUE = (当期净利润 - 预期净利润)
+    / 差分标准差。
+
+    '
+universe:
+  primary_index: ALL
+calculation_steps:
+- name: 获取过去 8 个季度单季度净利润
+  action: fetch
+  api: get_factor
+  fields:
+  - net_profit_mrq_0
+  - net_profit_mrq_1
+  - net_profit_mrq_2
+  - net_profit_mrq_3
+  - net_profit_mrq_4
+  - net_profit_mrq_5
+  - net_profit_mrq_6
+  - net_profit_mrq_7
+  output_columns:
+    net_profit_mrq_0: net_profit_mrq_0
+    net_profit_mrq_1: net_profit_mrq_1
+    net_profit_mrq_2: net_profit_mrq_2
+    net_profit_mrq_3: net_profit_mrq_3
+    net_profit_mrq_4: net_profit_mrq_4
+    net_profit_mrq_5: net_profit_mrq_5
+    net_profit_mrq_6: net_profit_mrq_6
+    net_profit_mrq_7: net_profit_mrq_7
+- name: 计算差分均值
+  action: compute
+  formula: (net_profit_mrq_0 - net_profit_mrq_7) / 7.0
+  source_columns:
+  - net_profit_mrq_0
+  - net_profit_mrq_7
+  output_column: mean_diff
+- name: 计算差分平方和
+  action: compute
+  formula: (net_profit_mrq_6 - net_profit_mrq_7)**2 + (net_profit_mrq_5 - net_profit_mrq_6)**2
+    + (net_profit_mrq_4 - net_profit_mrq_5)**2 + (net_profit_mrq_3 - net_profit_mrq_4)**2
+    + (net_profit_mrq_2 - net_profit_mrq_3)**2 + (net_profit_mrq_1 - net_profit_mrq_2)**2
+    + (net_profit_mrq_0 - net_profit_mrq_1)**2
+  source_columns:
+  - net_profit_mrq_0
+  - net_profit_mrq_1
+  - net_profit_mrq_2
+  - net_profit_mrq_3
+  - net_profit_mrq_4
+  - net_profit_mrq_5
+  - net_profit_mrq_6
+  - net_profit_mrq_7
+  output_column: sum_sq_diff
+- name: 计算差分标准差
+  action: compute
+  formula: sqrt((sum_sq_diff - 7.0 * mean_diff**2) / 6.0)
+  source_columns:
+  - sum_sq_diff
+  - mean_diff
+  output_column: std_diff
+- name: 计算 SUE8
+  action: compute
+  formula: (net_profit_mrq_0 - net_profit_mrq_4 - mean_diff) / std_diff
+  source_columns:
+  - net_profit_mrq_0
+  - net_profit_mrq_4
+  - mean_diff
+  - std_diff
+  output_column: npf_mrq_sue8

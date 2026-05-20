@@ -31,7 +31,7 @@ from pathlib import Path
 import yaml
 import pandas as pd
 
-from core.spec_generator import generate_spec, load_spec_yaml
+from core.spec_generator import load_spec_yaml
 from core.spec_validator import is_confirmed, validate_and_confirm
 from core.yolo_engine import run_factor
 from core.report_generator import generate_report
@@ -110,54 +110,12 @@ def main():
         )
         return
 
-    # ── 模式3: 从输入创建新因子 ───────────────────────
-    if not args.input:
-        print("❌ 请提供 --input 输入文本或 --factor 指定已有因子")
-        parser.print_help()
-        sys.exit(1)
-
-    # 读取输入（pdf_parser 已移除，仅支持纯文本输入或 .txt / .md 文件）
-    input_path = Path(args.input)
-    if input_path.exists():
-        input_text = Path(args.input).read_text(encoding="utf-8")
-    else:
-        input_text = args.input
-
-    print(f"📥 输入内容:\n{input_text[:200]}...\n")
-
-    # Step 1: Spec 生成
-    spec_md_path, spec_yaml_path = generate_spec(
-        input_text=input_text,
-        mode=args.mode,
-    )
-
-    if args.mode == "manual":
-        print("\n⏳ Manual 模式已生成 Prompt 文件，请按提示操作后重新运行 --yolo-only")
-        return
-
-    # Step 2: 人机确认
-    spec_yaml = load_spec_yaml(spec_yaml_path.parent.name)
-    confirmed = validate_and_confirm(
-        factor_name=spec_yaml["factor"]["name"],
-        spec_yaml=spec_yaml,
-        auto_confirm=args.auto_confirm,
-        interactive=True,
-    )
-
-    if not confirmed:
-        print("\n❌ 因子未确认，流程终止")
-        return
-
-    # Step 3: YOLO 执行 + 评估
-    factor_name = spec_yaml["factor"]["name"]
-    run_single_factor(
-        factor_name=factor_name,
-        yolo_only=True,
-        evaluate=args.evaluate,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        trade_date=args.trade_date,
-    )
+    # 没指定 --factor 也没 --batch-confirmed → 报错
+    print("❌ 请指定 --factor <name> 或 --batch-confirmed")
+    print("   研报 → spec.yaml 现走 LLM 生成链路：")
+    print("   python -m core.spec_generator <factor_name> --input <research.md>")
+    parser.print_help()
+    sys.exit(1)
 
 
 def run_single_factor(

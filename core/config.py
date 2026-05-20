@@ -30,3 +30,8 @@ OUTPUT_DIR = Path(__file__).parent.parent / "output"
 _BASE_FACTOR_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication")
 RAW_FACTOR_DIR = _BASE_FACTOR_DIR / "raw_factor"
 CLEANED_FACTOR_DIR = _BASE_FACTOR_DIR / "cleaned_factor"
+
+# ==================== 默认评估区间 ====================
+# CLI 不显式指定 --start-date/--end-date 时使用
+DEFAULT_START_DATE = "20160101"
+DEFAULT_END_DATE = "20251231"

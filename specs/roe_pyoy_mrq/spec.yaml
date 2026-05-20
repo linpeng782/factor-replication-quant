@@ -1,53 +1,46 @@
 factor:
-  name: "roe_pyoy_mrq"
-  name_cn: "单季度ROE同比"
-  category: "单因子"
+  name: roe_pyoy_mrq
+  name_cn: "单季度 ROE 同比（分母 > 0 版）"
+  category: 景气
   direction: 1
-  description: "单季度ROE的同比增长率，仅保留去年同期ROE大于0的样本"
-
-formula:
-  expression: "(roe_mrq_0 - roe_mrq_4) / abs(roe_mrq_4)"
-
-data_source:
-  api: "get_factor"
-  fields:
-    - net_profit_mrq_0
-    - net_profit_mrq_4
-    - total_equity_mrq_0
-    - total_equity_mrq_4
-
-calculation_steps:
-  - step: 1
-    name: "获取单季度数据"
-    action: "fetch"
-    api: "get_factor"
-    fields: ["net_profit_mrq_0", "net_profit_mrq_4", "total_equity_mrq_0", "total_equity_mrq_4"]
-    output: "financial_data"
-
-  - step: 2
-    name: "计算单季度ROE（当期）"
-    action: "compute"
-    formula: "roe_mrq_0 = net_profit_mrq_0 / total_equity_mrq_0"
-    output: "roe_mrq_data"
-
-  - step: 3
-    name: "计算单季度ROE（同期）"
-    action: "compute"
-    formula: "roe_mrq_4 = net_profit_mrq_4 / total_equity_mrq_4"
-    output: "roe_mrq_data_4"
-
-  - step: 4
-    name: "计算同比"
-    action: "compute"
-    formula: "roe_pyoy_mrq = (roe_mrq_0 - roe_mrq_4) / abs(roe_mrq_4)"
-    output: "roe_pyoy_mrq_raw"
-
-  - step: 5
-    name: "过滤分母"
-    action: "filter"
-    input: "roe_pyoy_mrq_raw"
-    condition: "roe_mrq_4 > 0"
-    output: "roe_pyoy_mrq"
+  column: roe_pyoy_mrq
+  description: >
+    单季度 ROE 同比增长率：(roe_mrq_0 - roe_mrq_4) / abs(roe_mrq_4)。
+    仅保留去年同期 ROE > 0 的样本（过滤负基数）。
+    因子方向为正向，ROE 改善预期收益更高。
 
 universe:
-  primary_index: "ALL"
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取当期与去年同期单季度数据
+    action: fetch
+    api: get_factor
+    fields: [net_profit_mrq_0, total_equity_mrq_0, net_profit_mrq_4, total_equity_mrq_4]
+    output_columns:
+      net_profit_mrq_0: net_profit_mrq_0
+      total_equity_mrq_0: total_equity_mrq_0
+      net_profit_mrq_4: net_profit_mrq_4
+      total_equity_mrq_4: total_equity_mrq_4
+
+  - name: 计算当期单季度 ROE
+    action: compute
+    formula: net_profit_mrq_0 / total_equity_mrq_0
+    source_columns: [net_profit_mrq_0, total_equity_mrq_0]
+    output_column: roe_mrq_0
+
+  - name: 计算去年同期单季度 ROE
+    action: compute
+    formula: net_profit_mrq_4 / total_equity_mrq_4
+    source_columns: [net_profit_mrq_4, total_equity_mrq_4]
+    output_column: roe_mrq_4
+
+  - name: 计算单季度 ROE 同比
+    action: compute
+    formula: (roe_mrq_0 - roe_mrq_4) / abs(roe_mrq_4)
+    source_columns: [roe_mrq_0, roe_mrq_4]
+    output_column: roe_pyoy_mrq
+
+  - name: 过滤分母 > 0
+    action: filter
+    condition: roe_mrq_4 > 0

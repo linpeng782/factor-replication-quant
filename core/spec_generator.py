@@ -207,7 +207,9 @@ def load_spec_yaml(factor_name: str) -> dict:
     return yaml.safe_load(spec_path.read_text(encoding="utf-8"))
 
 
-# ── 独立 CLI（用于先验证 LLM 生成链路，run.py 集成是后续步骤）────
+# ── 独立 CLI ────────────────────────────────────────────────
+# 用法（研报文件按约定放在 inputs/<factor_name>.md）：
+#     python -m core.spec_generator npf_mrq_sue8
 
 
 if __name__ == "__main__":
@@ -215,15 +217,29 @@ if __name__ == "__main__":
     import sys
 
     p = argparse.ArgumentParser(
-        description="从研报文字生成 spec.yaml（LLM + 校验闭环）"
+        description="从研报文字生成 spec.yaml（LLM + spec_schema 校验闭环）",
     )
     p.add_argument("factor_name", help="目标 factor 英文名（snake_case）")
-    p.add_argument("--input", "-i", required=True, help="研报文字文件路径")
+    p.add_argument(
+        "--input",
+        "-i",
+        type=Path,
+        default=None,
+        help="（可选）覆盖默认输入路径；默认按约定读 inputs/<factor_name>.md",
+    )
     p.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
     p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
     args = p.parse_args()
 
-    text = Path(args.input).read_text(encoding="utf-8")
+    INPUTS_DIR = Path(__file__).parent.parent / "inputs"
+    input_path = args.input or (INPUTS_DIR / f"{args.factor_name}.md")
+    if not input_path.exists():
+        p.error(
+            f"输入文件不存在: {input_path}\n"
+            f"约定路径: inputs/<factor_name>.md，或用 --input 显式指定"
+        )
+
+    text = input_path.read_text(encoding="utf-8")
     try:
         spec = generate_spec_from_research(
             text,

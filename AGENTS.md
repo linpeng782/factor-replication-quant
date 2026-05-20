@@ -37,18 +37,30 @@ inputs/ → specs/<factor>/{spec.md, spec.yaml} → confirm/<factor>/
 ## 3. 常用命令
 
 ```bash
-# 新增因子（手动模式，推荐）
-python run.py --input "factor_name：描述" --mode manual
+# 1) 从研报生成 spec.yaml（LLM + 静态校验闭环）
+#    研报文字按约定放在 inputs/<factor_name>.md
+python -m core.spec_generator npf_mrq_sue8
 
-# 执行已确认因子（YOLO + 评估）
-python run.py --factor roe_mrq_new --yolo-only --evaluate
+# 2) 默认全流程：YOLO + 评估
+python run.py roe_mrq_new
 
-# 仅评估已有因子（可任意指定区间）
-python run.py --factor roe_mrq_new --evaluate-only --start-date 20160101 --end-date 20251231
+# 3) 只跑 YOLO，不评估
+python run.py roe_mrq_new --yolo-only
 
-# 批量执行
-python run.py --batch-confirmed --start-date 20160101 --end-date 20251231
+# 4) 只评估已有 raw 因子
+python run.py roe_mrq_new --evaluate-only
+
+# 5) 自定义评估区间 + 并发
+python run.py roe_mrq_new --start-date 20200101 --end-date 20251231 --workers 16
+
+# 6) 批量回归（用 shell 循环，CLI 不再内置 --all）
+for f in $(ls specs); do python run.py $f --evaluate-only; done
 ```
+
+### CLI 设计原则
+
+- **spec 生成与执行分离**：`python -m core.spec_generator <FACTOR>`（rare，慢）vs `python run.py <FACTOR>`（daily，快）
+- **约定优于配置**：研报按 `inputs/<FACTOR>.md` 放；spec 按 `specs/<FACTOR>/spec.yaml` 放；不需要在 CLI 里反复传路径
 
 ---
 

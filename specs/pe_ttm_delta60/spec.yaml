@@ -1,39 +1,27 @@
 factor:
-  name: "pe_ttm_delta60"
+  name: pe_ttm_delta60
   name_cn: "PE_TTM 60日差值"
-  category: "价值"
+  category: 价值
   direction: -1
-  description: "PE_TTM的60日差值，衡量估值变化趋势。PE下降越多（差值越负），预期收益越高。因子方向为负向。"
-
-data_source:
-  api: "get_factor"
-  fields:
-    - pe_ratio_ttm
-
-calculation_steps:
-  - step: 1
-    name: "获取PE_TTM"
-    action: "fetch"
-    api: "get_factor"
-    fields: ["pe_ratio_ttm"]
-    output: "pe_data"
-
-  - step: 2
-    name: "计算60日差值"
-    action: "transform"
-    input: "pe_data"
-    method: "diff"
-    periods: 60
-    group_column: "order_book_id"
-    columns: ["pe_ratio_ttm"]
-    output: "diff_data"
-
-  - step: 3
-    name: "重命名为因子名"
-    action: "compute"
-    input: "diff_data"
-    formula: "pe_ttm_delta60 = pe_ratio_ttm"
-    output: "factor"
+  column: pe_ttm_delta60
+  description: >
+    PE_TTM 的 60 日差值。PE 下降越多（差值越负），预期收益越高。
+    因子方向为负向。
 
 universe:
-  primary_index: "ALL"
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取 PE_TTM
+    action: fetch
+    api: get_factor
+    fields: [pe_ratio_ttm]
+    output_column: pe_ratio_ttm
+
+  - name: 计算 60 日差值
+    action: transform
+    method: diff
+    source_column: pe_ratio_ttm
+    output_column: pe_ttm_delta60
+    periods: 60
+    group_by: order_book_id

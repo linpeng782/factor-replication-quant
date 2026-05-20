@@ -1,43 +1,45 @@
 """
-YOLO 执行层：读取 Spec YAML → 全自动执行数据获取 + 因子计算
+YOLO 执行引擎
+============================================================
+读取 spec yaml → 静态校验 → 按 calculation_steps 顺序调度算子 → 主表
+按 factor.column pivot 成 (T, N) 宽表落盘。
 
-核心设计：计算图执行引擎
-- 不针对每个因子硬编码，而是根据 YAML 的 calculation_steps 动态执行
-- 预定义「元操作」库（fetch, compute, filter, rank, transform 等）
-- 支持依赖关系自动解析，按拓扑顺序执行
-
-输出：
-- output/<factor_name>/raw_<factor_name>.parquet
+ctx 模型：core.operators.Context
+spec 校验：core.spec_schema.validate_spec
 """
+
+from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import pandas as pd
 import yaml
+from loguru import logger
 
 warnings.filterwarnings("ignore")
 
 from core.config import RAW_FACTOR_DIR
+from core.spec_schema import validate_spec
 
-# 导入 operators 触发注册
-from .operators import OpRegistry
+from .operators import Context, OpRegistry
+
+# 触发算子注册
 from .operators import fetch  # noqa: F401
 from .operators import compute  # noqa: F401
-from .operators import filter  # noqa: F401
+from .operators import filter as _filter_mod  # noqa: F401
 from .operators import rank  # noqa: F401
 from .operators import transform  # noqa: F401
 from .operators import rolling  # noqa: F401
+from .operators import merge  # noqa: F401
 
 
-# ──────────────────────────────────────────
-# 数据获取层
-# ──────────────────────────────────────────
+# ── 米筐数据获取层（保持现有 API，算子层调用） ─────────────
 
 
 class DataFetcher:
-    """封装米筐 RQData API"""
+    """封装 rqdatac 的数据获取入口"""
 
     def __init__(self):
         self._rq = None
@@ -53,88 +55,99 @@ class DataFetcher:
                 rq.init()
                 self._inited = True
             except Exception as e:
-                print(f"⚠️ rqdatac.init() 失败: {e}")
+                logger.warning(f"rqdatac.init() 失败: {e}")
         except ImportError:
             raise ImportError("使用 YOLO 引擎需要安装 rqdatac")
 
-    def fetch_pit(self, order_book_ids: List[str], fields: List[str], start_quarter: str, end_quarter: str, statements: str = "latest") -> pd.DataFrame:
-        """获取 PIT 财务数据"""
+    def fetch_pit(
+        self,
+        order_book_ids: List[str],
+        fields: List[str],
+        start_quarter: str,
+        end_quarter: str,
+        statements: str = "latest",
+    ) -> pd.DataFrame:
         self._init_rq()
         return self._rq.get_pit_financials_ex(
-            order_book_ids=order_book_ids, fields=fields,
-            start_quarter=start_quarter, end_quarter=end_quarter, statements=statements,
+            order_book_ids=order_book_ids,
+            fields=fields,
+            start_quarter=start_quarter,
+            end_quarter=end_quarter,
+            statements=statements,
         )
 
     def get_index_components(self, index_code: str, date: str) -> List[str]:
-        """获取指数成分股"""
         self._init_rq()
         return self._rq.index_components(index_code, date=date)
 
-    def get_factor(self, order_book_ids: List[str], field: str, date: str = None, start_date: str = None, end_date: str = None, batch_size: int = 500):
-        """获取某个因子/指标值。支持单日(date)或日期范围(start_date+end_date)。
-        
-        当股票数量超过 batch_size 时，自动分批获取后合并，避免大数据量请求超时。
-        """
+    def get_factor(
+        self,
+        order_book_ids: List[str],
+        field: str,
+        date: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        batch_size: int = 500,
+    ):
+        """单日 (date) 或区间 (start_date+end_date) 获取因子值；超过 batch_size 自动分批"""
         self._init_rq()
         if date:
             return self._rq.get_factor(order_book_ids, field, date=date)
-        
-        # 大数据量时分批获取
+
         if len(order_book_ids) <= batch_size:
-            return self._rq.get_factor(order_book_ids, field, start_date=start_date, end_date=end_date)
-        
-        import pandas as pd
+            return self._rq.get_factor(
+                order_book_ids, field, start_date=start_date, end_date=end_date
+            )
+
         dfs = []
+        n_batches = (len(order_book_ids) + batch_size - 1) // batch_size
         for i in range(0, len(order_book_ids), batch_size):
-            batch = order_book_ids[i:i + batch_size]
+            batch = order_book_ids[i : i + batch_size]
+            batch_idx = i // batch_size + 1
             try:
-                df_batch = self._rq.get_factor(batch, field, start_date=start_date, end_date=end_date)
+                df_batch = self._rq.get_factor(
+                    batch, field, start_date=start_date, end_date=end_date
+                )
                 if df_batch is not None and len(df_batch) > 0:
                     dfs.append(df_batch)
+                logger.info(
+                    f"[fetcher] get_factor batch {batch_idx}/{n_batches} "
+                    f"({len(batch)} 只股票) 完成"
+                )
             except Exception as e:
-                print(f"     ⚠️ get_factor batch {i//batch_size + 1} 失败: {e}")
-                continue
-        
+                logger.warning(f"[fetcher] get_factor batch {batch_idx} 失败: {e}")
+
         if not dfs:
             raise ValueError(f"get_factor 所有批次均失败: field={field}")
-        
         return pd.concat(dfs)
 
     def get_trading_dates(self, start_date: str, end_date: str) -> List[str]:
-        """获取交易日列表"""
         self._init_rq()
         return self._rq.get_trading_dates(start_date, end_date)
 
     def all_instruments(self, type_: str = "CS") -> pd.DataFrame:
-        """获取全部股票列表"""
         self._init_rq()
         return self._rq.all_instruments(type=type_)
 
 
-# ──────────────────────────────────────────
-# 股票池构建
-# ──────────────────────────────────────────
+# ── 股票池构建 ─────────────────────────────────────────────
 
 
-def build_universe(universe_cfg: Dict, trade_date: str, fetcher: DataFetcher) -> List[str]:
-    """根据 universe 配置构建股票池。排除/过滤由回测引擎处理，此处只负责拿列表。"""
+def build_universe(universe_cfg: dict, trade_date: str, fetcher: DataFetcher) -> List[str]:
     primary = universe_cfg.get("primary_index", "000906.XSHG")
     if primary == "ALL":
         return fetcher.all_instruments(type_="CS")["order_book_id"].tolist()
     return fetcher.get_index_components(primary, trade_date)
 
 
-# ──────────────────────────────────────────
-# 主执行引擎
-# ──────────────────────────────────────────
+# ── 引擎主体 ───────────────────────────────────────────────
 
 
 class YoloEngine:
-    """YOLO 执行引擎：读取 Spec YAML，全自动执行计算步骤"""
+    """读 spec yaml，静态校验后按 calculation_steps 顺序执行"""
 
-    def __init__(self):
-        self.fetcher = DataFetcher()
-        self.ctx = {}
+    def __init__(self, fetcher: Optional[DataFetcher] = None):
+        self.fetcher = fetcher or DataFetcher()
 
     def run(
         self,
@@ -142,76 +155,79 @@ class YoloEngine:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         trade_date: Optional[str] = None,
+        ctx: Optional[Context] = None,
     ) -> pd.DataFrame:
+        # 1. 静态校验（违反任一条立即 raise）
+        validate_spec(spec_yaml)
+
         factor_name = spec_yaml["factor"]["name"]
-        print(f"\n🚀 YOLO 执行: {factor_name}")
-        print("=" * 60)
+        factor_column = spec_yaml["factor"]["column"]
+        logger.info(f"[engine] 启动 YOLO 执行: {factor_name}")
 
-        self.ctx = {"_factor_name": factor_name}
-        if trade_date:
-            self.ctx["_trade_date"] = trade_date
+        # 2. 构建/接管上下文
+        if ctx is None:
+            ctx = Context(factor_name=factor_name)
+            ctx.start_date = start_date
+            ctx.end_date = end_date
+            ctx.trade_date = trade_date
+            if start_date and end_date:
+                ctx.start_quarter = f"{start_date[:4]}q1"
+                ctx.end_quarter = f"{end_date[:4]}q4"
 
-        # 1. 确定股票池
-        universe_cfg = spec_yaml.get("universe", {})
-        pool_date = trade_date or start_date
-        if pool_date:
-            stocks = build_universe(universe_cfg, pool_date, self.fetcher)
-            self.ctx["_universe"] = stocks
-            print(f"   股票池: {len(stocks)} 只")
+            # 股票池
+            universe_cfg = spec_yaml.get("universe", {})
+            pool_date = trade_date or start_date
+            if pool_date:
+                ctx.universe = build_universe(universe_cfg, pool_date, self.fetcher)
+                logger.info(f"[engine] 股票池: {len(ctx.universe)} 只")
 
-        # 2. 设置日期范围
-        if start_date and end_date:
-            self.ctx["_start_date"] = start_date
-            self.ctx["_end_date"] = end_date
-            self.ctx["_start_quarter"] = f"{start_date[:4]}q1"
-            self.ctx["_end_quarter"] = f"{end_date[:4]}q4"
+        # 3. 顺序执行 steps
+        for i, step in enumerate(spec_yaml.get("calculation_steps", []), 1):
+            action = step["action"]
+            label = f"step#{i} {step.get('name') or action}"
+            logger.info(f"[engine] ▶ {label} [action={action}]")
 
-        # 3. 按顺序执行 calculation_steps
-        steps = spec_yaml.get("calculation_steps", [])
-        for step in steps:
-            action = step.get("action", "")
-            step_name = step.get("name", f"Step {step.get('step', '?')}")
-            print(f"   ▶ {step_name} [action={action}]")
-
+            before = ctx.schema_snapshot()
             op_func = OpRegistry.get(action)
-            result = op_func(self.ctx, step, self.fetcher)
+            op_func(ctx, step, self.fetcher)
+            ctx.log_schema_diff(before, step_label=f"step#{i}")
 
-            if isinstance(result, pd.DataFrame):
-                print(f"     → DataFrame shape: {result.shape}, columns: {list(result.columns)}")
+        # 4. 主表 → 宽表落盘
+        if not ctx.has_df("data"):
+            raise RuntimeError("执行完所有 step 后主表 'data' 仍不存在")
+        data = ctx.get_df("data")
+        if factor_column not in data.columns:
+            raise RuntimeError(
+                f"factor.column={factor_column!r} 不在主表 'data' 中"
+                f"（已有列: {list(data.columns)}）"
+            )
+        for k in ("order_book_id", "date"):
+            if k not in data.columns:
+                raise RuntimeError(f"主表 'data' 缺少索引列 {k!r}")
 
-        # 4. 提取最终因子值
-        final_output = steps[-1]["output"] if steps else "factor"
-        factor_df = self.ctx.get(final_output)
+        wide = data.pivot(index="date", columns="order_book_id", values=factor_column)
+        wide.index = pd.to_datetime(wide.index)
 
-        if factor_df is None or not isinstance(factor_df, pd.DataFrame):
-            raise ValueError(f"最终输出未找到或不是 DataFrame: {final_output}")
-
-        # 5. 转为宽表 (date × order_book_id) 并保存
         RAW_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
-
-        if "date" in factor_df.columns and "order_book_id" in factor_df.columns:
-            wide_df = factor_df.pivot(index="date", columns="order_book_id", values=factor_name)
-            wide_df.index = pd.to_datetime(wide_df.index)
-            output_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
-            wide_df.to_parquet(output_path)
-            print(f"\n✅ 宽表已保存: {output_path} (shape={wide_df.shape})")
-            return wide_df
-        else:
-            output_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
-            factor_df.to_parquet(output_path)
-            print(f"\n✅ 因子值已保存: {output_path}")
-            return factor_df
+        out_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
+        wide.to_parquet(out_path)
+        logger.info(
+            f"[engine] ✅ 写入 {out_path}, shape={wide.shape}, "
+            f"非空={wide.notna().values.sum():,}"
+        )
+        return wide
 
 
-# ── 便捷入口 ───────────────────────────────
+# ── 便捷入口 ───────────────────────────────────────────────
 
 
-def run_factor(factor_name: str, spec_yaml: Optional[dict] = None, **kwargs) -> pd.DataFrame:
-    """便捷函数：给定因子名，自动读取 YAML 并执行"""
+def run_factor(
+    factor_name: str,
+    spec_yaml: Optional[dict] = None,
+    **kwargs,
+) -> pd.DataFrame:
     if spec_yaml is None:
         spec_path = Path(__file__).parent.parent / "specs" / factor_name / "spec.yaml"
         with open(spec_path, "r", encoding="utf-8") as f:
             spec_yaml = yaml.safe_load(f)
-
-    engine = YoloEngine()
-    return engine.run(spec_yaml, **kwargs)
+    return YoloEngine().run(spec_yaml, **kwargs)

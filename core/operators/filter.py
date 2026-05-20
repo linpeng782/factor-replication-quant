@@ -1,34 +1,28 @@
-"""条件过滤操作"""
+"""
+filter 算子
+============================================================
+按布尔条件过滤行（不增列、不删列）。
 
-import pandas as pd
+契约：
+  - condition         : str     —— pandas.query 表达式
+  - output_dataframe  : str     —— 默认 "data"；过滤就地生效（覆盖原 DataFrame）
+"""
+
+from __future__ import annotations
+
 from typing import Any, Dict
 
-from . import OpRegistry, _resolve_input, _resolve_dataframe_for_expr
+from . import Context, OpRegistry
 
 
 @OpRegistry.register("filter")
-def op_filter(ctx: Dict, step: Dict, fetcher: Any) -> pd.DataFrame:
-    """
-    action: filter
-    按条件过滤数据
-    """
-    condition = step.get("condition", "")
-    output_name = step.get("output", "filtered")
+def op_filter(ctx: Context, step: Dict, fetcher: Any) -> None:
+    target_df = step.get("output_dataframe", "data")
+    df = ctx.get_df(target_df)
 
-    input_var = step.get("input")
-    if input_var and input_var in ctx:
-        df = _resolve_input(ctx, input_var)
-    else:
-        best_key = None
-        for key in reversed(list(ctx.keys())):
-            if not key.startswith("_") and isinstance(ctx[key], pd.DataFrame):
-                best_key = key
-                break
-        if best_key:
-            df = ctx[best_key].copy()
-        else:
-            df = _resolve_dataframe_for_expr(ctx, condition)
+    condition = step.get("condition")
+    if not condition:
+        raise ValueError("filter: condition 必填")
 
-    filtered = df.query(condition)
-    ctx[output_name] = filtered
-    return filtered
+    filtered = df.query(condition).reset_index(drop=True)
+    ctx.set_df(target_df, filtered)

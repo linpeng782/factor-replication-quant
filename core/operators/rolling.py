@@ -1,228 +1,94 @@
-"""滚动窗口聚合操作
+"""
+rolling 算子
+============================================================
+长表滚动窗口聚合，两种模式：
 
-支持两种模式:
-1. 普通 rolling: 在所有行上做滚动窗口聚合
-2. 变化日 rolling: 只在指定源数据值变化的日子上做聚合，然后填充
+  模式 A: 普通 rolling
+    在每个 group 内对 source_column 做 rolling(window).agg
 
-使用示例:
-    # 普通 rolling (wide 格式)
-    action: rolling
-    input: factor_values
-    window: 20
-    min_periods: 10
-    agg: mean
+  模式 B: 变化日 rolling（设置 change_on）
+    只在 change_on 列**值变化**的行采样，对 source_column 做 rolling
+    然后用 fill_method 填回所有行（典型用途：财报期 ROIC 排名 → 8 期最值）
 
-    # 变化日 rolling (long 格式，按 group_by 检测变化)
-    action: rolling
-    input: ind_rank
-    window: 8
-    min_periods: 4
-    agg: min
-    group_by: order_book_id    # long 格式下按股票分组
-    on: return_on_invested_capital_ttm  # 引用同一 DataFrame 中的列做变化检测
-    fill_method: ffill
-
-    # 变化日 rolling (wide 格式，逐列检测)
-    action: rolling
-    input: ind_rank
-    window: 8
-    min_periods: 4
-    agg: min
-    on: roic_ttm_wide         # 引用另一个 wide DataFrame 做变化检测
-    fill_method: ffill
+契约：
+  - source_column   : str    必填
+  - output_column   : str    必填
+  - window          : int    必填
+  - min_periods     : int    默认 = window
+  - agg             : str    可选: min/max/mean/std/sum/median/count
+  - group_by        : str    默认 'order_book_id'（long 表必备）
+  - change_on       : str    可选——指定后启用变化日 rolling，引用的列必须在同一 DataFrame
+  - fill_method     : str    可选: ffill/bfill/none，默认 ffill；仅 change_on 模式生效
 """
 
-import numpy as np
-import pandas as pd
+from __future__ import annotations
+
 from typing import Any, Dict
 
-from . import OpRegistry, _resolve_input
+import pandas as pd
+
+from . import Context, OpRegistry
+
+
+_VALID_AGGS = frozenset({"min", "max", "mean", "std", "sum", "median", "count"})
 
 
 @OpRegistry.register("rolling")
-def op_rolling(ctx: Dict, step: Dict, fetcher: Any) -> pd.DataFrame:
-    """
-    action: rolling
-    滚动窗口聚合
+def op_rolling(ctx: Context, step: Dict, fetcher: Any) -> None:
+    target_df = step.get("output_dataframe", "data")
+    df = ctx.get_df(target_df)
 
-    参数:
-        input        : 输入变量名（DataFrame）
-        window       : 窗口大小（行数）
-        min_periods  : 最少有效值数量（默认=window）
-        agg          : 聚合函数，可选: min, max, mean, std, sum, median, count
-        group_by     : 【long格式】分组列名，如 order_book_id
-        on           : 【可选】变化检测源列名（同一DataFrame中的列）或变量名（另一个DataFrame）
-        fill_method  : 填充方法，可选: ffill, bfill, none（默认 ffill）
-        columns      : 【可选】只对这些列做rolling，None=所有数值列
-        output       : 输出变量名
-    """
-    input_var = step.get("input")
-    output_name = step.get("output", "rolled")
-    window = step.get("window", 8)
-    min_periods = step.get("min_periods", window)
+    src = step["source_column"]
+    out = step["output_column"]
+    window = int(step["window"])
+    min_periods = int(step.get("min_periods", window))
     agg = step.get("agg", "min")
-    group_by = step.get("group_by", None)
-    on_var = step.get("on", None)
+    group_by = step.get("group_by", "order_book_id")
+    change_on = step.get("change_on")
     fill_method = step.get("fill_method", "ffill")
-    columns = step.get("columns")
 
-    df = _resolve_input(ctx, input_var)
+    if agg not in _VALID_AGGS:
+        raise ValueError(f"rolling: agg={agg!r} 不支持；可选 {sorted(_VALID_AGGS)}")
+    if group_by not in df.columns:
+        raise ValueError(f"rolling: group_by={group_by!r} 不在 DataFrame 列中")
 
-    # 确定要处理的列
-    if columns is not None:
-        value_cols = [c for c in columns if c in df.columns]
+    # 排序保证 rolling 语义稳定（按 group_by + date）
+    sort_cols = [group_by] + (["date"] if "date" in df.columns else [])
+    df_sorted = df.sort_values(sort_cols).copy()
+
+    if change_on is None:
+        # ── 模式 A：普通 rolling ─────────────────────────
+        rolled = df_sorted.groupby(group_by)[src].transform(
+            lambda x: x.rolling(window=window, min_periods=min_periods).agg(agg)
+        )
+        result = rolled
     else:
-        value_cols = [c for c in df.columns if df[c].dtype.kind in "fi"]
-
-    if not value_cols:
-        raise ValueError(f"rolling: 找不到可处理的数值列，columns={list(df.columns)}")
-
-    # 验证聚合函数
-    valid_aggs = {"min", "max", "mean", "std", "sum", "median", "count"}
-    if agg not in valid_aggs:
-        raise ValueError(f"rolling: 不支持的 agg={agg}，可选: {valid_aggs}")
-
-    result = df.copy()
-
-    # 判断 on 是同一 DataFrame 的列名，还是另一个 DataFrame 的变量名
-    on_col = None
-    on_df = None
-    if on_var:
-        if on_var in df.columns:
-            on_col = on_var  # 同一 DataFrame 的列
-        elif on_var in ctx and isinstance(ctx[on_var], pd.DataFrame):
-            on_df = ctx[on_var]  # 另一个 DataFrame
-        else:
+        # ── 模式 B：变化日 rolling ────────────────────────
+        if change_on not in df_sorted.columns:
             raise ValueError(
-                f"rolling: on={on_var} 既不是输入DataFrame的列，也不是上下文中的DataFrame变量"
+                f"rolling: change_on={change_on!r} 不在 DataFrame；"
+                f"已有列 {list(df_sorted.columns)}"
             )
 
-    if on_col is not None or on_df is not None:
-        # ──────────────────────────────────────────
-        # 模式A: 变化日 rolling
-        # ──────────────────────────────────────────
-        if group_by and group_by in df.columns:
-            # ── 模式A-1: long 格式，按 group_by 分组检测变化 ──
-            sort_cols = [group_by]
-            if "date" in df.columns:
-                sort_cols.append("date")
-            result = result.sort_values(sort_cols).copy()
+        change_mask = df_sorted.groupby(group_by)[change_on].transform(
+            lambda x: x != x.shift(1)
+        )
+        rolled_full = pd.Series(pd.NA, index=df_sorted.index, dtype="float64")
 
-            for col in value_cols:
-                if col not in result.columns:
-                    continue
-
-                # 变化检测源
-                if on_col:
-                    source = result[on_col]
-                else:
-                    if col not in on_df.columns:
-                        continue
-                    # 对齐索引（假设 on_df 和 df 有相同的行顺序或可通过索引对齐）
-                    source = on_df[col].reindex(result.index)
-
-                # 标记变化日
-                change_mask = result.groupby(group_by)[source.name].transform(
-                    lambda x: x != x.shift(1)
-                )
-
-                # 提取变化日的 col 值（dropna，避免NaN污染rolling窗口）
-                change_df = (
-                    result.loc[change_mask, [group_by, col]].copy().dropna(subset=[col])
-                )
-
-                if len(change_df) == 0:
-                    continue
-
-                # 按 group 做 rolling
-                rolled = change_df.groupby(group_by)[col].transform(
-                    lambda x: x.rolling(window=window, min_periods=min_periods).agg(agg)
-                )
-
-                # 先清空该列（用 np.nan 保持 float64 dtype）
-                result[col] = np.nan
-
-                # 写回结果（用 rolled 的索引，不是 change_mask，因为 dropna 后索引可能更少）
-                result.loc[rolled.index, col] = rolled.values
-
-                # 填充
-                if fill_method == "ffill":
-                    result[col] = result.groupby(group_by)[col].ffill()
-                elif fill_method == "bfill":
-                    result[col] = result.groupby(group_by)[col].bfill()
-
-        elif on_df is not None:
-            # ── 模式A-2: wide 格式，逐列检测变化 ──
-            for col in value_cols:
-                if col not in on_df.columns:
-                    continue
-
-                # 逐列识别变化日
-                on_series = on_df[col]
-                changes = on_series[on_series != on_series.shift(1)]
-                change_dates = changes.dropna().index
-
-                if len(change_dates) == 0:
-                    continue
-
-                # 提取输入数据在这些变化日的值
-                report_vals = df.loc[df.index.isin(change_dates), col].dropna()
-
-                if len(report_vals) == 0:
-                    continue
-
-                # 在变化日序列上做 rolling
-                rolled = report_vals.rolling(
-                    window=window, min_periods=min_periods
-                ).agg(agg)
-
-                # 先清空该列（用 np.nan 保持 float64 dtype）
-                result[col] = np.nan
-
-                # 写回结果（仅变化日有值）
-                result.loc[rolled.index, col] = rolled.values
-
-                # 填充到所有行
-                if fill_method == "ffill":
-                    result[col] = result[col].ffill()
-                elif fill_method == "bfill":
-                    result[col] = result[col].bfill()
-                # "none" 则不填充
-        else:
-            raise ValueError(
-                "rolling: 指定了 on 参数，但既没有 group_by（long格式）也没有提供wide格式的on DataFrame"
+        change_rows = df_sorted.loc[change_mask, [group_by, src]].dropna(subset=[src])
+        if len(change_rows) > 0:
+            rolled = change_rows.groupby(group_by)[src].transform(
+                lambda x: x.rolling(window=window, min_periods=min_periods).agg(agg)
             )
+            rolled_full.loc[rolled.index] = rolled.values
 
-    else:
-        # ──────────────────────────────────────────
-        # 模式B: 普通 rolling
-        # ──────────────────────────────────────────
-        if group_by and group_by in df.columns:
-            # long 格式
-            for col in value_cols:
-                if col not in result.columns:
-                    continue
-                result[col] = result.groupby(group_by)[col].transform(
-                    lambda x: x.rolling(window=window, min_periods=min_periods).agg(agg)
-                )
+        if fill_method in ("ffill", "bfill"):
+            rolled_full = (
+                rolled_full.groupby(df_sorted[group_by])
+                .transform(getattr(pd.Series, fill_method))
+            )
+        result = rolled_full
 
-                if fill_method == "ffill":
-                    result[col] = result.groupby(group_by)[col].ffill()
-                elif fill_method == "bfill":
-                    result[col] = result.groupby(group_by)[col].bfill()
-        else:
-            # wide 格式: 逐列 rolling
-            for col in value_cols:
-                if col not in result.columns:
-                    continue
-                result[col] = (
-                    result[col].rolling(window=window, min_periods=min_periods).agg(agg)
-                )
-
-                if fill_method == "ffill":
-                    result[col] = result[col].ffill()
-                elif fill_method == "bfill":
-                    result[col] = result[col].bfill()
-
-    ctx[output_name] = result
-    return result
+    # 把 result 按原始 index 顺序对齐回去
+    out_series = result.reindex(df.index)
+    ctx.add_column(target_df, out, out_series)

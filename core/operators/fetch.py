@@ -1,145 +1,206 @@
-"""数据获取操作"""
+"""
+fetch 算子
+============================================================
+从米筐拉数据，规范化为 long 格式后挂到 ctx.dataframes[output_dataframe]。
+
+契约：
+  - output_dataframe : str, 默认 "data"
+  - 单字段: output_column: str
+  - 多字段: output_columns: {rq_field: column_name}（一个 fetch 步并行拉多列）
+  - 同名 output_dataframe 已存在 → 走 merge step 合并，不要重复 fetch 然后 silently 拼接
+
+支持的 api：
+  - get_factor               日频因子（单只或区间）
+  - get_pit_financials_ex    PIT 财务（按 quarter）
+  - custom                   自定义内部命令（含 __internal__zx2019_industry 自动日频化）
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List
 
 import pandas as pd
-from typing import Any, Dict
+from loguru import logger
 
-from . import OpRegistry
+from . import Context, OpRegistry
 
 
 @OpRegistry.register("fetch")
-def op_fetch(ctx: Dict, step: Dict, fetcher: Any) -> pd.DataFrame:
-    """
-    action: fetch
-    从米筐获取数据
-    """
-    stocks = ctx.get("_universe", [])
-    if not stocks:
-        raise ValueError("fetch 操作前需要先确定股票池（universe）")
+def op_fetch(ctx: Context, step: Dict, fetcher: Any) -> None:
+    target_df = step.get("output_dataframe", "data")
+    if ctx.has_df(target_df):
+        raise ValueError(
+            f"fetch: DataFrame {target_df!r} 已存在；要扩列请用 merge step，不要重复 fetch"
+        )
 
-    fields = step.get("fields", [])
+    field_to_col = _resolve_output_columns(step)
+    if not ctx.universe:
+        raise ValueError("fetch 调用前必须先确定 ctx.universe（股票池）")
+
     api = step.get("api", "get_pit_financials_ex")
-    output_name = step.get("output", "data")
 
-    start_q = ctx.get("_start_quarter", "2020q1")
-    end_q = ctx.get("_end_quarter", "2024q4")
-
-    if api == "get_pit_financials_ex":
-        df = fetcher.fetch_pit(stocks, fields, start_q, end_q)
-        if isinstance(df.index, pd.MultiIndex):
-            df = df.reset_index()
-        elif df.index.name in ("order_book_id", "quarter"):
-            df = df.reset_index()
-
-    elif api == "get_factor":
-        start_date = ctx.get("_start_date")
-        end_date = ctx.get("_end_date")
-        trade_date = ctx.get("_trade_date")
-
-        field_dfs = []
-        for field in fields:
-            try:
-                if start_date and end_date:
-                    df_f = fetcher.get_factor(stocks, field, start_date=start_date, end_date=end_date)
-                elif trade_date:
-                    df_f = fetcher.get_factor(stocks, field, date=trade_date)
-                else:
-                    raise ValueError("get_factor 需要指定 trade_date 或 start_date+end_date")
-
-                if df_f is not None and len(df_f) > 0:
-                    if isinstance(df_f.index, pd.MultiIndex):
-                        df_f = df_f.reset_index()
-                    elif df_f.index.name == "order_book_id":
-                        df_f = df_f.reset_index()
-                    field_dfs.append(df_f)
-            except Exception as e:
-                print(f"     ⚠️ get_factor({field}) 失败: {e}")
-                continue
-
-        if not field_dfs:
-            raise ValueError(f"get_factor 未获取到任何数据: fields={fields}")
-
-        df = field_dfs[0]
-        merge_cols = [c for c in ["order_book_id", "date"] if c in df.columns]
-        for other in field_dfs[1:]:
-            other_cols = [c for c in merge_cols if c in other.columns]
-            other_field_cols = [c for c in other.columns if c not in other_cols]
-            df = df.merge(other[other_cols + other_field_cols], on=other_cols, how="outer")
-
+    if api == "get_factor":
+        df = _fetch_get_factor(ctx, fetcher, list(field_to_col.keys()))
+    elif api == "get_pit_financials_ex":
+        df = _fetch_pit(ctx, fetcher, list(field_to_col.keys()), step)
     elif api == "custom":
-        # 自定义 API 调用（如米筐内部接口）
-        command = step.get("command", "")
-        if not command:
-            raise ValueError("api=custom 时需要指定 command 参数")
-
-        try:
-            raw = fetcher._rq.client.get_client().execute(command)
-        except Exception as e:
-            raise ValueError(f"自定义 API 调用失败: {command}, 错误: {e}")
-
-        columns = step.get("columns")
-        if columns:
-            df = pd.DataFrame(raw, columns=columns)
-        else:
-            df = pd.DataFrame(raw)
-
-        # 特殊处理：中信行业分类自动日频化
-        if command == "__internal__zx2019_industry":
-            df = _process_zx_industry(df, fetcher, ctx)
-
+        df = _fetch_custom(ctx, fetcher, step)
     else:
-        raise ValueError(f"暂不支持的 API: {api}")
+        raise ValueError(f"fetch: 暂不支持的 api={api!r}")
 
-    ctx[output_name] = df
+    # 字段重命名为 spec 声明的 column 名
+    rename_map = {f: c for f, c in field_to_col.items() if f != c and f in df.columns}
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    # 保留 [order_book_id, date, *output_cols] 列序
+    output_cols = list(field_to_col.values())
+    keep_cols = [c for c in ("order_book_id", "date") if c in df.columns] + output_cols
+    df = df.loc[:, [c for c in keep_cols if c in df.columns]].copy()
+
+    # 排序保证 groupby+diff/rolling 等下游算子语义稳定
+    if "order_book_id" in df.columns and "date" in df.columns:
+        df = df.sort_values(["order_book_id", "date"]).reset_index(drop=True)
+
+    ctx.set_df(target_df, df)
+
+
+# ── helpers ────────────────────────────────────────────────
+
+
+def _resolve_output_columns(step: Dict) -> Dict[str, str]:
+    """返回 {rq_field: column_name} 映射。spec_schema 已保证至少有一个。"""
+    if "output_columns" in step:
+        return dict(step["output_columns"])
+    out = step["output_column"]
+    fields = step.get("fields", [])
+    if not fields:
+        raise ValueError("fetch: 必须显式声明 fields")
+    if len(fields) != 1:
+        raise ValueError(
+            "fetch: fields 长度 > 1 时必须用 output_columns dict 显式映射，"
+            "不能用 output_column 单字段形式"
+        )
+    return {fields[0]: out}
+
+
+def _fetch_get_factor(
+    ctx: Context, fetcher: Any, fields: List[str]
+) -> pd.DataFrame:
+    """get_factor：日频因子。区间或单日两种模式。"""
+    if not (ctx.start_date and ctx.end_date) and not ctx.trade_date:
+        raise ValueError("get_factor 需要 ctx.start_date+end_date 或 ctx.trade_date")
+
+    field_dfs = []
+    for field in fields:
+        if ctx.start_date and ctx.end_date:
+            df_f = fetcher.get_factor(
+                ctx.universe,
+                field,
+                start_date=ctx.start_date,
+                end_date=ctx.end_date,
+            )
+        else:
+            df_f = fetcher.get_factor(ctx.universe, field, date=ctx.trade_date)
+
+        if df_f is None or len(df_f) == 0:
+            raise ValueError(f"get_factor 无返回: field={field}")
+
+        df_f = _normalize_to_long(df_f)
+        field_dfs.append(df_f)
+
+    df = field_dfs[0]
+    for other in field_dfs[1:]:
+        df = df.merge(other, on=["order_book_id", "date"], how="outer")
     return df
 
 
-def _process_zx_industry(df: pd.DataFrame, fetcher: Any, ctx: Dict) -> pd.DataFrame:
-    """
-    将 __internal__zx2019_industry 原始数据转换为日频 long 格式。
+def _fetch_pit(
+    ctx: Context, fetcher: Any, fields: List[str], step: Dict
+) -> pd.DataFrame:
+    """PIT 财务数据：按 quarter 拉，包含 info_date / quarter 等元列。"""
+    statements = step.get("statements", "latest")
+    df = fetcher.fetch_pit(
+        ctx.universe,
+        fields,
+        ctx.start_quarter,
+        ctx.end_quarter,
+        statements=statements,
+    )
+    df = _normalize_to_long(df)
+    return df
 
-    输入: (first_industry_name, order_book_id, start_date)
-    输出: (order_book_id, date, first_industry_name)
-    """
+
+def _fetch_custom(ctx: Context, fetcher: Any, step: Dict) -> pd.DataFrame:
+    """自定义命令；目前只规范化 __internal__zx2019_industry 一种。"""
+    command = step.get("command", "")
+    if not command:
+        raise ValueError("fetch api=custom 时必须指定 command")
+
+    raw = fetcher._rq.client.get_client().execute(command)
+    columns = step.get("columns_raw")
+    df = pd.DataFrame(raw, columns=columns) if columns else pd.DataFrame(raw)
+
+    if command == "__internal__zx2019_industry":
+        df = _zx_industry_to_daily(df, fetcher, ctx)
+        return df
+
+    raise ValueError(f"fetch api=custom: 未规范化的 command={command!r}")
+
+
+def _zx_industry_to_daily(
+    df: pd.DataFrame, fetcher: Any, ctx: Context
+) -> pd.DataFrame:
+    """中信 2019 一级行业分类原始数据 → (order_book_id, date, first_industry_name)"""
     if "start_date" not in df.columns:
-        raise ValueError("行业分类数据缺少 start_date 列")
-
+        raise ValueError("zx2019_industry: 缺少 start_date 列")
     df["start_date"] = pd.to_datetime(df["start_date"])
-    df = df.sort_values(["order_book_id", "start_date"])
 
-    # pivot 为 wide: start_date × order_book_id
     value_col = "first_industry_name"
     if value_col not in df.columns:
-        # 尝试找行业名称列
-        candidates = [c for c in df.columns if "industry" in c.lower()]
-        if candidates:
-            value_col = candidates[0]
-        else:
-            raise ValueError(f"行业分类数据缺少行业名称列，现有列: {list(df.columns)}")
+        cands = [c for c in df.columns if "industry" in c.lower()]
+        if not cands:
+            raise ValueError(f"zx2019_industry: 找不到行业名称列；现有 {list(df.columns)}")
+        value_col = cands[0]
 
-    id_col = "order_book_id"
-    df_wide = df.pivot(index="start_date", columns=id_col, values=value_col)
-    df_wide = df_wide.ffill()
-
-    # 获取交易日列表
-    start_date = ctx.get("_start_date", "2016-01-01")
-    end_date = ctx.get("_end_date", "2025-12-31")
-    try:
-        trading_dates = fetcher.get_trading_dates(start_date, end_date)
-        trading_dates = pd.to_datetime(trading_dates)
-    except Exception as e:
-        print(f"⚠️ 获取交易日列表失败: {e}，使用日期范围代替")
-        trading_dates = pd.date_range(start_date, end_date)
-
-    # reindex 到交易日，ffill
-    df_wide = df_wide.reindex(index=trading_dates)
-    df_wide = df_wide.ffill()
-
-    # melt 为 long 格式
-    df_long = df_wide.reset_index().melt(
-        id_vars=["index"], var_name=id_col, value_name=value_col
+    wide = (
+        df.sort_values(["order_book_id", "start_date"])
+        .pivot(index="start_date", columns="order_book_id", values=value_col)
+        .ffill()
     )
-    df_long = df_long.rename(columns={"index": "date"})
-    df_long = df_long.dropna(subset=[value_col])
 
-    print(f"   行业分类已转换为日频: {len(df_long)} 行, {df_long[value_col].nunique()} 个行业")
-    return df_long
+    if not (ctx.start_date and ctx.end_date):
+        raise ValueError("zx2019_industry 日频化需要 ctx.start_date+end_date")
+    try:
+        trading_dates = pd.to_datetime(
+            fetcher.get_trading_dates(ctx.start_date, ctx.end_date)
+        )
+    except Exception as e:
+        logger.warning(f"获取交易日失败: {e}; 退回 date_range")
+        trading_dates = pd.date_range(ctx.start_date, ctx.end_date)
+
+    wide = wide.reindex(index=trading_dates).ffill()
+    long = (
+        wide.reset_index()
+        .melt(id_vars=["index"], var_name="order_book_id", value_name=value_col)
+        .rename(columns={"index": "date"})
+        .dropna(subset=[value_col])
+    )
+    return long.loc[:, ["order_book_id", "date", value_col]]
+
+
+def _normalize_to_long(df: pd.DataFrame) -> pd.DataFrame:
+    """米筐返回值规范为 (order_book_id, date, *fields) long 表"""
+    if isinstance(df.index, pd.MultiIndex):
+        df = df.reset_index()
+    elif df.index.name in ("order_book_id", "quarter", "date"):
+        df = df.reset_index()
+
+    # 米筐 PIT 接口返回列叫 quarter 而非 date，下游 transform.diff_quarterly 等
+    # 需要 quarter；但通用 long 输出统一以 date 为索引列。这里只做必要 rename。
+    if "datetime" in df.columns and "date" not in df.columns:
+        df = df.rename(columns={"datetime": "date"})
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"])
+
+    return df

@@ -1,32 +1,55 @@
-## Spec：pe_ttm_delta60（PE_TTM 60日差值）
+# pe_ttm_delta60 — PE_TTM 60 日差值
 
-### 1. 定义
+## 因子定义
 
-PE_TTM的60日差值，衡量估值短期变化趋势。核心逻辑：**PE下降越多（差值越负），说明估值收缩越明显，预期收益越高**。
+**名称**：`pe_ttm_delta60`
+**中文名**：PE_TTM 60 日差值
+**类别**：价值 / 估值
+**方向**：负向（差值越负，预期收益越高）
+
+## 经济含义
+
+PE_TTM 的近 60 日变化幅度衡量股票估值在过去三个月的下行/上行幅度。
+PE 下行（差值为负）通常对应利润预期改善或估值修复机会，因此因子方向为负 ——
+**因子值越小（越负），预期未来收益越高**。
+
+## 计算公式
 
 $$
 \text{pe\_ttm\_delta60}_t = \text{pe\_ratio\_ttm}_t - \text{pe\_ratio\_ttm}_{t-60}
 $$
 
-### 2. 变量说明
+按股票分组（`order_book_id`）做 60 日 diff；前 60 个交易日没有回看数据，因子值为 NaN。
 
-| 变量 | 米筐字段 | 含义 |
-|------|---------|------|
-| `pe_ratio_ttm` | `pe_ratio_ttm` | TTM市盈率（日频） |
+## 计算链路（与 spec.yaml 一一对应）
 
-### 3. 数据对齐
+| 步骤 | action | 关键参数 | 写入主表的列 |
+|------|--------|---------|-------------|
+| 1    | fetch (get_factor) | `fields=[pe_ratio_ttm]` | `pe_ratio_ttm` |
+| 2    | transform (diff)   | `periods=60, group_by=order_book_id` | `pe_ttm_delta60` |
 
-- **接口**：`rq.get_factor()`
-- **PIT 机制**：`pe_ratio_ttm` 由米筐每日计算，自动对齐。
-- **差分处理**：long格式下按 `order_book_id` 分组，逐股票计算60日差值（`diff(periods=60)`）。
-- **产出格式**：宽表 `date × order_book_id`。每只股票前60个交易日前向缺失。
+最终引擎按 `factor.column = pe_ttm_delta60` 把主表 pivot 成 (T, N) 宽表落盘。
 
-### 4. 计算步骤
+## 关键处理规则
 
-1. **fetch**：`get_factor(fields=['pe_ratio_ttm'])`
-2. **transform**：`diff(periods=60, group_column='order_book_id', columns=['pe_ratio_ttm'])`
-3. **compute**：`pe_ttm_delta60 = pe_ratio_ttm`
+| 场景 | 处理 |
+|------|------|
+| 每只股票前 60 个交易日 | NaN（不足 60 行回看数据） |
+| 停牌期间 PE 缺失 | 缺失值传播；下游清洗用 mask 过滤 |
+| ST / 涨停 / 新股 | 不在因子层处理；由评估期 mask 链路过滤 |
 
-### 5. 股票池
+## 参数配置
 
-全市场 A 股（`all_instruments(type='CS')`）。ST/停牌/上市不满60日等排除条件由回测引擎处理，因子计算阶段不做过滤。
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| 股票池 | 全市场 `all_instruments("CS")` | ~5548 只 |
+| 时间范围 | 2016-01-01 ~ 2025-12-31 | 评估区间 |
+| diff 窗口 | 60 个交易日 | ≈ 3 个月 |
+
+## 复现历史
+
+| 日期 | IC (5d) | ICIR (5d) | 单调性 | LongShort Sharpe | 备注 |
+|------|---------|----------|--------|-----------------|------|
+| 2026-05-19 | 0.0245 | 0.330 | +0.801 | +1.911 | 旧算子工作树版本端到端验证通过 |
+
+基准：IC 0.0660 / ICIR 0.925（研报）—— 当前复现 ICIR 仍低于基准，待后续核对研报口径。

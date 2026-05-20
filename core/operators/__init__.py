@@ -1,17 +1,27 @@
 """
-Operators 注册中心和公共辅助函数
+算子注册中心 + 极简执行上下文
+============================================================
+
+设计契约（与 core/spec_schema.py 一致）：
+  - 整条流水线维护一组**命名 DataFrame**（默认主表叫 "data"），由 Context 持有
+  - 每个算子读 Context 的某个 DataFrame，**新增列**写回，永不覆盖
+  - 上下文不再藏 silent fallback（旧 _resolve_input / _resolve_dataframe_for_expr 全部删除）
 """
 
-import re
-from typing import Dict, Optional
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Optional
 
 import pandas as pd
+from loguru import logger
+
+
+# ── 算子注册表 ──────────────────────────────────────────────
 
 
 class OpRegistry:
-    """元操作注册中心"""
-
-    _ops = {}
+    _ops: Dict[str, Callable] = {}
 
     @classmethod
     def register(cls, name: str):
@@ -21,72 +31,74 @@ class OpRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name: str):
+    def get(cls, name: str) -> Callable:
         if name not in cls._ops:
-            raise ValueError(f"未知的元操作: {name}，已注册: {list(cls._ops.keys())}")
+            raise ValueError(
+                f"未知算子 {name!r}，已注册: {sorted(cls._ops.keys())}"
+            )
         return cls._ops[name]
 
 
-def _resolve_input(ctx: Dict, var_name: Optional[str]) -> pd.DataFrame:
-    """从上下文中解析输入变量"""
-    if var_name and var_name in ctx:
-        val = ctx[var_name]
-        if isinstance(val, pd.DataFrame):
-            return val.copy()
-    for key in reversed(list(ctx.keys())):
-        if isinstance(ctx[key], pd.DataFrame):
-            return ctx[key].copy()
-    raise ValueError(f"无法在上下文中找到输入变量: {var_name}")
+# ── 执行上下文 ──────────────────────────────────────────────
 
 
-def _resolve_dataframe_for_expr(ctx: Dict, expr: str, extra_cols: list = None) -> pd.DataFrame:
-    """从上下文中找到包含表达式所需列的数据框，支持跨表自动 merge"""
-    skip_words = {"abs", "log", "exp", "sqrt", "if", "else", "and", "or", "not", "in", "is", "None", "True", "False"}
-    tokens = set(re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", expr))
-    needed_cols = tokens - skip_words
-    if extra_cols:
-        needed_cols |= set(extra_cols)
+@dataclass
+class Context:
+    """YOLO 执行期上下文。所有命名 DataFrame 都挂在 dataframes 里。"""
 
-    best_df = None
-    best_score = -1
-    for key, val in ctx.items():
-        if isinstance(val, pd.DataFrame):
-            score = sum(1 for col in val.columns if col in needed_cols)
-            if score > best_score:
-                best_score = score
-                best_df = val
+    factor_name: str
+    universe: List[str] = field(default_factory=list)
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    start_quarter: Optional[str] = None
+    end_quarter: Optional[str] = None
+    trade_date: Optional[str] = None
+    dataframes: Dict[str, pd.DataFrame] = field(default_factory=dict)
 
-    if best_df is None:
-        raise ValueError(f"无法为表达式找到数据框: {expr}")
+    # ── DataFrame 访问 ──
 
-    df = best_df.copy()
-    existing_cols = set(df.columns)
-    missing_cols = needed_cols - existing_cols
+    def has_df(self, name: str) -> bool:
+        return name in self.dataframes
 
-    if missing_cols:
-        merge_keys = [c for c in ["order_book_id", "date", "quarter", "info_date"] if c in existing_cols]
-        if not merge_keys:
-            all_keys = None
-            for key, val in ctx.items():
-                if isinstance(val, pd.DataFrame):
-                    cols = set(val.columns)
-                    all_keys = cols if all_keys is None else all_keys & cols
-            merge_keys = [c for c in ["order_book_id", "date", "quarter", "info_date"] if c in all_keys] if all_keys else []
+    def get_df(self, name: str) -> pd.DataFrame:
+        if name not in self.dataframes:
+            raise KeyError(
+                f"DataFrame {name!r} 不存在；当前已有: {sorted(self.dataframes.keys())}"
+            )
+        return self.dataframes[name]
 
-        if not merge_keys:
-            raise ValueError(f"表达式需要列 {missing_cols}，但找不到可用于 merge 的键")
+    def set_df(self, name: str, df: pd.DataFrame) -> None:
+        """整体替换（仅 fetch / merge 用，普通算子不要走这条）"""
+        self.dataframes[name] = df
 
-        for key, val in ctx.items():
-            if isinstance(val, pd.DataFrame) and val is not best_df:
-                extra = missing_cols & set(val.columns)
-                if extra:
-                    cols_to_merge = list(extra | set(merge_keys))
-                    df = df.merge(val[cols_to_merge], on=merge_keys, how="left")
-                    missing_cols -= extra
-                    if not missing_cols:
-                        break
+    def add_column(self, df_name: str, col_name: str, series) -> None:
+        """在指定 DataFrame 上新增列。冲突立即 raise，永不覆盖。"""
+        df = self.get_df(df_name)
+        if col_name in df.columns:
+            raise ValueError(
+                f"列 {col_name!r} 已存在于 DataFrame {df_name!r}，"
+                f"算子层禁止覆盖（spec_schema 应该已经在静态阶段拦截）"
+            )
+        df[col_name] = series
 
-        if missing_cols:
-            raise ValueError(f"表达式需要列 {missing_cols}，但在所有 DataFrame 中都找不到")
+    # ── 调试 ──
 
-    return df
+    def schema_snapshot(self) -> Dict[str, List[str]]:
+        return {name: list(df.columns) for name, df in self.dataframes.items()}
+
+    def log_schema_diff(self, before: Dict[str, List[str]], step_label: str) -> None:
+        after = self.schema_snapshot()
+        all_dfs = sorted(set(before) | set(after))
+        for name in all_dfs:
+            old = set(before.get(name, []))
+            new = set(after.get(name, []))
+            added = sorted(new - old)
+            removed = sorted(old - new)
+            n_rows = len(self.dataframes[name]) if name in self.dataframes else 0
+            if added or removed or name not in before:
+                msg = f"  [{step_label}] df={name!r} rows={n_rows:,}"
+                if added:
+                    msg += f", +cols={added}"
+                if removed:
+                    msg += f", -cols={removed}"
+                logger.info(msg)

@@ -131,7 +131,7 @@ calculation_steps:
 
 ### `row_aggregate`
 跨多列做行向（axis=1）聚合，把 N 列折叠为 1 列。
-适合"已经有 N 个相关列，想算它们的行向 mean/std/min/max"的场景。
+适合"已经有 N 个相关列、想算它们的行向 mean/std/min/max/median"的场景。
 ```yaml
 - action: row_aggregate
   source_columns: [d_01, d_12, d_23, d_34, d_45, d_56, d_67]
@@ -140,12 +140,6 @@ calculation_steps:
   ddof: 1         # （仅 std/var）默认 1 = 样本标准差
   skipna: true    # 默认 true
 ```
-
-**优先用代数恒等式**：很多场景可以用望远镜求和、方差恒等式 Var=E[X²]−E[X]²
-直接在 compute 里写出来，避免显式构造中间列再聚合。比如 SUE 因子里的
-`std_diff = sqrt((sum_sq − n·mean²) / (n−1))`，比"先算 7 个差分列再 row_aggregate"
-更紧凑。但当列数多、列名有规则、聚合函数标准（min/max/median 没有恒等式可用）时，
-row_aggregate 更直观。
 
 # 硬规则（必须遵守，违反会被 spec_schema 校验拒绝）
 

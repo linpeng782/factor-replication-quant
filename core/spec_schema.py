@@ -25,7 +25,7 @@ SENTINEL_COLS = frozenset({"order_book_id", "date"})
 NO_OUTPUT_ACTIONS = frozenset({"filter"})
 
 # 增列的 action（必须显式声明 output_column）
-COLUMN_ADDING_ACTIONS = frozenset({"transform", "compute", "rank", "rolling"})
+COLUMN_ADDING_ACTIONS = frozenset({"transform", "compute", "rank", "rolling", "row_aggregate"})
 
 
 class SpecError(ValueError):

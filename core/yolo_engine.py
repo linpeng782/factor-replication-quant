@@ -10,7 +10,10 @@ spec 校验：core.spec_schema.validate_spec
 
 from __future__ import annotations
 
+import os
+import time
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Optional
 
@@ -33,6 +36,66 @@ from .operators import rank  # noqa: F401
 from .operators import transform  # noqa: F401
 from .operators import rolling  # noqa: F401
 from .operators import merge  # noqa: F401
+
+
+# ── 多线程 get_factor 工人函数 ─────────────────────────────
+# rqdatac.init() 已在父进程一次性完成；多线程共享同一会话。
+# rqdatac.get_factor 是网络 IO 阻塞调用，等待期间释放 GIL，多线程并发是安全且高效的。
+
+
+def _thread_get_factor(rq, batch_idx, batch, field, start_date, end_date):
+    """单批 fetch；返回 (batch_idx, df, elapsed_s, err_or_None)"""
+    t0 = time.time()
+    try:
+        df = rq.get_factor(batch, field, start_date=start_date, end_date=end_date)
+        return batch_idx, df, time.time() - t0, None
+    except Exception as e:
+        return batch_idx, None, time.time() - t0, str(e)
+
+
+def _fetch_factor_sequential(rq, batches, field, start_date, end_date):
+    n_batches = len(batches)
+    logger.info(f"[fetcher] start field={field} | {n_batches} 批 | sequential")
+    t_start = time.time()
+    dfs = []
+    for i, batch in enumerate(batches, 1):
+        _, df, elapsed, err = _thread_get_factor(rq, i, batch, field, start_date, end_date)
+        if err is not None:
+            logger.warning(f"[fetcher] {i}/{n_batches} 失败 ({elapsed:.1f}s): {err}")
+            continue
+        if df is not None and len(df) > 0:
+            dfs.append(df)
+        logger.info(f"[fetcher] {i}/{n_batches} ✓ {elapsed:.1f}s")
+    logger.info(f"[fetcher] done field={field} in {time.time() - t_start:.1f}s")
+    if not dfs:
+        raise ValueError(f"get_factor 全部批次失败: field={field}")
+    return pd.concat(dfs)
+
+
+def _fetch_factor_parallel(rq, batches, field, start_date, end_date, workers):
+    n_batches = len(batches)
+    logger.info(f"[fetcher] start field={field} | {n_batches} 批 × {workers} 线程")
+    t_start = time.time()
+    dfs = []
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = [
+            ex.submit(_thread_get_factor, rq, i + 1, b, field, start_date, end_date)
+            for i, b in enumerate(batches)
+        ]
+        for fut in as_completed(futures):
+            batch_idx, df, elapsed, err = fut.result()
+            done += 1
+            if err is not None:
+                logger.warning(f"[fetcher] {batch_idx}/{n_batches} 失败 ({elapsed:.1f}s): {err}")
+                continue
+            if df is not None and len(df) > 0:
+                dfs.append(df)
+            logger.info(f"[fetcher] {done}/{n_batches} ✓ {elapsed:.1f}s")
+    logger.info(f"[fetcher] done field={field} in {time.time() - t_start:.1f}s")
+    if not dfs:
+        raise ValueError(f"get_factor 全部批次失败: field={field}")
+    return pd.concat(dfs)
 
 
 # ── 米筐数据获取层（保持现有 API，算子层调用） ─────────────
@@ -89,7 +152,9 @@ class DataFetcher:
         end_date: Optional[str] = None,
         batch_size: int = 500,
     ):
-        """单日 (date) 或区间 (start_date+end_date) 获取因子值；超过 batch_size 自动分批"""
+        """单日 (date) 或区间 (start_date+end_date) 获取因子值。
+        股票数 > batch_size 时自动分批；进程数由环境变量 FETCHER_WORKERS 控制（默认 12）。
+        """
         self._init_rq()
         if date:
             return self._rq.get_factor(order_book_ids, field, date=date)
@@ -99,27 +164,18 @@ class DataFetcher:
                 order_book_ids, field, start_date=start_date, end_date=end_date
             )
 
-        dfs = []
         n_batches = (len(order_book_ids) + batch_size - 1) // batch_size
-        for i in range(0, len(order_book_ids), batch_size):
-            batch = order_book_ids[i : i + batch_size]
-            batch_idx = i // batch_size + 1
-            try:
-                df_batch = self._rq.get_factor(
-                    batch, field, start_date=start_date, end_date=end_date
-                )
-                if df_batch is not None and len(df_batch) > 0:
-                    dfs.append(df_batch)
-                logger.info(
-                    f"[fetcher] get_factor batch {batch_idx}/{n_batches} "
-                    f"({len(batch)} 只股票) 完成"
-                )
-            except Exception as e:
-                logger.warning(f"[fetcher] get_factor batch {batch_idx} 失败: {e}")
+        batches = [
+            order_book_ids[i : i + batch_size]
+            for i in range(0, len(order_book_ids), batch_size)
+        ]
+        workers = max(1, int(os.environ.get("FETCHER_WORKERS", "12")))
+        workers = min(workers, n_batches)
 
-        if not dfs:
-            raise ValueError(f"get_factor 所有批次均失败: field={field}")
-        return pd.concat(dfs)
+        if workers <= 1:
+            return _fetch_factor_sequential(self._rq, batches, field, start_date, end_date)
+
+        return _fetch_factor_parallel(self._rq, batches, field, start_date, end_date, workers)
 
     def get_trading_dates(self, start_date: str, end_date: str) -> List[str]:
         self._init_rq()

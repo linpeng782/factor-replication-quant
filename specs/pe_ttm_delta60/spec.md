@@ -1,55 +1,50 @@
 # pe_ttm_delta60 — PE_TTM 60 日差值
 
-## 因子定义
+## 1. 基本信息
 
-**名称**：`pe_ttm_delta60`
-**中文名**：PE_TTM 60 日差值
-**类别**：价值 / 估值
-**方向**：负向（差值越负，预期收益越高）
+| 字段 | 值 |
+|---|---|
+| name | `pe_ttm_delta60` |
+| name_cn | PE_TTM 60 日差值 |
+| category | 价值 |
+| direction | -1（负向） |
+| 假设方向理由 | PE 下行（差值为负）→ 估值收缩 / 利润预期改善 → 预期未来收益更高 |
+| primary_index | `ALL`（全市场 A 股） |
 
-## 经济含义
-
-PE_TTM 的近 60 日变化幅度衡量股票估值在过去三个月的下行/上行幅度。
-PE 下行（差值为负）通常对应利润预期改善或估值修复机会，因此因子方向为负 ——
-**因子值越小（越负），预期未来收益越高**。
-
-## 计算公式
+## 2. 因子定义
 
 $$
-\text{pe\_ttm\_delta60}_t = \text{pe\_ratio\_ttm}_t - \text{pe\_ratio\_ttm}_{t-60}
+\text{pe\_ttm\_delta60}_t \;=\; \text{pe\_ratio\_ttm}_t \;-\; \text{pe\_ratio\_ttm}_{t-60}
 $$
 
-按股票分组（`order_book_id`）做 60 日 diff；前 60 个交易日没有回看数据，因子值为 NaN。
+按股票分组（`order_book_id`）做 60 个交易日的差分。
 
-## 计算链路（与 spec.yaml 一一对应）
+## 3. 数据来源
 
-| 步骤 | action | 关键参数 | 写入主表的列 |
-|------|--------|---------|-------------|
-| 1    | fetch (get_factor) | `fields=[pe_ratio_ttm]` | `pe_ratio_ttm` |
-| 2    | transform (diff)   | `periods=60, group_by=order_book_id` | `pe_ttm_delta60` |
+| 列名 | 米筐 API | 字段 | 频率 |
+|---|---|---|---|
+| `pe_ratio_ttm` | `get_factor` | `pe_ratio_ttm` | 日频 |
 
-最终引擎按 `factor.column = pe_ttm_delta60` 把主表 pivot 成 (T, N) 宽表落盘。
+## 4. 计算步骤（与 spec.yaml 一一对应）
 
-## 关键处理规则
+每个 step 的 **name / 输入 / 输出** 必须与 yaml 中对应 step 的 `name / source_column / output_column` 严格相等；如不一致由 spec_schema 静态校验拒绝。
 
-| 场景 | 处理 |
-|------|------|
-| 每只股票前 60 个交易日 | NaN（不足 60 行回看数据） |
-| 停牌期间 PE 缺失 | 缺失值传播；下游清洗用 mask 过滤 |
-| ST / 涨停 / 新股 | 不在因子层处理；由评估期 mask 链路过滤 |
+1. **获取 PE_TTM**
+   - 输入：无（首步 fetch）
+   - 操作：从米筐 `get_factor` 拉取字段 `pe_ratio_ttm`
+   - 输出主表新增列：`pe_ratio_ttm`
 
-## 参数配置
+2. **计算 60 日差值**
+   - 输入：`pe_ratio_ttm`
+   - 操作：按 `order_book_id` 分组做 60 个交易日差分（`pandas.groupby.diff(periods=60)`）
+   - 输出主表新增列：`pe_ttm_delta60`
 
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| 股票池 | 全市场 `all_instruments("CS")` | ~5548 只 |
-| 时间范围 | 2016-01-01 ~ 2025-12-31 | 评估区间 |
-| diff 窗口 | 60 个交易日 | ≈ 3 个月 |
+最终：引擎按 `factor.column = pe_ttm_delta60` 将主表 pivot 为 (T, N) 宽表落盘。
 
-## 复现历史
+## 5. 数据规则
 
-| 日期 | IC (5d) | ICIR (5d) | 单调性 | LongShort Sharpe | 备注 |
-|------|---------|----------|--------|-----------------|------|
-| 2026-05-19 | 0.0245 | 0.330 | +0.801 | +1.911 | 旧算子工作树版本端到端验证通过 |
+| 场景 | 处理 | 来源 |
+|---|---|---|
+| 每只股票前 60 个交易日 | NaN（回看数据不足） | 算法必然结果 |
 
-基准：IC 0.0660 / ICIR 0.925（研报）—— 当前复现 ICIR 仍低于基准，待后续核对研报口径。
+> 评估期 mask（ST / 停牌 / 涨停 / 新股）由评估管线统一处理，**不写入此处**。

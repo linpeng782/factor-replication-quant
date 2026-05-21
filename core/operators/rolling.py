@@ -8,7 +8,7 @@ rolling 算子
 
   模式 B: 变化日 rolling（设置 change_on）
     只在 change_on 列**值变化**的行采样，对 source_column 做 rolling
-    然后用 fill_method 填回所有行（典型用途：财报期 ROIC 排名 → 8 期最值）
+    然后用 fill_method 填回所有行（典型用途：财报期 ROIC 排名 → 过去 N 期最值）
 
 契约：
   - source_column   : str    必填

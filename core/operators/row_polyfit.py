@@ -12,10 +12,10 @@ row_polyfit 算子
   - source_columns_x : list[str]    可选；如果给，每行 x 不同（变量 x，未实现，先抛错）
   - x_pattern        : str          "equispaced"（默认，0..n-1 等距 + zscore）或
                                     "equispaced_no_zscore"（原值不 zscore）
-  - zscore_y         : bool         默认 True；行向对 8 个 y 做 zscore（按 axis=1，ddof=1）。
+  - zscore_y         : bool         默认 True；行向对 y 列做 zscore（axis=1, ddof=1）。
                                     跨股票截面因子需要保持 True，让不同体量的公司的 a
                                     形状可比；极少数 per-stock 时序场景才考虑 False。
-                                    某行 y 全相等导致 std=0 时该行结果置 NaN。
+                                    某行 y 全相等（std=0）时该行结果置 NaN。
   - degree           : int          多项式阶次（默认 2）
   - coefficient      : str          取哪一项: "a{degree}" / ... / "a1" / "a0"
                                     （沿用 numpy.polyfit 约定：高次在前）
@@ -96,7 +96,7 @@ def op_row_polyfit(ctx: Context, step: Dict, fetcher: Any) -> None:
         Y_std = np.nanstd(Y, axis=1, ddof=1, keepdims=True)
         with np.errstate(divide="ignore", invalid="ignore"):
             Y = np.where(Y_std > 0, (Y - Y_mean) / Y_std, np.nan)
-        # std=0（8 个 y 全相等）的行也置 NaN
+        # std=0（行内 y 全相等）的行也置 NaN
         nan_mask = nan_mask | (Y_std.ravel() == 0)
 
     result = Y @ weights  # (N_rows,)

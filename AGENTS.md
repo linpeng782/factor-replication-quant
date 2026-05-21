@@ -10,26 +10,29 @@
 source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate  # Python 3.11
 ```
 
-| 变量 | 路径 |
-|------|------|
+| 变量 | 路径 | 说明 |
+|------|------|------|
 | `RAW_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/` | 原始因子（YOLO 输出） |
 | `CLEANED_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/` | 清洗后因子（MAD + zscore + mask） |
-| `OUTPUT_DIR` | `factor-repilcation-quant/output/` |
-| `COMBO_MASK_PATH` | `.../backtest_engine/cache_dir/combo_mask_long.parquet` |
-| `NEW_STOCK_MASK_PATH` | `.../backtest_engine/cache_dir/new_stock_mask_long.parquet` |
-| `VWAP_POST_PATH` | `.../backtest_engine/cache_dir/vwap_post.parquet` |
+| `OUTPUT_DIR` | `factor-repilcation-quant/output/` | 评估产物（png + report） |
+| `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` / `VWAP_POST_PATH` | `.../backtest_engine/cache_dir/` | 预计算 mask + vwap，评估时**零 API 调用** |
 
-预计算数据（mask/vwap）到 2026-05-15，评估时**零 API 调用**。
+预计算数据已更新到 2026-05-15。
 
 ---
 
 ## 2. 核心工作流
 
 ```
-inputs/ → specs/<factor>/{spec.md, spec.yaml} → confirm/<factor>/
-  → YOLO (core/operators/) → raw_<factor>.parquet
-  → 清洗 (core/cleaning/) → <factor>.parquet (完整时间范围)
-  → 评估 (core/evaluation/) → evaluation.png + report.md
+研报 inputs/<factor>.md
+    ↓ python -m core.spec_generator <factor>           （LLM + spec_schema 校验闭环）
+specs/<factor>/spec.yaml + .llm_session.json
+    ↓ python run.py <factor>                           （fetch + 算子图 + 评估）
+raw_factor/<factor>.parquet
+    ↓ 清洗 + 评估
+cleaned_factor/<factor>.parquet + output/<factor>/{evaluation_*.png, report.md}
+    ↓ 沉淀
+docs/<factor>.md                                       （因子原理 + 工程经验）
 ```
 
 ---
@@ -38,130 +41,118 @@ inputs/ → specs/<factor>/{spec.md, spec.yaml} → confirm/<factor>/
 
 ```bash
 # 1) 从研报生成 spec.yaml（LLM + 静态校验闭环）
-#    研报文字按约定放在 inputs/<factor_name>.md
-python -m core.spec_generator npf_mrq_sue8
+python -m core.spec_generator npf_mrq_sue8         # 读 inputs/npf_mrq_sue8.md
 
 # 2) 默认全流程：YOLO + 评估
 python run.py roe_mrq_new
 
-# 3) 只跑 YOLO，不评估
+# 3) 仅 YOLO / 仅评估
 python run.py roe_mrq_new --yolo-only
-
-# 4) 只评估已有 raw 因子
 python run.py roe_mrq_new --evaluate-only
 
-# 5) 自定义评估区间 + 并发
+# 4) 自定义区间 + 并发
 python run.py roe_mrq_new --start-date 20200101 --end-date 20251231 --workers 16
 
-# 6) 批量回归（用 shell 循环，CLI 不再内置 --all）
+# 5) 批量回归用 shell 循环（CLI 不内置 --all）
 for f in $(ls specs); do python run.py $f --evaluate-only; done
 ```
 
-### CLI 设计原则
-
-- **spec 生成与执行分离**：`python -m core.spec_generator <FACTOR>`（rare，慢）vs `python run.py <FACTOR>`（daily，快）
-- **约定优于配置**：研报按 `inputs/<FACTOR>.md` 放；spec 按 `specs/<FACTOR>/spec.yaml` 放；不需要在 CLI 里反复传路径
-
----
-
-## 4. Spec 文件规范（必须双文件）
-
-每个因子目录 `specs/<factor>/` 下**必须同时存在**两个文件：
-
-| 文件 | 用途 | 读者 |
-|------|------|------|
-| `spec.md` | 人类可读的因子定义文档（公式、变量说明、计算步骤、股票池） | 人类（研究员/复核者） |
-| `spec.yaml` | 机器可执行的计算配置（action、formula、output、universe） | YOLO 引擎 |
-
-**约束**：
-- `spec.md` 和 `spec.yaml` 必须**同步维护**，任何改动同时更新两份文件
-- `spec.md` 中的计算步骤描述必须与 `spec.yaml` 的 `calculation_steps` 一一对应
-- `spec.yaml` 的 `factor.name` 必须与目录名一致
-- 禁止只写 yaml 不写 md，或只写 md 不写 yaml
+**CLI 设计原则**：
+- **spec 生成与执行分离**：`python -m core.spec_generator`（rare，慢）vs `python run.py`（daily，快）
+- **约定优于配置**：`inputs/<FACTOR>.md`、`specs/<FACTOR>/spec.yaml`，路径不在 CLI 里反复传
 
 ---
 
-## 5. Spec YAML 核心结构
+## 4. Spec 规范（spec.yaml 是唯一源真相）
 
-```yaml
-factor:
-  name: "roe_mrq_new"
-  direction: 1
-data_source:
-  api: "get_factor"           # 或 get_pit_financials_ex
-  fields: [...]
-calculation_steps:
-  - step: 1
-    action: "fetch"           # fetch / compute / filter / transform / rank
-    fields: [...]
-  - step: 2
-    action: "compute"
-    formula: "roe = net_profit / total_equity"
-universe:
-  primary_index: "ALL"
-```
+每个因子目录 `specs/<factor>/` 下**必须有** `spec.yaml`，可选 `.llm_session.json`（LLM 完整对话日志）。
+
+**spec.yaml 是机器可执行的因子定义**，结构、字段、契约由 `core/spec_schema.py` 强制校验。完整 schema + few-shot 示例见 `prompts/research_to_yaml.md`。
+
+核心契约（违反 → 静态校验 raise）：
+1. `factor.column` 必填，且必须等于某个 step 的 `output_column`
+2. 每个 transform/compute/rank/rolling/row_polyfit/row_correlate 必须显式声明 `source_column[s]` 和 `output_column`
+3. 同一 DataFrame 内 `output_column` 不允许重复（防覆盖）
+4. 多字段 fetch 用 `output_columns: {field: col}` 映射；多 DataFrame 用 `output_dataframe` + 显式 `merge` step
+
+**spec.md 不是规范**——曾经是双文件强制，现在已淘汰。人类阅读用 `docs/<factor>.md`（见 §6）。
 
 ---
 
-## 5. 关键约束
+## 5. 关键算子约定
 
-1. **米筐认证**：YOLO 前必须 `rqdatac.init()` 成功
-2. **PIT 模式**：财务数据用 `get_pit_financials_ex`，以 `info_date` 为公告日
-3. **`_mrq_n` 字段是单季度值**：米筐 `_mrq_0` / `_mrq_4` 等后缀字段已经预计算为单季度值，**无需手动 diff**。例如 `net_profit_mrq_0` 就是最近一期单季度净利润
-4. **清洗因子保留完整时间范围**：评估时根据 `start_date/end_date` 动态截取
-5. **市值字段统一用 `market_cap_3`**：米筐 `get_factor` 中市值有多个版本（`market_cap` / `market_cap_2` / `market_cap_3`），项目统一选用 `market_cap_3`。例：`rqdatac.get_factor('000001.XSHE', 'market_cap_3', start_date='20230101', end_date='20230110')`
-
----
-
-## 6. Git 工作流
-
-### Commit Message 规范（Conventional Commits）
-
-```
-<type>(<scope>): <subject>
-
-<body>
-```
-
-| type | 用途 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | 修复 bug |
-| `docs` | 文档更新 |
-| `refactor` | 重构（无功能变化） |
-| `chore` | 构建/工具链改动 |
-
-**例子：**
-```
-fix(pipeline): correct mask slicing with Timestamp range
-
-docs(agents): add env paths and evaluation workflow
-
-feat(evaluation): add skip_cleaning param
-```
-
-### 提交前检查清单
-
-- [ ] `git status` 确认只提交意图中的文件
-- [ ] `git diff --cached` 确认改动内容正确
-- [ ] 提交信息符合 Conventional Commits 规范
+1. **米筐认证**：YOLO 前 `rqdatac.init()` 成功
+2. **PIT 模式**：财务数据用 `get_pit_financials_ex`，公告日字段是 `info_date`，注意 `statements='all'` 才能拿到所有版本（含原始 + 重述）
+3. **`_mrq_n` 字段是单季度值**：米筐 `net_profit_mrq_0` 等后缀字段**已经预计算为单季度值**，**禁止再 diff**
+4. **市值字段统一用 `market_cap_3`**：米筐有 `market_cap` / `_2` / `_3`，项目约定 `_3`
+5. **季度数据 yoy=4，qoq=1**
+6. **资产负债表（净资产、总资产）是时点值**：直接用，不要 diff
+7. **清洗因子保留完整时间范围**：评估时根据 `--start-date/--end-date` 动态截取
 
 ---
 
-## 7. 目录速查
+## 6. 复现新因子的标准动作（含知识沉淀）
+
+**复现一个新因子的完整流程必须走完以下 5 步**：
+
+1. **写研报输入**：`inputs/<factor>.md`（一段研报描述即可，越简洁越能暴露 prompt 设计强度）
+2. **LLM 生成 spec**：`python -m core.spec_generator <factor>`，让 spec_schema 闭环校验通过
+3. **跑全市场**：`python run.py <factor>`，得到 IC / ICIR / Sharpe / 单调性 / 覆盖率
+4. **冒烟验证（推荐）**：单股 / 3 股端到端手算对照（纯 numpy + rqdatac），理解因子真实行为，10 分钟换避免误读全市场结果
+5. **写沉淀文档**：`docs/<factor>.md`（**不可省略**），至少包含：
+    - **因子定义**（数学 + 经济直觉）
+    - **研报描述歧义** + 我们的工程选择 + 理由
+    - **实现 N 步 spec** 高层逻辑
+    - **复现结果**（IC / ICIR / Sharpe / 单调性 / 覆盖率）
+    - **任何"非平凡的洞察"**（这一栏最值钱，例：npf_mrq_accs8 发现"前后 4 期相关性过滤其实是季节性过滤"）
+    - **与基准的差距分析**（如有研报基准）
+    - **未来改进路径**（v2 / v3 候选）
+
+**参考模板**：
+- `docs/npf_mrq_sue8.md` —— 含数学技巧（望远镜求和 + 方差恒等式）的因子
+- `docs/npf_mrq_accs8.md` —— 含关键洞察（季节性过滤）+ 单股冒烟测试方法 + 多版本对照
+
+> 知识沉淀是这个系统在 5000+ 因子尺度上的**核心价值**——spec.yaml 让因子可执行，docs/<factor>.md 让因子的研究决策可追溯、可复用、可教学。**任何"非平凡的发现"必须立刻写进 docs**，否则 6 个月后没人记得。
+
+---
+
+## 7. Git 工作流
+
+**Commit message 约定 ≤ 10 词**（subject 一行说清楚就够，不写 body）：
+
+```bash
+git commit -m "feat: add row_polyfit and row_correlate operators"   # ✅
+git commit -m "fix(prompt): drop misleading anti-row_aggregate guidance"  # ✅
+```
+
+**避免 HEREDOC 嵌套** —— `git commit -m "$(cat <<'EOF' ... EOF)"` 内含 `cat` 子命令会触发 Claude Code 二次审批 + 中断留下 `.git/index.lock` 残留；长 message 用 `git commit -F /tmp/msg.txt`。
+
+**提交前检查**：
+- `git status` 确认只提交意图中的文件
+- `git diff --cached` 看改动内容
+- 不要 `git add -A`（容易把 untracked 杂物拉进来）
+
+---
+
+## 8. 目录速查
 
 ```
-inputs/              原始输入
-doc/                 评估文档、可行性分析
-prompts/             Prompt 模板
+inputs/                  研报文字（每因子一份 .md）
+prompts/                 LLM prompt（research_to_yaml.md = spec 生成 schema）
+specs/<factor>/          spec.yaml + .llm_session.json（LLM 对话日志）
 core/
-  operators/         元操作注册中心
-  cleaning/          因子清洗（MAD + zscore + mask）
-  evaluation/        单因子评估（IC + 分层回测 + 绘图）
-  config.py          路径配置
-specs/               每个因子 spec.md + spec.yaml
-confirm/             人机确认记录
-output/              评估产物（png/md）
+  config.py              路径 + DEFAULT_START_DATE / DEFAULT_END_DATE
+  spec_schema.py         spec.yaml 静态校验
+  spec_generator.py      LLM 单段式生成 + 重试闭环
+  operators/             算子库（fetch / compute / filter / rank / rolling /
+                         transform / merge / row_aggregate / row_polyfit /
+                         row_correlate）
+  cleaning/              MAD + zscore + mask
+  evaluation/            IC + 分层 + 绘图
+  yolo_engine.py         spec yaml → 算子图执行
+docs/<factor>.md         因子原理 + 工程经验沉淀（每因子一份）
+output/<factor>/         评估产物 (png + report.md)，gitignore
+run.py                   日常执行 CLI（默认 yolo + 评估）
 ```
 
-> `.gitignore` 已配置忽略 `output/`、`scripts/`、`*.parquet`、`__pycache__/`、`.env`。
+`.gitignore` 已忽略 `output/`、`*.bak/`、`*.parquet`、`__pycache__/`、`.env`。

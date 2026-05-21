@@ -169,6 +169,20 @@ calculation_steps:
 ```
 两组列长度必须相等；任一侧含 NaN → 整行结果为 NaN；常数序列 → NaN（var=0 不可除）。
 
+### `cross_section_regress`
+按 date 分组做截面 OLS：每个交易日跨股票回归 y = X·β + ε，输出残差列。
+经典用途：风格剥离 / 嵌套残差化 / 因子正交化。
+```yaml
+- action: cross_section_regress
+  source_column_y: delta_log_pe        # 被回归列（单数）
+  source_columns_x: [residual_1]       # 解释变量（列表，可多个控制变量）
+  output_column: reg_pe_hist           # 输出残差
+  add_intercept: true                  # 默认 true
+  date_column: date                    # 默认 date
+  min_samples: 30                      # 截面有效样本不足 → 整组 NaN
+```
+任一行 y 或 x 含 NaN 该行残差 NaN；样本不足时整个截面 NaN。
+
 # 硬规则（必须遵守，违反会被 spec_schema 校验拒绝）
 
 1. **`factor.column` 必填**，且必须等于某个 step 的 `output_column`。

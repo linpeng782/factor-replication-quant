@@ -28,6 +28,7 @@ NO_OUTPUT_ACTIONS = frozenset({"filter"})
 COLUMN_ADDING_ACTIONS = frozenset({
     "transform", "compute", "rank", "rolling",
     "row_aggregate", "row_polyfit", "row_correlate",
+    "cross_section_regress",
 })
 
 
@@ -194,12 +195,14 @@ def _validate_filter(step: dict, sym: _SymbolTable, loc: str) -> None:
 def _collect_source_columns(step: dict, loc: str) -> List[str]:
     """规范化收集本步引用的输入列名（给 sym.require 用）
 
-    支持 3 种字段命名：
+    支持 4 种字段命名：
       - source_column                  单列（如 transform.diff）
       - source_columns                 列表（如 row_aggregate）
-      - source_columns_*               多组列表（如 row_polyfit / row_correlate
+      - source_column_<role>           单列后缀（如 cross_section_regress 的
+                                       source_column_y）
+      - source_columns_<role>          列表后缀（如 row_polyfit / row_correlate
                                        的 source_columns_y / _a / _b / _x）
-    任意一种或多种组合都行，最终把所有引用列汇总返回。
+    任意组合都允许，最终把所有引用列汇总返回。
     """
     found: list = []
     seen_keys: list = []
@@ -214,7 +217,14 @@ def _collect_source_columns(step: dict, loc: str) -> List[str]:
         found.extend(cols)
         seen_keys.append("source_columns")
     for key, val in step.items():
-        if key.startswith("source_columns_"):
+        if key == "source_column" or key == "source_columns":
+            continue
+        if key.startswith("source_column_") and not key.startswith("source_columns_"):
+            if not isinstance(val, str) or not val:
+                raise SpecError(f"{loc}: {key} 必须是非空字符串")
+            found.append(val)
+            seen_keys.append(key)
+        elif key.startswith("source_columns_"):
             if not isinstance(val, list) or not val:
                 raise SpecError(f"{loc}: {key} 必须是非空 list")
             found.extend(val)
@@ -222,6 +232,7 @@ def _collect_source_columns(step: dict, loc: str) -> List[str]:
 
     if not seen_keys:
         raise SpecError(
-            f"{loc}: 必须显式声明 source_column / source_columns / source_columns_*"
+            f"{loc}: 必须显式声明 source_column / source_columns / "
+            f"source_column_<role> / source_columns_<role>"
         )
     return found

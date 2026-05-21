@@ -141,6 +141,30 @@ calculation_steps:
   skipna: true    # 默认 true
 ```
 
+### `row_polyfit`
+行向多列多项式 OLS 回归，取指定阶次系数。
+```yaml
+- action: row_polyfit
+  source_columns_y: [y0, y1, y2, y3, y4, y5, y6, y7]
+  x_pattern: equispaced       # 0..n-1 等距 + zscore（默认）
+                              # 也可: equispaced_no_zscore
+  degree: 2                   # 多项式阶次
+  coefficient: a2             # 取哪一项；degree=2 时可选 a2 / a1 / a0（高次在前）
+  output_column: a            # 二次项系数 a
+```
+任一 y_i 为 NaN → 整行结果为 NaN。
+
+### `row_correlate`
+行向 Pearson 相关：每行有两组等长列，输出 corr(a, b)。
+```yaml
+- action: row_correlate
+  source_columns_a: [y0, y1, y2, y3]
+  source_columns_b: [y4, y5, y6, y7]
+  method: pearson             # 目前仅支持 pearson
+  output_column: front_back_corr
+```
+两组列长度必须相等；任一侧含 NaN → 整行结果为 NaN；常数序列 → NaN（var=0 不可除）。
+
 # 硬规则（必须遵守，违反会被 spec_schema 校验拒绝）
 
 1. **`factor.column` 必填**，且必须等于某个 step 的 `output_column`。

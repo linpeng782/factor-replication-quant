@@ -25,7 +25,10 @@ SENTINEL_COLS = frozenset({"order_book_id", "date"})
 NO_OUTPUT_ACTIONS = frozenset({"filter"})
 
 # 增列的 action（必须显式声明 output_column）
-COLUMN_ADDING_ACTIONS = frozenset({"transform", "compute", "rank", "rolling", "row_aggregate"})
+COLUMN_ADDING_ACTIONS = frozenset({
+    "transform", "compute", "rank", "rolling",
+    "row_aggregate", "row_polyfit", "row_correlate",
+})
 
 
 class SpecError(ValueError):
@@ -189,14 +192,36 @@ def _validate_filter(step: dict, sym: _SymbolTable, loc: str) -> None:
 
 
 def _collect_source_columns(step: dict, loc: str) -> List[str]:
-    """规范化收集本步引用的输入列名（给 sym.require 用）"""
-    if "source_column" in step and "source_columns" in step:
-        raise SpecError(f"{loc}: source_column 与 source_columns 不可同时指定")
+    """规范化收集本步引用的输入列名（给 sym.require 用）
+
+    支持 3 种字段命名：
+      - source_column                  单列（如 transform.diff）
+      - source_columns                 列表（如 row_aggregate）
+      - source_columns_*               多组列表（如 row_polyfit / row_correlate
+                                       的 source_columns_y / _a / _b / _x）
+    任意一种或多种组合都行，最终把所有引用列汇总返回。
+    """
+    found: list = []
+    seen_keys: list = []
+
     if "source_column" in step:
-        return [step["source_column"]]
+        found.append(step["source_column"])
+        seen_keys.append("source_column")
     if "source_columns" in step:
         cols = step["source_columns"]
         if not isinstance(cols, list) or not cols:
             raise SpecError(f"{loc}: source_columns 必须是非空 list")
-        return list(cols)
-    raise SpecError(f"{loc}: 必须显式声明 source_column 或 source_columns")
+        found.extend(cols)
+        seen_keys.append("source_columns")
+    for key, val in step.items():
+        if key.startswith("source_columns_"):
+            if not isinstance(val, list) or not val:
+                raise SpecError(f"{loc}: {key} 必须是非空 list")
+            found.extend(val)
+            seen_keys.append(key)
+
+    if not seen_keys:
+        raise SpecError(
+            f"{loc}: 必须显式声明 source_column / source_columns / source_columns_*"
+        )
+    return found

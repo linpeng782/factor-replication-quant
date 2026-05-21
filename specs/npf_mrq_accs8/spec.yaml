@@ -1,0 +1,71 @@
+# 由 core/spec_generator 从研报自动产出，已通过 spec_schema 静态校验。
+# 编辑后请重新跑 validate_spec 确认；完整 LLM 对话见 .llm_session.json。
+factor:
+  name: npf_mrq_accs8
+  name_cn: 单季度净利润增加速度（8期）
+  category: 景气
+  direction: 1
+  column: npf_mrq_accs8
+  description: '过去8期单季度净利润对时间做zscore后的二次回归二次项系数； 前4期与后4期相关系数≥0.9时置NaN，不足8期亦置NaN。
+
+    '
+universe:
+  primary_index: ALL
+calculation_steps:
+- name: 获取过去8期单季度净利润
+  action: fetch
+  api: get_factor
+  fields:
+  - net_profit_mrq_0
+  - net_profit_mrq_1
+  - net_profit_mrq_2
+  - net_profit_mrq_3
+  - net_profit_mrq_4
+  - net_profit_mrq_5
+  - net_profit_mrq_6
+  - net_profit_mrq_7
+  output_columns:
+    net_profit_mrq_0: np_mrq_0
+    net_profit_mrq_1: np_mrq_1
+    net_profit_mrq_2: np_mrq_2
+    net_profit_mrq_3: np_mrq_3
+    net_profit_mrq_4: np_mrq_4
+    net_profit_mrq_5: np_mrq_5
+    net_profit_mrq_6: np_mrq_6
+    net_profit_mrq_7: np_mrq_7
+- name: 二次回归取二次项系数
+  action: row_polyfit
+  source_columns_y:
+  - np_mrq_0
+  - np_mrq_1
+  - np_mrq_2
+  - np_mrq_3
+  - np_mrq_4
+  - np_mrq_5
+  - np_mrq_6
+  - np_mrq_7
+  x_pattern: equispaced
+  degree: 2
+  coefficient: a2
+  output_column: a2_raw
+- name: 计算前4期与后4期相关性
+  action: row_correlate
+  source_columns_a:
+  - np_mrq_0
+  - np_mrq_1
+  - np_mrq_2
+  - np_mrq_3
+  source_columns_b:
+  - np_mrq_4
+  - np_mrq_5
+  - np_mrq_6
+  - np_mrq_7
+  method: pearson
+  output_column: fb_corr
+- name: "|fb_corr| > 0.9 时置 NaN 输出因子"
+  action: compute
+  formula: a2_raw * (abs(fb_corr) < 0.9) / (abs(fb_corr) < 0.9)
+  source_columns:
+  - a2_raw
+  - fb_corr
+  output_column: npf_mrq_accs8

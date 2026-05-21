@@ -142,17 +142,21 @@ calculation_steps:
 ```
 
 ### `row_polyfit`
-行向多列多项式 OLS 回归，取指定阶次系数。
+行向多列多项式 OLS 回归，取指定阶次系数。**默认 x 和 y 都做 zscore**——这是跨股票
+因子的标准做法，让不同体量公司的 a 系数（曲线"形状"）可比；不 zscore 的话 a
+会被 y 量级主导（大公司 a 总比小公司大）。
 ```yaml
 - action: row_polyfit
   source_columns_y: [y0, y1, y2, y3, y4, y5, y6, y7]
   x_pattern: equispaced       # 0..n-1 等距 + zscore（默认）
                               # 也可: equispaced_no_zscore
+  zscore_y: true              # 默认 true；行向对 y 做 zscore
+                              # 极少数 per-stock 时序场景才设 false
   degree: 2                   # 多项式阶次
   coefficient: a2             # 取哪一项；degree=2 时可选 a2 / a1 / a0（高次在前）
   output_column: a            # 二次项系数 a
 ```
-任一 y_i 为 NaN → 整行结果为 NaN。
+任一 y_i 为 NaN 或行内 std(y)=0（8 个值全相等）→ 整行结果为 NaN。
 
 ### `row_correlate`
 行向 Pearson 相关：每行有两组等长列，输出 corr(a, b)。

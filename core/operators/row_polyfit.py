@@ -10,9 +10,12 @@ row_polyfit 算子
 契约：
   - source_columns_y : list[str]    必填，n 个 y 列
   - source_columns_x : list[str]    可选；如果给，每行 x 不同（变量 x，未实现，先抛错）
-  - x_pattern        : str          可选，等同于不给 source_columns_x 时的 fallback。
-                                    "equispaced" → 0..n-1 等距，再 zscore 标准化
-                                    "equispaced_no_zscore" → 0..n-1 等距，原值
+  - x_pattern        : str          "equispaced"（默认，0..n-1 等距 + zscore）或
+                                    "equispaced_no_zscore"（原值不 zscore）
+  - zscore_y         : bool         默认 True；行向对 8 个 y 做 zscore（按 axis=1，ddof=1）。
+                                    跨股票截面因子需要保持 True，让不同体量的公司的 a
+                                    形状可比；极少数 per-stock 时序场景才考虑 False。
+                                    某行 y 全相等导致 std=0 时该行结果置 NaN。
   - degree           : int          多项式阶次（默认 2）
   - coefficient      : str          取哪一项: "a{degree}" / ... / "a1" / "a0"
                                     （沿用 numpy.polyfit 约定：高次在前）
@@ -83,8 +86,19 @@ def op_row_polyfit(ctx: Context, step: Dict, fetcher: Any) -> None:
 
     # ── 行向回归 ──
     Y = df[y_cols].to_numpy(dtype=np.float64)  # (N_rows, n)
-    # 任一 y_i NaN → 整行结果置 NaN
+    # 任一 y_i NaN → 整行结果置 NaN（在 zscore 之前算 mask，不受 zscore 中除零影响）
     nan_mask = np.isnan(Y).any(axis=1)
+
+    # 行向 zscore Y（默认 True；让跨股票回归在归一化曲线上做，a 系数才可比）
+    zscore_y = step.get("zscore_y", True)
+    if zscore_y:
+        Y_mean = np.nanmean(Y, axis=1, keepdims=True)
+        Y_std = np.nanstd(Y, axis=1, ddof=1, keepdims=True)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            Y = np.where(Y_std > 0, (Y - Y_mean) / Y_std, np.nan)
+        # std=0（8 个 y 全相等）的行也置 NaN
+        nan_mask = nan_mask | (Y_std.ravel() == 0)
+
     result = Y @ weights  # (N_rows,)
     result[nan_mask] = np.nan
 

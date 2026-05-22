@@ -73,6 +73,10 @@ def _resolve_output_columns(step: Dict) -> Dict[str, str]:
     if "output_columns" in step:
         return dict(step["output_columns"])
     out = step["output_column"]
+    if step.get("api") == "custom":
+        # custom api 执行命令而非取米筐字段，没有 rq_field 概念；
+        # output_column 即输出列名，与 _fetch_custom 内部产出列对齐
+        return {out: out}
     fields = step.get("fields", [])
     if not fields:
         raise ValueError("fetch: 必须显式声明 fields")

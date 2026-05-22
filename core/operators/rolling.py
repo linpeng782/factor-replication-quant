@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+import numpy as np
 import pandas as pd
 
 from . import Context, OpRegistry
@@ -73,7 +74,7 @@ def op_rolling(ctx: Context, step: Dict, fetcher: Any) -> None:
         change_mask = df_sorted.groupby(group_by)[change_on].transform(
             lambda x: x != x.shift(1)
         )
-        rolled_full = pd.Series(pd.NA, index=df_sorted.index, dtype="float64")
+        rolled_full = pd.Series(np.nan, index=df_sorted.index, dtype="float64")
 
         change_rows = df_sorted.loc[change_mask, [group_by, src]].dropna(subset=[src])
         if len(change_rows) > 0:

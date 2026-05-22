@@ -1,44 +1,36 @@
+# 由 core/spec_generator 从研报自动产出，已通过 spec_schema 静态校验。
+# 编辑后请重新跑 validate_spec 确认；完整 LLM 对话见 .llm_session.json。
 factor:
-  name: "roic_ttm_dev_std8"
-  name_cn: "过去8期ROIC_TTM标准差的倒数"
-  category: "质量"
+  name: roic_ttm_dev_std8
+  name_cn: ROIC_TTM 稳定性（倒数标准差）
+  category: 质量
   direction: 1
-  description: >
-    以全市场个股为底池，计算过去8个财报期ROIC_TTM标准差的倒数。
-    ROIC_TTM越稳定（标准差越小），因子值越大。
+  column: roic_ttm_dev_std8
+  description: '1 / 过去 8 期 ROIC_TTM 的标准差；ROIC 越稳定因子值越大，方向为正。
 
-data_source:
-  api: "get_factor"
-  fields:
-    - return_on_invested_capital_ttm
-
-calculation_steps:
-  - step: 1
-    name: "获取ROIC_TTM时间序列"
-    action: "fetch"
-    api: "get_factor"
-    fields: ["return_on_invested_capital_ttm"]
-    output: "roic_data"
-
-  - step: 2
-    name: "过去8期标准差（变化日rolling）"
-    action: "rolling"
-    input: "roic_data"
-    columns: ["return_on_invested_capital_ttm"]
-    window: 8
-    min_periods: 4
-    agg: "std"
-    group_by: "order_book_id"
-    "on": "return_on_invested_capital_ttm"
-    fill_method: "ffill"
-    output: "rolled_data"
-
-  - step: 3
-    name: "取倒数"
-    action: "compute"
-    input: "rolled_data"
-    formula: "roic_ttm_dev_std8 = 1 / return_on_invested_capital_ttm"
-    output: "factor"
-
+    '
 universe:
-  primary_index: "ALL"
+  primary_index: ALL
+calculation_steps:
+- name: 获取 ROIC_TTM
+  action: fetch
+  api: get_factor
+  fields:
+  - return_on_invested_capital_ttm
+  output_column: return_on_invested_capital_ttm
+- name: 过去 8 期变化日 rolling 标准差
+  action: rolling
+  source_column: return_on_invested_capital_ttm
+  output_column: roic_ttm_std8
+  window: 8
+  min_periods: 4
+  agg: std
+  group_by: order_book_id
+  change_on: return_on_invested_capital_ttm
+  fill_method: ffill
+- name: 取倒数得到因子
+  action: compute
+  formula: 1 / roic_ttm_std8
+  source_columns:
+  - roic_ttm_std8
+  output_column: roic_ttm_dev_std8

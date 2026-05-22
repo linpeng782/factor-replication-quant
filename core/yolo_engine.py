@@ -11,6 +11,7 @@ spec 校验：core.spec_schema.validate_spec
 from __future__ import annotations
 
 import os
+import random
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -47,16 +48,34 @@ from .operators import cross_section_regress  # noqa: F401
 # rqdatac.get_factor 是网络 IO 阻塞调用，等待期间释放 GIL，多线程并发是安全且高效的。
 
 
+_TRANSIENT_KEYWORDS = ("connection", "timeout", "exceeds", "rate", "temporarily")
+_MAX_RETRIES = int(os.environ.get("FETCHER_MAX_RETRIES", "3"))
+
+
+def _is_transient(err_msg: str) -> bool:
+    """瞬时错误（米筐限流、网络抖动）值得重试；字段不存在等永久错误立刻放弃。"""
+    msg = err_msg.lower()
+    return any(k in msg for k in _TRANSIENT_KEYWORDS)
+
+
 def _thread_get_factor(rq, batch_idx, batch, fields, start_date, end_date):
-    """单批 fetch；fields 是 list[str]，rqdatac 一次返回多列。
+    """单批 fetch；瞬时错误重试 _MAX_RETRIES 次（指数 backoff + jitter）。
     返回 (batch_idx, df, elapsed_s, err_or_None)
     """
     t0 = time.time()
-    try:
-        df = rq.get_factor(batch, fields, start_date=start_date, end_date=end_date)
-        return batch_idx, df, time.time() - t0, None
-    except Exception as e:
-        return batch_idx, None, time.time() - t0, str(e)
+    last_err = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            df = rq.get_factor(batch, fields, start_date=start_date, end_date=end_date)
+            return batch_idx, df, time.time() - t0, None
+        except Exception as e:
+            last_err = str(e)
+            if attempt < _MAX_RETRIES - 1 and _is_transient(last_err):
+                # 1±, 2±, 4±... 秒 backoff
+                time.sleep(2 ** attempt + random.uniform(0, 1))
+                continue
+            break
+    return batch_idx, None, time.time() - t0, last_err
 
 
 def _fmt_fields(fields):
@@ -69,17 +88,21 @@ def _fetch_factor_sequential(rq, batches, fields, start_date, end_date):
     logger.info(f"[fetcher] start fields={label} | {n_batches} 批 | sequential")
     t_start = time.time()
     dfs = []
+    failures = []
     for i, batch in enumerate(batches, 1):
         _, df, elapsed, err = _thread_get_factor(rq, i, batch, fields, start_date, end_date)
         if err is not None:
-            logger.warning(f"[fetcher] {i}/{n_batches} 失败 ({elapsed:.1f}s): {err}")
+            logger.warning(f"[fetcher] batch#{i} ✗ {elapsed:.1f}s: {err}")
+            failures.append((i, err))
             continue
         if df is not None and len(df) > 0:
             dfs.append(df)
-        logger.info(f"[fetcher] {i}/{n_batches} ✓ {elapsed:.1f}s")
+        logger.info(f"[fetcher] batch#{i} ✓ {elapsed:.1f}s   [{i}/{n_batches} 完成]")
     logger.info(f"[fetcher] done fields={label} in {time.time() - t_start:.1f}s")
+    if failures:
+        raise RuntimeError(_format_fetch_failure(label, failures, n_batches))
     if not dfs:
-        raise ValueError(f"get_factor 全部批次失败: fields={label}")
+        raise ValueError(f"get_factor 全部批次为空: fields={label}")
     return pd.concat(dfs)
 
 
@@ -89,6 +112,7 @@ def _fetch_factor_parallel(rq, batches, fields, start_date, end_date, workers):
     logger.info(f"[fetcher] start fields={label} | {n_batches} 批 × {workers} 线程")
     t_start = time.time()
     dfs = []
+    failures = []
     done = 0
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = [
@@ -99,15 +123,33 @@ def _fetch_factor_parallel(rq, batches, fields, start_date, end_date, workers):
             batch_idx, df, elapsed, err = fut.result()
             done += 1
             if err is not None:
-                logger.warning(f"[fetcher] {batch_idx}/{n_batches} 失败 ({elapsed:.1f}s): {err}")
+                logger.warning(f"[fetcher] batch#{batch_idx} ✗ {elapsed:.1f}s: {err}")
+                failures.append((batch_idx, err))
                 continue
             if df is not None and len(df) > 0:
                 dfs.append(df)
-            logger.info(f"[fetcher] {done}/{n_batches} ✓ {elapsed:.1f}s")
+            logger.info(
+                f"[fetcher] batch#{batch_idx} ✓ {elapsed:.1f}s   "
+                f"[{done}/{n_batches} 完成]"
+            )
     logger.info(f"[fetcher] done fields={label} in {time.time() - t_start:.1f}s")
+    if failures:
+        raise RuntimeError(_format_fetch_failure(label, failures, n_batches))
     if not dfs:
-        raise ValueError(f"get_factor 全部批次失败: fields={label}")
+        raise ValueError(f"get_factor 全部批次为空: fields={label}")
     return pd.concat(dfs)
+
+
+def _format_fetch_failure(label: str, failures: list, n_batches: int) -> str:
+    """整批失败时的错误信息——拒绝产出 partial data。"""
+    sample = "; ".join(
+        f"batch#{idx}: {err[:80]}" for idx, err in failures[:3]
+    )
+    return (
+        f"get_factor fields={label}: {len(failures)}/{n_batches} 批最终失败"
+        f"（已重试 {_MAX_RETRIES} 次），拒绝产出 partial data。"
+        f" 失败样例: {sample}"
+    )
 
 
 # ── 米筐数据获取层（保持现有 API，算子层调用） ─────────────

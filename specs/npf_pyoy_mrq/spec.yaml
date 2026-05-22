@@ -1,0 +1,32 @@
+factor:
+  name: npf_pyoy_mrq
+  name_cn: "单季度净利润同比（分母 > 0 版）"
+  category: 景气
+  direction: 1
+  column: npf_pyoy_mrq
+  description: >
+    单季度净利润同比增长率：(net_profit_mrq_0 - net_profit_mrq_4) / abs(net_profit_mrq_4)。
+    仅保留去年同期净利润 > 0 的样本（过滤负基数或零基数）。
+    因子方向为正向，净利润改善预期收益更高。
+
+universe:
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取当期与去年同期单季度净利润
+    action: fetch
+    api: get_factor
+    fields: [net_profit_mrq_0, net_profit_mrq_4]
+    output_columns:
+      net_profit_mrq_0: net_profit_mrq_0
+      net_profit_mrq_4: net_profit_mrq_4
+
+  - name: 计算单季度净利润同比
+    action: compute
+    formula: (net_profit_mrq_0 - net_profit_mrq_4) / abs(net_profit_mrq_4)
+    source_columns: [net_profit_mrq_0, net_profit_mrq_4]
+    output_column: npf_pyoy_mrq
+
+  - name: 过滤去年同期净利润 > 0
+    action: filter
+    condition: net_profit_mrq_4 > 0

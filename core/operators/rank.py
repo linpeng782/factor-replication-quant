@@ -11,11 +11,15 @@ rank 算子
   - ascending       : bool   默认 True
   - pct             : bool   默认 False
   - rank_method     : str    默认 'average'（pandas.rank 的 method 参数）
+  - n_bins          : int    可选；指定后输出离散分组号 (1~n_bins)，
+                              内部强制 pct=True 再映射到 bins
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List
+
+import numpy as np
 
 from . import Context, OpRegistry
 
@@ -33,11 +37,22 @@ def op_rank(ctx: Context, step: Dict, fetcher: Any) -> None:
             "rank: group_by 必须为非空 list；想做日度截面排名请显式写 group_by: [date]"
         )
 
-    pct = bool(step.get("pct", False))
     ascending = bool(step.get("ascending", True))
     rank_method = step.get("rank_method", "average")
+    n_bins = step.get("n_bins")
 
-    series = df.groupby(group_by)[src].rank(
-        pct=pct, ascending=ascending, method=rank_method
-    )
+    if n_bins:
+        # 分组模式：输出离散组号 1~n_bins
+        n_bins = int(n_bins)
+        pct_series = df.groupby(group_by)[src].rank(
+            pct=True, ascending=ascending, method=rank_method
+        )
+        # pct_rank ∈ (0, 1]，映射到 1~n_bins
+        series = np.minimum(np.floor(pct_series * n_bins) + 1, n_bins).astype("Int64")
+    else:
+        pct = bool(step.get("pct", False))
+        series = df.groupby(group_by)[src].rank(
+            pct=pct, ascending=ascending, method=rank_method
+        )
+
     ctx.add_column(target_df, out, series)

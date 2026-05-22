@@ -85,9 +85,10 @@ for f in $(ls specs); do python run.py $f --evaluate-only; done
 2. **PIT 模式**：财务数据用 `get_pit_financials_ex`，公告日字段是 `info_date`，注意 `statements='all'` 才能拿到所有版本（含原始 + 重述）
 3. **`_mrq_n` 字段是单季度值**：米筐 `net_profit_mrq_0` 等后缀字段**已经预计算为单季度值**，**禁止再 diff**
 4. **市值字段统一用 `market_cap_3`**：米筐有 `market_cap` / `_2` / `_3`，项目约定 `_3`
-5. **季度数据 yoy=4，qoq=1**
-6. **资产负债表（净资产、总资产）是时点值**：直接用，不要 diff
-7. **清洗因子保留完整时间范围**：评估时根据 `--start-date/--end-date` 动态截取
+5. **米筐 TTM 财务字段是驼峰**：`net_profitTTM` / `revenueTTM` / `operating_revenueTTM`，不是 `net_profit_ttm`；但比率类仍是蛇形：`pe_ratio_ttm` / `pb_ratio_lf`
+6. **季度数据 yoy=4，qoq=1**
+7. **资产负债表（净资产、总资产）是时点值**：直接用，不要 diff
+8. **清洗因子保留完整时间范围**：评估时根据 `--start-date/--end-date` 动态截取
 
 ---
 
@@ -113,6 +114,8 @@ for f in $(ls specs); do python run.py $f --evaluate-only; done
 - `docs/npf_mrq_accs8.md` —— 含关键洞察（季节性过滤）+ 单股冒烟测试方法 + 多版本对照
 
 > 知识沉淀是这个系统在 5000+ 因子尺度上的**核心价值**——spec.yaml 让因子可执行，docs/<factor>.md 让因子的研究决策可追溯、可复用、可教学。**任何"非平凡的发现"必须立刻写进 docs**，否则 6 个月后没人记得。
+
+**沉淀文档约束**：每份 `docs/<factor>.md` **行数 ≤ 200**，找最精炼、最重点的表达，避免冗余啰嗦。宁可少写一句，不可多费一行。
 
 ---
 

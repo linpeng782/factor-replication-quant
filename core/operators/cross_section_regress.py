@@ -72,6 +72,7 @@ def op_cross_section_regress(ctx: Context, step: Dict, fetcher: Any) -> None:
     add_intercept = bool(step.get("add_intercept", True))
     date_col = step.get("date_column", "date")
     min_samples = int(step.get("min_samples", 30))
+    group_column = step.get("group_column")
 
     if not x_cols:
         raise ValueError("cross_section_regress: source_columns_x 不能为空")
@@ -79,15 +80,20 @@ def op_cross_section_regress(ctx: Context, step: Dict, fetcher: Any) -> None:
         raise ValueError(
             f"cross_section_regress: date_column={date_col!r} 不在 DataFrame 中"
         )
+    if group_column and group_column not in df.columns:
+        raise ValueError(
+            f"cross_section_regress: group_column={group_column!r} 不在 DataFrame 中"
+        )
 
     Y = df[y_col].to_numpy(dtype=np.float64)
     X = df[x_cols].to_numpy(dtype=np.float64)
 
     result = np.full(len(df), np.nan, dtype=np.float64)
-    # groupby(...).indices 直接给位置索引数组，比迭代分组对象快
-    groups = df.groupby(date_col, sort=False).indices  # dict[date, np.array]
+    # 按 (date, group) 或仅 date 分组做截面回归
+    group_keys = [date_col] if not group_column else [date_col, group_column]
+    groups = df.groupby(group_keys, sort=False).indices
 
-    for _date, pos in groups.items():
+    for _key, pos in groups.items():
         residuals = _regress_residuals(
             Y[pos], X[pos], add_intercept=add_intercept, min_samples=min_samples
         )

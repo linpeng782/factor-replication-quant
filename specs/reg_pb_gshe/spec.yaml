@@ -1,0 +1,91 @@
+factor:
+  name: reg_pb_gshe
+  name_cn: "经过调整的 PB 估值因子"
+  category: 价值
+  direction: -1
+  column: reg_pb_gshe
+  description: >
+    在中证全指范围内，对 EP 历史中位数截面分 10 组，组内对 log(PB) 关于 ROE 做截面回归，
+    残差代表 PB 中无法被盈利能力解释的定价偏差。残差为正 = 高估，预期收益低。
+
+universe:
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取基础数据
+    action: fetch
+    api: get_factor
+    fields: [pb_ratio_lf, net_profit_mrq_0, total_equity_mrq_0, market_cap_3]
+    output_columns:
+      pb_ratio_lf: pb
+      net_profit_mrq_0: net_profit_mrq_0
+      total_equity_mrq_0: total_equity_mrq_0
+      market_cap_3: market_cap_3
+
+  - name: 计算单季度 ROE
+    action: compute
+    formula: net_profit_mrq_0 / total_equity_mrq_0
+    source_columns: [net_profit_mrq_0, total_equity_mrq_0]
+    output_column: roe_mrq
+
+  - name: 计算 EP
+    action: compute
+    formula: net_profit_mrq_0 / market_cap_3
+    source_columns: [net_profit_mrq_0, market_cap_3]
+    output_column: ep
+
+  - name: 过滤 PB 和 ROE 为正
+    action: filter
+    condition: pb > 0 and roe_mrq > 0
+
+  - name: 计算 log(PB)
+    action: compute
+    formula: log(pb)
+    source_columns: [pb]
+    output_column: log_pb
+
+  - name: EP 过去 252 日中位数
+    action: rolling
+    source_column: ep
+    output_column: ep_median
+    window: 252
+    min_periods: 60
+    agg: median
+    group_by: order_book_id
+
+  - name: 截面去极值 EP 中位数
+    action: transform
+    method: winsorize
+    source_column: ep_median
+    output_column: ep_median_w
+    group_by: date
+
+  - name: EP 中位数截面分 10 组
+    action: rank
+    source_column: ep_median_w
+    output_column: ep_group
+    group_by: [date]
+    n_bins: 10
+
+  - name: 截面去极值 ROE
+    action: transform
+    method: winsorize
+    source_column: roe_mrq
+    output_column: roe_w
+    group_by: date
+
+  - name: 截面去极值 log(PB)
+    action: transform
+    method: winsorize
+    source_column: log_pb
+    output_column: log_pb_w
+    group_by: date
+
+  - name: 分组截面回归取残差
+    action: cross_section_regress
+    source_column_y: log_pb_w
+    source_columns_x: [roe_w]
+    output_column: reg_pb_gshe
+    add_intercept: true
+    group_column: ep_group
+    min_samples: 15

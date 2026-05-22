@@ -1,0 +1,32 @@
+factor:
+  name: npf_pqoq_mrq
+  name_cn: "单季度净利润环比（分母 > 0 版）"
+  category: 景气
+  direction: 1
+  column: npf_pqoq_mrq
+  description: >
+    单季度净利润环比增长率：(net_profit_mrq_0 - net_profit_mrq_1) / abs(net_profit_mrq_1)。
+    仅保留上季度净利润 > 0 的样本（过滤负基数）。
+    因子方向为正向，净利润改善预期收益更高。
+
+universe:
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取当期与上季度单季度净利润
+    action: fetch
+    api: get_factor
+    fields: [net_profit_mrq_0, net_profit_mrq_1]
+    output_columns:
+      net_profit_mrq_0: net_profit_mrq_0
+      net_profit_mrq_1: net_profit_mrq_1
+
+  - name: 计算单季度净利润环比
+    action: compute
+    formula: (net_profit_mrq_0 - net_profit_mrq_1) / abs(net_profit_mrq_1)
+    source_columns: [net_profit_mrq_0, net_profit_mrq_1]
+    output_column: npf_pqoq_mrq
+
+  - name: 过滤上季度净利润 > 0
+    action: filter
+    condition: net_profit_mrq_1 > 0

@@ -191,6 +191,7 @@ calculation_steps:
 4. **多字段 fetch 必须用 `output_columns` 映射**（不要尝试用 output_column 单字段）。
 5. **米筐 `_mrq_n` 字段（如 `net_profit_mrq_0`、`total_equity_mrq_0`）已是单季度值，不要再 transform diff_quarterly**；只有累计字段（如 `net_profit` 不带 `_mrq_n` 后缀）才需要 diff_quarterly。
 6. **市值字段统一用 `market_cap_3`**（米筐有 `market_cap` / `market_cap_2` / `market_cap_3`，项目约定取 `_3`）。
+6.1. **米筐 TTM 财务字段是驼峰命名**：`net_profitTTM` / `revenueTTM` / `operating_revenueTTM` / `gross_profitTTM` 等，**不是 `net_profit_ttm`**。但**比率类**还是蛇形：`pe_ratio_ttm` / `pb_ratio_lf`。这是米筐 API 的内部不一致。
 7. **季度数据 yoy 的 `periods=4`，qoq 的 `periods=1`**。
 8. **PIT 财务用 `api: get_pit_financials_ex`（按 quarter）；日频因子和 _mrq_n 字段用 `api: get_factor`**。
 9. **资产负债表（净资产、总资产等）是时点值，直接用，不要 diff**。

@@ -6,14 +6,14 @@ factor:
   category: 景气
   direction: 1
   column: npf_mrq_sue8
-  description: '基于过去 8 个季度单季度净利润的 SUE。预期净利润 = 去年同期净利润 + 相邻季度差分均值； SUE = (当期净利润 - 预期净利润)
-    / 差分标准差。
+  description: '过去 8 个季度单季度净利润的环比差分均值与标准差构建的 SUE 因子。 公式：(net_profit_mrq_0 - net_profit_mrq_4
+    - diff_mean) / diff_std。
 
     '
 universe:
   primary_index: ALL
 calculation_steps:
-- name: 获取过去 8 个季度单季度净利润
+- name: 获取过去8个季度单季度净利润
   action: fetch
   api: get_factor
   fields:
@@ -34,42 +34,86 @@ calculation_steps:
     net_profit_mrq_5: net_profit_mrq_5
     net_profit_mrq_6: net_profit_mrq_6
     net_profit_mrq_7: net_profit_mrq_7
-- name: 计算差分均值
+- name: 计算环比差分 d_01
   action: compute
-  formula: (net_profit_mrq_0 - net_profit_mrq_7) / 7.0
-  source_columns:
-  - net_profit_mrq_0
-  - net_profit_mrq_7
-  output_column: mean_diff
-- name: 计算差分平方和
-  action: compute
-  formula: (net_profit_mrq_6 - net_profit_mrq_7)**2 + (net_profit_mrq_5 - net_profit_mrq_6)**2
-    + (net_profit_mrq_4 - net_profit_mrq_5)**2 + (net_profit_mrq_3 - net_profit_mrq_4)**2
-    + (net_profit_mrq_2 - net_profit_mrq_3)**2 + (net_profit_mrq_1 - net_profit_mrq_2)**2
-    + (net_profit_mrq_0 - net_profit_mrq_1)**2
+  formula: net_profit_mrq_0 - net_profit_mrq_1
   source_columns:
   - net_profit_mrq_0
   - net_profit_mrq_1
+  output_column: d_01
+- name: 计算环比差分 d_12
+  action: compute
+  formula: net_profit_mrq_1 - net_profit_mrq_2
+  source_columns:
+  - net_profit_mrq_1
+  - net_profit_mrq_2
+  output_column: d_12
+- name: 计算环比差分 d_23
+  action: compute
+  formula: net_profit_mrq_2 - net_profit_mrq_3
+  source_columns:
   - net_profit_mrq_2
   - net_profit_mrq_3
+  output_column: d_23
+- name: 计算环比差分 d_34
+  action: compute
+  formula: net_profit_mrq_3 - net_profit_mrq_4
+  source_columns:
+  - net_profit_mrq_3
+  - net_profit_mrq_4
+  output_column: d_34
+- name: 计算环比差分 d_45
+  action: compute
+  formula: net_profit_mrq_4 - net_profit_mrq_5
+  source_columns:
   - net_profit_mrq_4
   - net_profit_mrq_5
+  output_column: d_45
+- name: 计算环比差分 d_56
+  action: compute
+  formula: net_profit_mrq_5 - net_profit_mrq_6
+  source_columns:
+  - net_profit_mrq_5
+  - net_profit_mrq_6
+  output_column: d_56
+- name: 计算环比差分 d_67
+  action: compute
+  formula: net_profit_mrq_6 - net_profit_mrq_7
+  source_columns:
   - net_profit_mrq_6
   - net_profit_mrq_7
-  output_column: sum_sq_diff
-- name: 计算差分标准差
-  action: compute
-  formula: sqrt((sum_sq_diff - 7.0 * mean_diff**2) / 6.0)
+  output_column: d_67
+- name: 计算差分均值
+  action: row_aggregate
   source_columns:
-  - sum_sq_diff
-  - mean_diff
-  output_column: std_diff
+  - d_01
+  - d_12
+  - d_23
+  - d_34
+  - d_45
+  - d_56
+  - d_67
+  output_column: diff_mean
+  agg: mean
+- name: 计算差分标准差
+  action: row_aggregate
+  source_columns:
+  - d_01
+  - d_12
+  - d_23
+  - d_34
+  - d_45
+  - d_56
+  - d_67
+  output_column: diff_std
+  agg: std
+  ddof: 1
 - name: 计算 SUE8
   action: compute
-  formula: (net_profit_mrq_0 - net_profit_mrq_4 - mean_diff) / std_diff
+  formula: (net_profit_mrq_0 - net_profit_mrq_4 - diff_mean) / diff_std
   source_columns:
   - net_profit_mrq_0
   - net_profit_mrq_4
-  - mean_diff
-  - std_diff
+  - diff_mean
+  - diff_std
   output_column: npf_mrq_sue8

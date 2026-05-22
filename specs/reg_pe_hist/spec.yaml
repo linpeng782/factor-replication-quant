@@ -1,0 +1,86 @@
+# 由 core/spec_generator 从研报自动产出，已通过 spec_schema 静态校验。
+# 编辑后请重新跑 validate_spec 确认；完整 LLM 对话见 .llm_session.json。
+factor:
+  name: reg_pe_hist
+  name_cn: 经过历史增速变化调整的历史 PE 变化
+  category: 价值
+  direction: -1
+  column: reg_pe_hist
+  description: '先计算单季净利润同比、净利润 TTM、PE_TTM 的 log 值并做 60 日差分； 再通过两步截面回归依次剥离 TTM 变化与独立利润动量，
+    最终残差 reg_pe_hist 代表无法被利润解释的情绪性估值变化。
+
+    '
+universe:
+  primary_index: ALL
+calculation_steps:
+- name: 获取基础数据
+  action: fetch
+  api: get_factor
+  fields:
+  - net_profit_mrq_0
+  - net_profit_mrq_4
+  - net_profitTTM
+  - pe_ratio_ttm
+  output_columns:
+    net_profit_mrq_0: net_profit_mrq_0
+    net_profit_mrq_4: net_profit_mrq_4
+    net_profitTTM: net_profitTTM
+    pe_ratio_ttm: pe_ratio_ttm
+- name: 过滤正值要求
+  action: filter
+  condition: net_profit_mrq_0 > 0 and net_profit_mrq_4 > 0 and net_profitTTM > 0
+    and pe_ratio_ttm > 0
+- name: 计算单季净利润同比对数
+  action: compute
+  formula: log(net_profit_mrq_0 / net_profit_mrq_4)
+  source_columns:
+  - net_profit_mrq_0
+  - net_profit_mrq_4
+  output_column: log_yoy
+- name: 计算净利润TTM对数
+  action: compute
+  formula: log(net_profitTTM)
+  source_columns:
+  - net_profitTTM
+  output_column: log_npttm
+- name: 计算PE_TTM对数
+  action: compute
+  formula: log(pe_ratio_ttm)
+  source_columns:
+  - pe_ratio_ttm
+  output_column: log_pe
+- name: 计算60日差分log_yoy
+  action: transform
+  method: diff
+  source_column: log_yoy
+  output_column: delta_log_yoy
+  periods: 60
+  group_by: order_book_id
+- name: 计算60日差分log_npttm
+  action: transform
+  method: diff
+  source_column: log_npttm
+  output_column: delta_log_npttm
+  periods: 60
+  group_by: order_book_id
+- name: 计算60日差分log_pe
+  action: transform
+  method: diff
+  source_column: log_pe
+  output_column: delta_log_pe
+  periods: 60
+  group_by: order_book_id
+- name: 截面回归剥离TTM变化
+  action: cross_section_regress
+  source_column_y: delta_log_yoy
+  source_columns_x:
+  - delta_log_npttm
+  output_column: residual_1
+  add_intercept: true
+- name: 截面回归剥离独立利润动量
+  action: cross_section_regress
+  source_column_y: delta_log_pe
+  source_columns_x:
+  - residual_1
+  output_column: reg_pe_hist
+  add_intercept: true

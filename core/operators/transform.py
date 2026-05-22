@@ -107,6 +107,22 @@ def _method_bfill(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
     return df[src].bfill()
 
 
+def _method_winsorize(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
+    """截面 MAD 去极值：按 group_by 分组，组内做 MAD clip。"""
+    n = float(step.get("n", 3.0))
+    group_by = step.get("group_by", "date")
+    mad_scale = 1.4826
+
+    def _mad_clip(s: pd.Series) -> pd.Series:
+        med = s.median()
+        mad = (s - med).abs().median() * mad_scale
+        if mad == 0:
+            return s
+        return s.clip(lower=med - n * mad, upper=med + n * mad)
+
+    return df.groupby(group_by)[src].transform(_mad_clip)
+
+
 def _method_diff_quarterly(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
     """PIT 财务累计值 → 单季度。要求 df 有 quarter 列。Q1 保留原值，其他季度做差分。"""
     if "quarter" not in df.columns:
@@ -126,4 +142,5 @@ _METHOD_DISPATCH = {
     "ffill": _method_ffill,
     "bfill": _method_bfill,
     "diff_quarterly": _method_diff_quarterly,
+    "winsorize": _method_winsorize,
 }

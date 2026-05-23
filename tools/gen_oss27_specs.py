@@ -5,7 +5,7 @@
 已手写：peak_minute_count (f1)、peak_interval_kurt (f10)、eruption_turnover_corr (f19)
 本脚本生成剩余 17 个：f2/f3/f4/f5/f6/f7/f8/f9/f11/f12/f13/f14/f15/f16/f17/f18/f20
 
-每个 spec 落到 specs/<name>/spec.yaml。生成后由 tools/sweep_oss27.sh 批量跑。
+每个 spec 落到 sources/kysec/paper_27_microstructure/specs/<name>/spec.yaml。
 
 注意：
 - f6/f7 的"反转中性化"暂不实现（v1 版本，会比论文略低）；
@@ -19,7 +19,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path("/nfs/volume-1593-1/peterzhenglinpeng/factor-repilcation-quant")
-SPEC_DIR = ROOT / "specs"
+SPEC_DIR = ROOT / "sources" / "kysec" / "paper_27_microstructure" / "specs"
 CACHE_KEY = "prv_v3"  # 与 _FEATURES_SUPERSET_VERSION 对齐
 
 

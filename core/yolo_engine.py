@@ -361,7 +361,9 @@ def run_factor(
     **kwargs,
 ) -> pd.DataFrame:
     if spec_yaml is None:
-        spec_path = Path(__file__).parent.parent / "specs" / factor_name / "spec.yaml"
+        from core.spec_resolver import resolve_spec_path
+
+        spec_path = resolve_spec_path(factor_name)
         with open(spec_path, "r", encoding="utf-8") as f:
             spec_yaml = yaml.safe_load(f)
     return YoloEngine().run(spec_yaml, **kwargs)

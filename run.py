@@ -6,14 +6,18 @@
     python run.py FACTOR --yolo-only     # 只跑 YOLO，不评估
     python run.py FACTOR --evaluate-only # 只评估（读已有 raw parquet）
 
+FACTOR 两种形态都接受：
+    peak_minute_count                                   # 裸名，自动扫 sources/ 定位（要求全局唯一）
+    kysec/paper_27_microstructure/peak_minute_count     # 限定路径，重名时消歧
+
 可选参数:
     --start-date YYYYMMDD   默认 core.config.DEFAULT_START_DATE
     --end-date YYYYMMDD     默认 core.config.DEFAULT_END_DATE
     --workers N             覆盖环境变量 FETCHER_WORKERS（多线程 fetch 并发）
 
 约定:
-    spec 文件:    specs/<FACTOR>/spec.yaml
-    研报输入:     inputs/<FACTOR>.md  （供 spec 生成阶段使用，与 run.py 无关）
+    spec 文件:    sources/<publisher>/<group>/specs/<FACTOR>/spec.yaml
+    研报输入:     sources/<publisher>/<group>/{input.md, inputs/<FACTOR>.md}（与 run.py 无关）
     raw 因子:    {RAW_FACTOR_DIR}/<FACTOR>.parquet
     cleaned:     {CLEANED_FACTOR_DIR}/<FACTOR>.parquet
     评估输出:    output/<FACTOR>/evaluation_*.png + report.md
@@ -89,7 +93,10 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("factor", help="因子名（specs/<FACTOR>/spec.yaml 必须存在）")
+    parser.add_argument(
+        "factor",
+        help="因子名（裸名或 pub/group/factor 限定路径；spec 在 sources/<pub>/<group>/specs/<factor>/）",
+    )
 
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(

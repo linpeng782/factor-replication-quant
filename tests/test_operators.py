@@ -1,340 +1,37 @@
 """
-算子拓展单元测试
-验证:
-1. rank 算子: pct/ascending/method 参数
-2. transform 算子: ffill/bfill method
-3. fetch 算子: custom API
+算子契约单元测试（rank / transform / rolling / fetch-custom）。
+
+新契约要点（与历史版本不同）：
+  - ctx 是 core.operators.Context dataclass，不是裸 dict
+  - 所有算子用 source_column / output_column 字段；rank 还要 group_by: list
+  - 算子 mutate ctx 并返回 None；测试读 ctx.get_df('data')[output_column]
+  - transform / rolling / rank 都是 long 表（必须有 order_book_id 列；rank 截面要 date）
 """
 
-import pandas as pd
-import numpy as np
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.operators import OpRegistry
-from core.operators import fetch, compute, filter, rank, transform, rolling  # noqa: F401 触发注册
+from core.operators import Context, OpRegistry
+from core.operators import compute, fetch, filter, rank, rolling, transform  # noqa: F401 触发注册
+
+
+# ──────────────────────────────────────────────────────────
+# 测试工具
+# ──────────────────────────────────────────────────────────
 
 
 class MockFetcher:
-    """Mock DataFetcher，不依赖 rqdatac"""
+    """无网 mock；测试不命中 rqdatac，下游 fetch 用例显式构造。"""
 
     def __init__(self):
         self._rq = None
-
-    def get_factor(self, order_book_ids, field, date=None, start_date=None, end_date=None):
-        return pd.DataFrame()
-
-    def fetch_pit(self, order_book_ids, fields, start_quarter, end_quarter, statements="latest"):
-        return pd.DataFrame()
-
-
-# ──────────────────────────────────────────
-# 测试 1: rank 算子
-# ──────────────────────────────────────────
-
-def test_rank_pct_false():
-    """测试顺序排名 (pct=False)"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "B", "C", "D"],
-        "roic_ttm": [0.15, 0.12, 0.10, 0.08],
-    })
-    ctx["data"] = df
-
-    step = {
-        "action": "rank",
-        "method": "rank",
-        "rank_column": "roic_ttm",
-        "pct": False,
-        "ascending": False,
-        "output": "ranked",
-    }
-
-    op = OpRegistry.get("rank")
-    result = op(ctx, step, fetcher)
-
-    ranks = result["roic_ttm_rank"].tolist()
-    assert ranks == [1.0, 2.0, 3.0, 4.0], f"顺序排名错误: {ranks}"
-    print("✅ test_rank_pct_false 通过")
-
-
-def test_rank_method_min():
-    """测试 method='min' 并列处理"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "B", "C", "D"],
-        "roic_ttm": [0.15, 0.12, 0.12, 0.08],  # B 和 C 并列
-    })
-    ctx["data"] = df
-
-    step = {
-        "action": "rank",
-        "method": "rank",
-        "rank_column": "roic_ttm",
-        "pct": False,
-        "ascending": False,
-        "rank_method": "min",
-        "output": "ranked",
-    }
-
-    op = OpRegistry.get("rank")
-    result = op(ctx, step, fetcher)
-
-    ranks = result["roic_ttm_rank"].tolist()
-    assert ranks == [1.0, 2.0, 2.0, 4.0], f"method=min 并列处理错误: {ranks}"
-    print("✅ test_rank_method_min 通过")
-
-
-def test_rank_industry_rank():
-    """测试行业内排名"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "B", "C", "D", "E", "F"],
-        "roic_ttm": [0.15, 0.12, 0.10, 0.20, 0.18, 0.05],
-        "industry": ["地产", "地产", "地产", "医药", "医药", "医药"],
-    })
-    ctx["data"] = df
-
-    step = {
-        "action": "rank",
-        "method": "industry_rank",
-        "rank_column": "roic_ttm",
-        "group_column": "industry",
-        "pct": False,
-        "ascending": False,
-        "rank_method": "min",
-        "output": "ranked",
-    }
-
-    op = OpRegistry.get("rank")
-    result = op(ctx, step, fetcher)
-
-    # 地产行业: A(0.15)=1, B(0.12)=2, C(0.10)=3
-    # 医药行业: D(0.20)=1, E(0.18)=2, F(0.05)=3
-    expected = [1.0, 2.0, 3.0, 1.0, 2.0, 3.0]
-    ranks = result["roic_ttm_rank"].tolist()
-    assert ranks == expected, f"行业内排名错误: {ranks}"
-    print("✅ test_rank_industry_rank 通过")
-
-
-def test_rank_backward_compatible():
-    """测试向后兼容（旧参数依然有效）"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "B", "C"],
-        "roic_ttm": [0.15, 0.12, 0.10],
-    })
-    ctx["data"] = df
-
-    # 旧式调用（无 pct/ascending/rank_method）
-    step = {
-        "action": "rank",
-        "method": "rank",
-        "rank_column": "roic_ttm",
-        "output": "ranked",
-    }
-
-    op = OpRegistry.get("rank")
-    result = op(ctx, step, fetcher)
-
-    # 默认 pct=True, ascending=True, method="average"
-    ranks = result["roic_ttm_rank"].tolist()
-    assert len(ranks) == 3
-    assert all(0 <= r <= 1 for r in ranks), f"百分比排名范围错误: {ranks}"
-    print("✅ test_rank_backward_compatible 通过")
-
-
-def test_rank_industry_rank_with_date():
-    """测试 long 格式带 date 列的行业内排名（按 [date, industry] 分组）"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "B", "C", "D", "E", "F"] * 2,
-        "date": ["2024-01-01"] * 6 + ["2024-01-02"] * 6,
-        "roic_ttm": [0.15, 0.12, 0.10, 0.20, 0.18, 0.05,
-                     0.14, 0.11, 0.09, 0.19, 0.17, 0.04],
-        "industry": ["地产", "地产", "地产", "医药", "医药", "医药"] * 2,
-    })
-    ctx["data"] = df
-
-    step = {
-        "action": "rank",
-        "method": "industry_rank",
-        "rank_column": "roic_ttm",
-        "group_column": "industry",
-        "pct": False,
-        "ascending": False,
-        "rank_method": "min",
-        "output": "ranked",
-    }
-
-    op = OpRegistry.get("rank")
-    result = op(ctx, step, fetcher)
-
-    # 每天每个行业内独立排名
-    # 2024-01-01 地产: A(0.15)=1, B(0.12)=2, C(0.10)=3
-    # 2024-01-01 医药: D(0.20)=1, E(0.18)=2, F(0.05)=3
-    # 2024-01-02 地产: A(0.14)=1, B(0.11)=2, C(0.09)=3
-    # 2024-01-02 医药: D(0.19)=1, E(0.17)=2, F(0.04)=3
-    expected = [1.0, 2.0, 3.0, 1.0, 2.0, 3.0] * 2
-    ranks = result["roic_ttm_rank"].tolist()
-    assert ranks == expected, f"带日期的行业内排名错误: {ranks}"
-    print("✅ test_rank_industry_rank_with_date 通过")
-
-
-def test_rank_market_rank_with_date():
-    """测试 long 格式带 date 列的全市场排名（按 date 分组）"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "B", "C", "D"] * 2,
-        "date": ["2024-01-01"] * 4 + ["2024-01-02"] * 4,
-        "roic_ttm": [0.15, 0.12, 0.10, 0.08,
-                     0.14, 0.11, 0.09, 0.07],
-    })
-    ctx["data"] = df
-
-    step = {
-        "action": "rank",
-        "method": "rank",
-        "rank_column": "roic_ttm",
-        "pct": False,
-        "ascending": False,
-        "output": "ranked",
-    }
-
-    op = OpRegistry.get("rank")
-    result = op(ctx, step, fetcher)
-
-    # 每天全市场独立排名
-    # 2024-01-01: A(0.15)=1, B(0.12)=2, C(0.10)=3, D(0.08)=4
-    # 2024-01-02: A(0.14)=1, B(0.11)=2, C(0.09)=3, D(0.07)=4
-    expected = [1.0, 2.0, 3.0, 4.0] * 2
-    ranks = result["roic_ttm_rank"].tolist()
-    assert ranks == expected, f"带日期的全市场排名错误: {ranks}"
-    print("✅ test_rank_market_rank_with_date 通过")
-
-
-# ──────────────────────────────────────────
-# 测试 2: transform 算子 (ffill/bfill)
-# ──────────────────────────────────────────
-
-def test_transform_ffill_wide():
-    """测试 wide 格式 ffill"""
-    ctx = {}
-    fetcher = MockFetcher()
-    dates = pd.date_range("2024-01-01", periods=5)
-    df = pd.DataFrame(
-        {
-            "A": [1.0, np.nan, np.nan, 2.0, np.nan],
-            "B": [np.nan, 3.0, np.nan, np.nan, 4.0],
-        },
-        index=dates,
-    )
-    ctx["data"] = df
-
-    step = {
-        "action": "transform",
-        "method": "ffill",
-        "input": "data",
-        "output": "filled",
-    }
-
-    op = OpRegistry.get("transform")
-    result = op(ctx, step, fetcher)
-
-    assert result["A"].tolist() == [1.0, 1.0, 1.0, 2.0, 2.0], f"A 列 ffill 错误: {result['A'].tolist()}"
-    assert result["B"].tolist()[1:5] == [3.0, 3.0, 3.0, 4.0], f"B 列 ffill 错误: {result['B'].tolist()}"
-    print("✅ test_transform_ffill_wide 通过")
-
-
-def test_transform_ffill_long():
-    """测试 long 格式 ffill (groupby)"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame({
-        "order_book_id": ["A", "A", "A", "B", "B", "B"],
-        "date": ["2024-01-01", "2024-01-02", "2024-01-03"] * 2,
-        "value": [1.0, np.nan, np.nan, np.nan, 2.0, np.nan],
-    })
-    ctx["data"] = df
-
-    step = {
-        "action": "transform",
-        "method": "ffill",
-        "input": "data",
-        "group_column": "order_book_id",
-        "columns": ["value"],
-        "output": "filled",
-    }
-
-    op = OpRegistry.get("transform")
-    result = op(ctx, step, fetcher)
-
-    expected_A = [1.0, 1.0, 1.0]
-    expected_B = [np.nan, 2.0, 2.0]  # B 第一行 NaN，后面 ffill
-    actual_A = result[result.order_book_id == "A"]["value"].tolist()
-    actual_B = result[result.order_book_id == "B"]["value"].tolist()
-    assert actual_A == expected_A
-    # NaN 不能直接 == 比较
-    assert np.isnan(actual_B[0]) and actual_B[1:] == [2.0, 2.0]
-    print("✅ test_transform_ffill_long 通过")
-
-
-def test_transform_bfill():
-    """测试 bfill"""
-    ctx = {}
-    fetcher = MockFetcher()
-    df = pd.DataFrame(
-        {
-            "A": [np.nan, np.nan, 2.0, np.nan, 4.0],
-        },
-        index=pd.date_range("2024-01-01", periods=5),
-    )
-    ctx["data"] = df
-
-    step = {
-        "action": "transform",
-        "method": "bfill",
-        "input": "data",
-        "output": "filled",
-    }
-
-    op = OpRegistry.get("transform")
-    result = op(ctx, step, fetcher)
-
-    assert result["A"].tolist() == [2.0, 2.0, 2.0, 4.0, 4.0], f"bfill 错误: {result['A'].tolist()}"
-    print("✅ test_transform_bfill 通过")
-
-
-# ──────────────────────────────────────────
-# 测试 3: fetch 算子 (custom API)
-# ──────────────────────────────────────────
-
-class MockFetcherWithCustom:
-    """支持自定义 API 的 Mock Fetcher"""
-
-    def __init__(self):
-        class MockClient:
-            def execute(self, command):
-                if command == "__test__industry":
-                    return [
-                        ["地产", "000001.XSHE", "2020-01-01"],
-                        ["医药", "000002.XSHE", "2020-01-01"],
-                        ["地产", "000001.XSHE", "2023-01-01"],  # 变更
-                    ]
-                raise ValueError(f"未知命令: {command}")
-
-        class MockRQ:
-            client = type("Client", (), {"get_client": lambda self: MockClient()})()
-
-        self._rq = MockRQ()
 
     def get_factor(self, *args, **kwargs):
         return pd.DataFrame()
@@ -343,251 +40,290 @@ class MockFetcherWithCustom:
         return pd.DataFrame()
 
 
-# ──────────────────────────────────────────
-# 测试 4: rolling 算子
-# ──────────────────────────────────────────
+def _ctx_with(name: str, df: pd.DataFrame, universe=None) -> Context:
+    c = Context(factor_name="test")
+    c.dataframes[name] = df
+    if universe is not None:
+        c.universe = universe
+    return c
 
-def test_rolling_plain_wide():
-    """测试普通 rolling（wide 格式，模拟 MA5）"""
-    ctx = {}
-    fetcher = MockFetcher()
-    dates = pd.date_range("2024-01-01", periods=10)
-    df = pd.DataFrame(
-        {
-            "A": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-            "B": [10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
-        },
-        index=dates,
-    )
-    ctx["data"] = df
 
-    step = {
+def _run(action: str, ctx: Context, step: dict) -> Context:
+    OpRegistry.get(action)(ctx, step, MockFetcher())
+    return ctx
+
+
+# ──────────────────────────────────────────────────────────
+# rank
+# ──────────────────────────────────────────────────────────
+
+
+def test_rank_cross_section_descending():
+    """单截面（单日）按 ROIC 降序排名。"""
+    df = pd.DataFrame({
+        "date": ["2024-01-01"] * 4,
+        "order_book_id": ["A", "B", "C", "D"],
+        "roic": [0.15, 0.12, 0.10, 0.08],
+    })
+    ctx = _ctx_with("data", df)
+    _run("rank", ctx, {
+        "action": "rank",
+        "source_column": "roic",
+        "output_column": "roic_rk",
+        "group_by": ["date"],
+        "ascending": False,
+        "rank_method": "min",
+    })
+    assert ctx.get_df("data")["roic_rk"].tolist() == [1.0, 2.0, 3.0, 4.0]
+
+
+def test_rank_industry_cross_section():
+    """行业内 × 日截面排名（group_by=[date, industry]）。"""
+    df = pd.DataFrame({
+        "date": ["2024-01-01"] * 6,
+        "order_book_id": ["A", "B", "C", "D", "E", "F"],
+        "roic": [0.15, 0.12, 0.10, 0.20, 0.18, 0.05],
+        "industry": ["地产", "地产", "地产", "医药", "医药", "医药"],
+    })
+    ctx = _ctx_with("data", df)
+    _run("rank", ctx, {
+        "action": "rank",
+        "source_column": "roic",
+        "output_column": "roic_rk",
+        "group_by": ["date", "industry"],
+        "ascending": False,
+        "rank_method": "min",
+    })
+    # 地产: 0.15→1, 0.12→2, 0.10→3 ；医药: 0.20→1, 0.18→2, 0.05→3
+    assert ctx.get_df("data")["roic_rk"].tolist() == [1.0, 2.0, 3.0, 1.0, 2.0, 3.0]
+
+
+def test_rank_n_bins():
+    """n_bins 模式：输出离散组号 1~n_bins，单调递增，bin 数等于 n_bins。"""
+    df = pd.DataFrame({
+        "date": ["2024-01-01"] * 10,
+        "order_book_id": list("ABCDEFGHIJ"),
+        "x": np.arange(10, dtype=float),
+    })
+    ctx = _ctx_with("data", df)
+    _run("rank", ctx, {
+        "action": "rank",
+        "source_column": "x",
+        "output_column": "bin",
+        "group_by": ["date"],
+        "ascending": True,
+        "n_bins": 5,
+    })
+    bins = ctx.get_df("data")["bin"].astype(int).tolist()
+    # 公式 min(floor(pct*5)+1, 5) 对 pct=0.1..1.0 给出 [1,2,2,3,3,4,4,5,5,5]
+    # 不严格按等量分桶（边界归属上一桶），但 bin 取值在 [1,5]，且单调不减
+    assert min(bins) == 1 and max(bins) == 5
+    assert all(bins[i] <= bins[i + 1] for i in range(len(bins) - 1))
+
+
+def test_rank_requires_group_by_list():
+    """缺 group_by 必须 raise（防止隐式截面排名）。"""
+    df = pd.DataFrame({"order_book_id": ["A"], "x": [1.0]})
+    ctx = _ctx_with("data", df)
+    try:
+        _run("rank", ctx, {
+            "action": "rank",
+            "source_column": "x",
+            "output_column": "x_rk",
+        })
+    except ValueError as e:
+        assert "group_by" in str(e)
+        return
+    raise AssertionError("未 raise: rank 缺 group_by")
+
+
+# ──────────────────────────────────────────────────────────
+# transform（long 格式，order_book_id 分组）
+# ──────────────────────────────────────────────────────────
+
+
+def test_transform_ffill_long():
+    """同股票内前向填充。"""
+    df = pd.DataFrame({
+        "order_book_id": ["A", "A", "A", "B", "B", "B"],
+        "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"] * 2),
+        "v": [1.0, np.nan, np.nan, np.nan, 2.0, np.nan],
+    })
+    ctx = _ctx_with("data", df)
+    _run("transform", ctx, {
+        "action": "transform",
+        "method": "ffill",
+        "source_column": "v",
+        "output_column": "v_ff",
+    })
+    out = ctx.get_df("data")
+    a_vals = out[out.order_book_id == "A"]["v_ff"].tolist()
+    b_vals = out[out.order_book_id == "B"]["v_ff"].tolist()
+    assert a_vals == [1.0, 1.0, 1.0]
+    assert pd.isna(b_vals[0]) and b_vals[1:] == [2.0, 2.0]
+
+
+def test_transform_diff_quarterly():
+    """累计值 → 单季度：q1 保留原值，q2/q3/q4 做组内 diff。"""
+    df = pd.DataFrame({
+        "order_book_id": ["A"] * 4,
+        "quarter": ["2024q1", "2024q2", "2024q3", "2024q4"],
+        "rev_cum": [10.0, 25.0, 45.0, 70.0],
+    })
+    ctx = _ctx_with("data", df)
+    _run("transform", ctx, {
+        "action": "transform",
+        "method": "diff_quarterly",
+        "source_column": "rev_cum",
+        "output_column": "rev_q",
+    })
+    # q1=10（保留），q2=25-10=15, q3=45-25=20, q4=70-45=25
+    assert ctx.get_df("data")["rev_q"].tolist() == [10.0, 15.0, 20.0, 25.0]
+
+
+def test_transform_yoy_ratio():
+    """yoy 是真比率：(x - x.shift(4)) / x.shift(4)。"""
+    df = pd.DataFrame({
+        "order_book_id": ["A"] * 6,
+        "x": [100.0, 110.0, 120.0, 130.0, 200.0, 220.0],
+    })
+    ctx = _ctx_with("data", df)
+    _run("transform", ctx, {
+        "action": "transform",
+        "method": "yoy",
+        "source_column": "x",
+        "output_column": "yoy",
+        "periods": 4,
+    })
+    out = ctx.get_df("data")["yoy"].tolist()
+    # idx 0..3: NaN（无前值）；idx 4: (200-100)/100=1.0；idx 5: (220-110)/110=1.0
+    assert all(pd.isna(v) for v in out[:4])
+    assert out[4] == 1.0 and out[5] == 1.0
+
+
+# ──────────────────────────────────────────────────────────
+# rolling（long 格式）
+# ──────────────────────────────────────────────────────────
+
+
+def test_rolling_plain_long():
+    """普通 rolling MA3，按 order_book_id 分组。"""
+    df = pd.DataFrame({
+        "order_book_id": ["A"] * 5 + ["B"] * 5,
+        "date": pd.to_datetime(["2024-01-0" + str(i) for i in range(1, 6)] * 2),
+        "x": [1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 20.0, 30.0, 40.0, 50.0],
+    })
+    ctx = _ctx_with("data", df)
+    _run("rolling", ctx, {
         "action": "rolling",
-        "input": "data",
-        "window": 5,
+        "source_column": "x",
+        "output_column": "ma3",
+        "window": 3,
         "min_periods": 3,
         "agg": "mean",
-        "fill_method": "none",
-        "output": "rolled",
-    }
-
-    op = OpRegistry.get("rolling")
-    result = op(ctx, step, fetcher)
-
-    # A 列 MA5 (min_periods=3)
-    # idx0: [1] -> NaN (不足3)
-    # idx1: [1,2] -> NaN (不足3)
-    # idx2: [1,2,3] -> 2.0
-    # idx3: [1,2,3,4] -> 2.5
-    # idx4: [1,2,3,4,5] -> 3.0
-    # idx5: [2,3,4,5,6] -> 4.0
-    expected_A = [np.nan, np.nan, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
-    actual_A = result["A"].tolist()
-    for i, (a, e) in enumerate(zip(actual_A, expected_A)):
-        if pd.isna(e):
-            assert pd.isna(a), f"A 列 idx{i} 应为 NaN, 实际={a}"
-        else:
-            assert abs(a - e) < 1e-10, f"A 列 idx{i} 错误: 期望={e}, 实际={a}"
-    print("✅ test_rolling_plain_wide 通过")
+        "group_by": "order_book_id",
+    })
+    out = ctx.get_df("data")
+    a = out[out.order_book_id == "A"]["ma3"].tolist()
+    b = out[out.order_book_id == "B"]["ma3"].tolist()
+    assert pd.isna(a[0]) and pd.isna(a[1])
+    assert a[2:] == [2.0, 3.0, 4.0]
+    assert pd.isna(b[0]) and pd.isna(b[1])
+    assert b[2:] == [20.0, 30.0, 40.0]
 
 
-def test_rolling_on_changes():
-    """测试变化日 rolling（roic_ttm_ind_rnk8 核心逻辑）"""
-    ctx = {}
-    fetcher = MockFetcher()
-    dates = pd.date_range("2024-01-01", periods=20)
-
-    # 模拟某只股票的 ROIC_TTM（每5天变化一次，共4个财报期）
-    roic_ttm = pd.DataFrame(
-        {"stock": [0.10] * 5 + [0.08] * 5 + [0.06] * 5 + [0.04] * 5},
-        index=dates,
-    )
-
-    # 模拟该股票的行业内排名（随 ROIC_TTM 变化）
-    ind_rank = pd.DataFrame(
-        {"stock": [5.0] * 5 + [8.0] * 5 + [12.0] * 5 + [20.0] * 5},
-        index=dates,
-    )
-
-    ctx["roic_ttm"] = roic_ttm
-    ctx["ind_rank"] = ind_rank
-
-    step = {
+def test_rolling_change_on_with_ffill():
+    """变化日 rolling：只在 change_on 列值变化的行采样，ffill 回所有行。"""
+    df = pd.DataFrame({
+        "order_book_id": ["A"] * 10,
+        "date": pd.to_datetime([f"2024-01-{i:02d}" for i in range(1, 11)]),
+        "roic": [0.10] * 3 + [0.08] * 3 + [0.06] * 4,   # 3 个变化日
+        "ind_rk": [5.0] * 3 + [8.0] * 3 + [12.0] * 4,
+    })
+    ctx = _ctx_with("data", df)
+    _run("rolling", ctx, {
         "action": "rolling",
-        "input": "ind_rank",
-        "window": 3,
+        "source_column": "ind_rk",
+        "output_column": "ind_rk_min2",
+        "window": 2,
         "min_periods": 1,
         "agg": "min",
-        "on": "roic_ttm",       # 只在 ROIC_TTM 变化的日子上 rolling
+        "change_on": "roic",
         "fill_method": "ffill",
-        "columns": ["stock"],
-        "output": "factor",
-    }
-
-    op = OpRegistry.get("rolling")
-    result = op(ctx, step, fetcher)
-
-    # 变化日: idx0(0.10), idx5(0.08), idx10(0.06), idx15(0.04)
-    # 变化日排名: 5, 8, 12, 20
-    # rolling(3, min_periods=1).min():
-    #   idx0: [5] -> min=5
-    #   idx5: [5,8] -> min=5
-    #   idx10: [5,8,12] -> min=5
-    #   idx15: [8,12,20] -> min=8
-    # ffill 后所有行:
-    #   idx0-4: 5
-    #   idx5-9: 5
-    #   idx10-14: 5
-    #   idx15-19: 8
-
-    expected = [5.0] * 15 + [8.0] * 5
-    actual = result["stock"].tolist()
-    assert actual == expected, f"变化日 rolling 错误: 期望={expected}, 实际={actual}"
-    print("✅ test_rolling_on_changes 通过")
+        "group_by": "order_book_id",
+    })
+    # 变化日值: [5, 8, 12]；rolling(2,min_periods=1).min(): [5, 5, 8]
+    # ffill 回所有行: idx0-2=5, idx3-5=5, idx6-9=8
+    expected = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 8.0, 8.0, 8.0, 8.0]
+    assert ctx.get_df("data")["ind_rk_min2"].tolist() == expected
 
 
-def test_rolling_on_changes_with_nan():
-    """测试变化日 rolling 时源数据有 NaN 的情况"""
-    ctx = {}
-    fetcher = MockFetcher()
-    dates = pd.date_range("2024-01-01", periods=10)
-
-    # ROIC_TTM: 前3天 NaN，然后变化
-    roic_ttm = pd.DataFrame(
-        {"stock": [np.nan, np.nan, np.nan, 0.10, 0.10, 0.10, 0.08, 0.08, 0.08, 0.08]},
-        index=dates,
-    )
-
-    ind_rank = pd.DataFrame(
-        {"stock": [np.nan, np.nan, np.nan, 10.0, 10.0, 10.0, 15.0, 15.0, 15.0, 15.0]},
-        index=dates,
-    )
-
-    ctx["roic_ttm"] = roic_ttm
-    ctx["ind_rank"] = ind_rank
-
-    step = {
+def test_rolling_min_periods_insufficient():
+    """min_periods 不足时变化日 rolling 全 NaN。"""
+    df = pd.DataFrame({
+        "order_book_id": ["A"] * 8,
+        "date": pd.to_datetime([f"2024-01-{i:02d}" for i in range(1, 9)]),
+        "roic": [0.10] * 4 + [0.08] * 4,   # 仅 2 个变化日
+        "ind_rk": [5.0] * 4 + [8.0] * 4,
+    })
+    ctx = _ctx_with("data", df)
+    _run("rolling", ctx, {
         "action": "rolling",
-        "input": "ind_rank",
-        "window": 3,
-        "min_periods": 1,
-        "agg": "min",
-        "on": "roic_ttm",
-        "fill_method": "ffill",
-        "columns": ["stock"],
-        "output": "factor",
-    }
-
-    op = OpRegistry.get("rolling")
-    result = op(ctx, step, fetcher)
-
-    # 变化日: idx3(0.10), idx6(0.08)
-    # 变化日排名: 10, 15
-    # rolling: idx3->10, idx6->min(10,15)=10
-    # ffill: idx0-2 NaN, idx3-5=10, idx6-9=10
-    expected = [np.nan, np.nan, np.nan, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
-    actual = result["stock"].tolist()
-    for i, (a, e) in enumerate(zip(actual, expected)):
-        if pd.isna(e):
-            assert pd.isna(a), f"idx{i} 应为 NaN, 实际={a}"
-        else:
-            assert a == e, f"idx{i} 错误: 期望={e}, 实际={a}"
-    print("✅ test_rolling_on_changes_with_nan 通过")
-
-
-def test_rolling_min_periods():
-    """测试 min_periods 不足时返回 NaN"""
-    ctx = {}
-    fetcher = MockFetcher()
-    dates = pd.date_range("2024-01-01", periods=10)
-
-    roic_ttm = pd.DataFrame(
-        {"stock": [0.10] * 3 + [0.08] * 3 + [0.06] * 4},
-        index=dates,
-    )
-    ind_rank = pd.DataFrame(
-        {"stock": [5.0] * 3 + [8.0] * 3 + [12.0] * 4},
-        index=dates,
-    )
-
-    ctx["roic_ttm"] = roic_ttm
-    ctx["ind_rank"] = ind_rank
-
-    step = {
-        "action": "rolling",
-        "input": "ind_rank",
+        "source_column": "ind_rk",
+        "output_column": "ind_rk_min5",
         "window": 5,
-        "min_periods": 5,       # 要求至少5个变化日
+        "min_periods": 5,
         "agg": "min",
-        "on": "roic_ttm",
+        "change_on": "roic",
         "fill_method": "ffill",
-        "columns": ["stock"],
-        "output": "factor",
-    }
-
-    op = OpRegistry.get("rolling")
-    result = op(ctx, step, fetcher)
-
-    # 变化日只有3个(0.10, 0.08, 0.06)，不足5个
-    # 所以所有变化日的 rolling 结果都是 NaN
-    # ffill 后也是 NaN
-    assert result["stock"].isna().all(), f"min_periods=5 但只有3个变化日，应全为 NaN"
-    print("✅ test_rolling_min_periods 通过")
+        "group_by": "order_book_id",
+    })
+    assert ctx.get_df("data")["ind_rk_min5"].isna().all()
 
 
-# ──────────────────────────────────────────
-# 测试 3: fetch 算子 (custom API)
-# ──────────────────────────────────────────
-
-def test_fetch_custom_api():
-    """测试 fetch 的 custom API 模式"""
-    ctx = {"_universe": ["000001.XSHE", "000002.XSHE"]}
-    fetcher = MockFetcherWithCustom()
-
-    step = {
-        "action": "fetch",
-        "api": "custom",
-        "command": "__test__industry",
-        "columns": ["industry", "order_book_id", "start_date"],
-        "output": "industry_map",
-    }
-
-    op = OpRegistry.get("fetch")
-    result = op(ctx, step, fetcher)
-
-    assert len(result) == 3
-    assert list(result.columns) == ["industry", "order_book_id", "start_date"]
-    assert result["industry"].tolist() == ["地产", "医药", "地产"]
-    print("✅ test_fetch_custom_api 通过")
+# ──────────────────────────────────────────────────────────
+# fetch — 错误路径（custom API 只规范化了一个 command；
+# 真实 fetch 行为靠端到端因子回归覆盖，而非 mock 假命令）
+# ──────────────────────────────────────────────────────────
 
 
-# ──────────────────────────────────────────
-# 主入口
-# ──────────────────────────────────────────
+def test_fetch_requires_universe():
+    """fetch 调用前 ctx.universe 不能为空。"""
+    ctx = Context(factor_name="test")
+    try:
+        OpRegistry.get("fetch")(
+            ctx,
+            {
+                "action": "fetch",
+                "api": "get_factor",
+                "fields": ["pe_ratio_ttm"],
+                "output_column": "pe",
+            },
+            MockFetcher(),
+        )
+    except ValueError as e:
+        assert "universe" in str(e)
+        return
+    raise AssertionError("未 raise: fetch 缺 universe")
 
-if __name__ == "__main__":
-    print("=" * 50)
-    print("算子拓展单元测试")
-    print("=" * 50)
 
-    test_rank_pct_false()
-    test_rank_method_min()
-    test_rank_industry_rank()
-    test_rank_backward_compatible()
-    test_rank_industry_rank_with_date()
-    test_rank_market_rank_with_date()
-
-    test_transform_ffill_wide()
-    test_transform_ffill_long()
-    test_transform_bfill()
-
-    test_fetch_custom_api()
-
-    test_rolling_plain_wide()
-    test_rolling_on_changes()
-    test_rolling_on_changes_with_nan()
-    test_rolling_min_periods()
-
-    print("=" * 50)
-    print("全部测试通过 ✅")
-    print("=" * 50)
+def test_fetch_rejects_dst_collision():
+    """目标 DataFrame 已存在时 fetch 必须 raise（防止覆盖；扩列要走 merge）。"""
+    ctx = Context(factor_name="test")
+    ctx.universe = ["000001.XSHE"]
+    ctx.dataframes["data"] = pd.DataFrame({"order_book_id": ["000001.XSHE"]})
+    try:
+        OpRegistry.get("fetch")(
+            ctx,
+            {
+                "action": "fetch",
+                "api": "get_factor",
+                "fields": ["pe_ratio_ttm"],
+                "output_column": "pe",
+            },
+            MockFetcher(),
+        )
+    except ValueError as e:
+        assert "已存在" in str(e) or "merge" in str(e)
+        return
+    raise AssertionError("未 raise: fetch 目标已存在")

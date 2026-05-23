@@ -87,7 +87,12 @@ def evaluate_single_factor(
             layer_groups = ev_cfg.get("layer_groups", layer_groups)
             mad_n = ev_cfg.get("mad_n", mad_n)
 
-        report_dir = Path(output_dir or config.OUTPUT_DIR / factor_name)
+        if output_dir is not None:
+            report_dir = Path(output_dir)
+        else:
+            from core.spec_resolver import resolve_output_dir
+
+            report_dir = resolve_output_dir(factor_name)
         report_dir.mkdir(parents=True, exist_ok=True)
         config.RAW_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
         config.CLEANED_FACTOR_DIR.mkdir(parents=True, exist_ok=True)

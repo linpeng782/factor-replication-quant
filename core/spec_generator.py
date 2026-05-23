@@ -5,11 +5,15 @@ Spec 生成层：研报文字描述 → spec.yaml（单段式 LLM + 校验重试
 做静态校验，校验失败时把错误回传给 LLM 自我纠正，最多重试 N 次。
 
 公开入口：
-    generate_spec_from_research(input_text: str, factor_name: str) -> dict
+    generate_spec_from_research(input_text: str, factor_arg: str) -> dict
+
+`factor_arg` 形态：
+    - 'kysec/paper_27_microstructure/peak_minute_count'  限定路径（新建必须用）
+    - 'peak_minute_count'                                裸名（仅再生成已有 spec 时用）
 
 会写出：
-    specs/<factor_name>/spec.yaml          LLM 直产并校验通过的 yaml
-    specs/<factor_name>/.llm_session.json  保留 LLM 完整对话历史（含 thinking 和重试）
+    sources/<pub>/<group>/specs/<factor>/spec.yaml          LLM 直产并校验通过的 yaml
+    sources/<pub>/<group>/specs/<factor>/.llm_session.json  完整 LLM 对话历史
 """
 
 from __future__ import annotations
@@ -23,11 +27,16 @@ from typing import Optional
 import yaml
 from loguru import logger
 
+from core.spec_resolver import (
+    factor_name_from_arg,
+    resolve_group_dir_for_new_spec,
+    resolve_input_path,
+    resolve_spec_path,
+)
 from core.spec_schema import SpecError, validate_spec
 
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
-SPECS_DIR = Path(__file__).parent.parent / "specs"
 PROMPT_FILE = PROMPTS_DIR / "research_to_yaml.md"
 
 DEFAULT_MAX_RETRIES = 3
@@ -96,19 +105,21 @@ def _model_name() -> str:
 
 def generate_spec_from_research(
     input_text: str,
-    factor_name: str,
+    factor_arg: str,
     max_retries: int = DEFAULT_MAX_RETRIES,
     temperature: float = DEFAULT_TEMPERATURE,
 ) -> dict:
     """
     研报文字 → spec.yaml（含 LLM 自我纠错循环）
 
-    成功时把 yaml 写到 specs/<factor_name>/spec.yaml 并返回 spec dict。
+    `factor_arg`: 'pub/group/factor' 限定路径（新建必须用），或裸名（再生成已有 spec）。
+    成功时把 yaml 写到 sources/<pub>/<group>/specs/<factor>/spec.yaml 并返回 spec dict。
     失败时 raise RuntimeError。
     """
     if not PROMPT_FILE.exists():
         raise FileNotFoundError(f"prompt 文件不存在: {PROMPT_FILE}")
     system_prompt = PROMPT_FILE.read_text(encoding="utf-8")
+    factor_name = factor_name_from_arg(factor_arg)
 
     client = _make_client()
     model = _model_name()
@@ -172,8 +183,12 @@ def generate_spec_from_research(
         logger.info(f"[spec_gen] ✅ attempt {attempt} 校验通过")
         break
 
-    # 写盘
-    factor_dir = SPECS_DIR / factor_name
+    # 写盘 —— 复用已有 spec 路径，否则按 group 新建
+    try:
+        factor_dir = resolve_spec_path(factor_arg).parent
+    except FileNotFoundError:
+        group_dir = resolve_group_dir_for_new_spec(factor_arg)
+        factor_dir = group_dir / "specs" / factor_name
     factor_dir.mkdir(parents=True, exist_ok=True)
     session_path = factor_dir / ".llm_session.json"
     session_path.write_text(
@@ -199,17 +214,38 @@ def generate_spec_from_research(
     return spec
 
 
-def load_spec_yaml(factor_name: str) -> dict:
-    """读 specs/<factor>/spec.yaml；运行流水线时用。"""
-    spec_path = SPECS_DIR / factor_name / "spec.yaml"
-    if not spec_path.exists():
-        raise FileNotFoundError(f"Spec 文件不存在: {spec_path}")
+def load_spec_yaml(factor_arg: str) -> dict:
+    """读 spec.yaml；运行流水线时用。`factor_arg` 支持裸名或限定路径。"""
+    spec_path = resolve_spec_path(factor_arg)
     return yaml.safe_load(spec_path.read_text(encoding="utf-8"))
 
 
 # ── 独立 CLI ────────────────────────────────────────────────
-# 用法（研报文件按约定放在 inputs/<factor_name>.md）：
-#     python -m core.spec_generator npf_mrq_sue8
+# 用法：
+#   新建：     python -m core.spec_generator kysec/paper_27_microstructure/peak_minute_count
+#   再生成：   python -m core.spec_generator peak_minute_count   （已有时裸名 OK）
+#   研报输入约定：限定路径推断 group_dir/inputs/<factor>.md 或 group_dir/input.md，
+#               或用 --input 显式指定。
+
+
+def _resolve_cli_input_path(factor_arg: str) -> Path:
+    """CLI 默认输入文件解析：先看已存在 spec → resolve_input_path；否则按 group_dir 推断。"""
+    factor_name = factor_name_from_arg(factor_arg)
+    try:
+        spec_path = resolve_spec_path(factor_arg)
+        return resolve_input_path(spec_path)
+    except FileNotFoundError:
+        # 新 spec：从限定路径推 group_dir
+        group_dir = resolve_group_dir_for_new_spec(factor_arg)
+        per_factor = group_dir / "inputs" / f"{factor_name}.md"
+        if per_factor.exists():
+            return per_factor
+        paper_level = group_dir / "input.md"
+        if paper_level.exists():
+            return paper_level
+        raise FileNotFoundError(
+            f"未找到研报输入：{per_factor} 或 {paper_level} 都不存在。"
+        )
 
 
 if __name__ == "__main__":
@@ -219,31 +255,34 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(
         description="从研报文字生成 spec.yaml（LLM + spec_schema 校验闭环）",
     )
-    p.add_argument("factor_name", help="目标 factor 英文名（snake_case）")
+    p.add_argument(
+        "factor_arg",
+        help="限定路径 'pub/group/factor'（新建）或裸名（再生成已存在 spec）",
+    )
     p.add_argument(
         "--input",
         "-i",
         type=Path,
         default=None,
-        help="（可选）覆盖默认输入路径；默认按约定读 inputs/<factor_name>.md",
+        help="（可选）覆盖默认输入路径；默认按 group_dir/inputs/<factor>.md 或 group_dir/input.md 解析",
     )
     p.add_argument("--max-retries", type=int, default=DEFAULT_MAX_RETRIES)
     p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
     args = p.parse_args()
 
-    INPUTS_DIR = Path(__file__).parent.parent / "inputs"
-    input_path = args.input or (INPUTS_DIR / f"{args.factor_name}.md")
+    try:
+        input_path = args.input or _resolve_cli_input_path(args.factor_arg)
+    except (FileNotFoundError, ValueError) as e:
+        p.error(str(e))
+
     if not input_path.exists():
-        p.error(
-            f"输入文件不存在: {input_path}\n"
-            f"约定路径: inputs/<factor_name>.md，或用 --input 显式指定"
-        )
+        p.error(f"输入文件不存在: {input_path}")
 
     text = input_path.read_text(encoding="utf-8")
     try:
         spec = generate_spec_from_research(
             text,
-            args.factor_name,
+            args.factor_arg,
             max_retries=args.max_retries,
             temperature=args.temperature,
         )

@@ -1,0 +1,147 @@
+"""
+因子标识符 → 路径解析（sources/<publisher>/<group>/{specs,docs,inputs,input.md} 布局）。
+
+使用约定：
+- 裸因子名 'peak_minute_count' → 扫 sources/*/*/specs/<factor>/spec.yaml，唯一才返回
+- 限定路径 'kysec/paper_27_microstructure/peak_minute_count' → 直接拼路径
+- input 解析：先看 group_dir/inputs/<factor>.md（fundamental 风格），再看 group_dir/input.md（券商 paper 风格）
+"""
+
+from __future__ import annotations
+
+import functools
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent
+SOURCES_DIR = PROJECT_ROOT / "sources"
+
+
+def _is_qualified(arg: str) -> bool:
+    return "/" in arg
+
+
+def _qualified_to_spec_path(arg: str) -> Path:
+    """'kysec/paper_27_microstructure/peak_minute_count' → sources/.../specs/peak_minute_count/spec.yaml"""
+    parts = arg.split("/")
+    if len(parts) < 3:
+        raise ValueError(
+            f"限定路径需 3 段 '<publisher>/<group>/<factor>'，收到 {arg!r}"
+        )
+    publisher, group, factor = parts[0], parts[1], "/".join(parts[2:])
+    return SOURCES_DIR / publisher / group / "specs" / factor / "spec.yaml"
+
+
+@functools.cache
+def _scan_registry() -> dict[str, Path]:
+    """扫 sources/*/*/specs/*/spec.yaml；返回 {factor_name: spec_path}。重名保留全部为 list 方便诊断。"""
+    registry: dict[str, list[Path]] = {}
+    if not SOURCES_DIR.exists():
+        return {}
+    for spec_path in SOURCES_DIR.glob("*/*/specs/*/spec.yaml"):
+        factor = spec_path.parent.name
+        registry.setdefault(factor, []).append(spec_path)
+    out: dict[str, Path] = {}
+    for factor, paths in registry.items():
+        if len(paths) == 1:
+            out[factor] = paths[0]
+        else:
+            # 重名时存第一个，但 resolve_spec_path 会重新检测并报错
+            out[factor] = paths[0]
+    return out
+
+
+def _all_matches_for_bare_name(name: str) -> list[Path]:
+    if not SOURCES_DIR.exists():
+        return []
+    return sorted(SOURCES_DIR.glob(f"*/*/specs/{name}/spec.yaml"))
+
+
+def resolve_spec_path(arg: str) -> Path:
+    """
+    把因子标识符解析为 spec.yaml 绝对路径。
+
+    arg:
+      - 'peak_minute_count' (裸名)：注册表查找，唯一才返回
+      - 'kysec/paper_27_microstructure/peak_minute_count' (限定)：直接拼
+    """
+    if _is_qualified(arg):
+        path = _qualified_to_spec_path(arg)
+        if not path.exists():
+            raise FileNotFoundError(f"spec 不存在: {path}")
+        return path
+
+    matches = _all_matches_for_bare_name(arg)
+    if len(matches) == 0:
+        registry = _scan_registry()
+        sample = ", ".join(sorted(registry.keys())[:10])
+        raise FileNotFoundError(
+            f"factor {arg!r} 未找到。已扫描的因子（前 10 个）：[{sample}]\n"
+            f"提示：用限定路径 '<publisher>/<group>/<factor>'，或确认 sources/ 下已有该因子。"
+        )
+    if len(matches) > 1:
+        qualified = [
+            "/".join(p.relative_to(SOURCES_DIR).parts[:2] + (arg,)) for p in matches
+        ]
+        raise ValueError(
+            f"factor {arg!r} 在多处定义：{qualified}\n"
+            f"请用限定路径 '<publisher>/<group>/<factor>' 消歧。"
+        )
+    return matches[0]
+
+
+def resolve_input_path(spec_path: Path) -> Path:
+    """
+    给 spec.yaml 路径，找研报输入。
+
+    路径结构：sources/<pub>/<group>/specs/<factor>/spec.yaml
+                                       ^ parents[2] = group_dir
+
+    优先级：
+      1. group_dir/inputs/<factor>.md   (fundamental 系列：每因子一份)
+      2. group_dir/input.md             (券商 paper：paper-level 共享)
+      3. raise
+    """
+    factor = spec_path.parent.name
+    group_dir = spec_path.parents[2]
+    per_factor = group_dir / "inputs" / f"{factor}.md"
+    if per_factor.exists():
+        return per_factor
+    paper_level = group_dir / "input.md"
+    if paper_level.exists():
+        return paper_level
+    raise FileNotFoundError(
+        f"未找到研报输入：{per_factor} 或 {paper_level} 都不存在。"
+    )
+
+
+def resolve_group_dir_for_new_spec(arg: str) -> Path:
+    """
+    spec_generator 写新 spec 时调用：解析出 group_dir（spec.yaml 还不存在时）。
+
+    arg 必须是限定路径 'publisher/group/factor'，否则 raise（提示用户加 --group）。
+    """
+    if not _is_qualified(arg):
+        existing = sorted(p.parent.name for p in SOURCES_DIR.glob("*/*"))
+        raise ValueError(
+            f"新 spec 必须用限定路径 '<publisher>/<group>/<factor>'，收到裸名 {arg!r}。\n"
+            f"已存在的 group：{existing[:20]}"
+        )
+    parts = arg.split("/")
+    publisher, group = parts[0], parts[1]
+    return SOURCES_DIR / publisher / group
+
+
+def factor_name_from_arg(arg: str) -> str:
+    """'kysec/paper_27/peak_minute_count' → 'peak_minute_count'；'peak_minute_count' → 'peak_minute_count'。"""
+    return arg.rsplit("/", 1)[-1]
+
+
+def resolve_output_dir(arg: str) -> Path:
+    """
+    评估产物目录：sources/<pub>/<group>/output/<factor>/
+    跟 spec.yaml 物理同 group，便于 paper-level 资产收口。
+    """
+    spec_path = resolve_spec_path(arg)
+    group_dir = spec_path.parents[2]   # specs/<factor>/spec.yaml → group_dir
+    factor = spec_path.parent.name
+    return group_dir / "output" / factor

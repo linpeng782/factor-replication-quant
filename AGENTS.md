@@ -24,27 +24,35 @@ source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate  # Python 3.1
 ## 2. 核心工作流
 
 ```
-研报 inputs/<factor>.md
-    ↓ python -m core.spec_generator <factor>           （LLM + spec_schema 校验闭环）
-specs/<factor>/spec.yaml + .llm_session.json
-    ↓ python run.py <factor>                           （fetch + 算子图 + 评估）
+研报 sources/<pub>/<group>/{input.md | inputs/<factor>.md}
+    ↓ python -m core.spec_generator <pub>/<group>/<factor>      （LLM + spec_schema 校验闭环）
+sources/<pub>/<group>/specs/<factor>/spec.yaml + .llm_session.json
+    ↓ python run.py <factor>                                    （fetch + 算子图 + 评估）
 raw_factor/<factor>.parquet
     ↓ 清洗 + 评估
 cleaned_factor/<factor>.parquet + output/<factor>/{evaluation_*.png, report.md}
     ↓ 沉淀
-docs/<factor>.md                                       （因子原理 + 工程经验）
+sources/<pub>/<group>/docs/<factor>.md                          （因子原理 + 工程经验）
 ```
+
+**因子源归类（sources/ 顶层）**：
+- `kysec/` — 开源证券（每篇研报一个 `paper_<NN>_<slug>/` 子目录，input.md 共享）
+- `founder/` — 方正证券（同上）
+- `fundamental/` — 经典基本面，无券商研报来源（按系列分：`npf_series/`、`roe_series/`、`roic_series/`、`pe_series/`、`cross_section_regress/`，**inputs/<factor>.md 为复数**，每因子一份）
+- `internal/` — 同事/内部因子（按贡献人或主题分）
 
 ---
 
 ## 3. 常用命令
 
 ```bash
-# 1) 从研报生成 spec.yaml（LLM + 静态校验闭环）
-python -m core.spec_generator npf_mrq_sue8         # 读 inputs/npf_mrq_sue8.md
+# 1) 从研报生成 spec.yaml（LLM + 静态校验闭环）—— 新建必须用限定路径
+python -m core.spec_generator kysec/paper_27_microstructure/peak_minute_count
+python -m core.spec_generator fundamental/npf_series/npf_mrq_sue8
 
-# 2) 默认全流程：YOLO + 评估
+# 2) 默认全流程：YOLO + 评估（裸名 OK，自动扫 sources/ 定位）
 python run.py roe_mrq_new
+python run.py kysec/paper_27_microstructure/peak_minute_count   # 限定路径，重名时消歧
 
 # 3) 仅 YOLO / 仅评估
 python run.py roe_mrq_new --yolo-only
@@ -53,19 +61,20 @@ python run.py roe_mrq_new --evaluate-only
 # 4) 自定义区间 + 并发
 python run.py roe_mrq_new --start-date 20200101 --end-date 20251231 --workers 16
 
-# 5) 批量回归用 shell 循环（CLI 不内置 --all）
-for f in $(ls specs); do python run.py $f --evaluate-only; done
+# 5) 批量回归用 shell 循环（按 sources 子目录）
+for f in $(ls sources/kysec/paper_27_microstructure/specs); do python run.py $f --evaluate-only; done
 ```
 
 **CLI 设计原则**：
 - **spec 生成与执行分离**：`python -m core.spec_generator`（rare，慢）vs `python run.py`（daily，快）
-- **约定优于配置**：`inputs/<FACTOR>.md`、`specs/<FACTOR>/spec.yaml`，路径不在 CLI 里反复传
+- **裸名 vs 限定路径**：执行时裸名优先（自动扫 `sources/*/*/specs/<factor>/`），重名时强制用 `<pub>/<group>/<factor>` 消歧；新建 spec 必须用限定路径
+- **约定优于配置**：研报输入路径由 group 目录推断（`group/inputs/<factor>.md` 或 `group/input.md`），CLI 不重复传
 
 ---
 
 ## 4. Spec 规范（spec.yaml 是唯一源真相）
 
-每个因子目录 `specs/<factor>/` 下**必须有** `spec.yaml`，可选 `.llm_session.json`（LLM 完整对话日志）。
+每个因子目录 `sources/<pub>/<group>/specs/<factor>/` 下**必须有** `spec.yaml`，可选 `.llm_session.json`（LLM 完整对话日志）。
 
 **spec.yaml 是机器可执行的因子定义**，结构、字段、契约由 `core/spec_schema.py` 强制校验。完整 schema + few-shot 示例见 `prompts/research_to_yaml.md`。
 
@@ -75,7 +84,7 @@ for f in $(ls specs); do python run.py $f --evaluate-only; done
 3. 同一 DataFrame 内 `output_column` 不允许重复（防覆盖）
 4. 多字段 fetch 用 `output_columns: {field: col}` 映射；多 DataFrame 用 `output_dataframe` + 显式 `merge` step
 
-**spec.md 不是规范**——曾经是双文件强制，现在已淘汰。人类阅读用 `docs/<factor>.md`（见 §6）。
+**spec.md 不是规范**——曾经是双文件强制，现在已淘汰。人类阅读用 `sources/<pub>/<group>/docs/<factor>.md`（见 §6）。
 
 ---
 
@@ -96,11 +105,11 @@ for f in $(ls specs); do python run.py $f --evaluate-only; done
 
 **复现一个新因子的完整流程必须走完以下 5 步**：
 
-1. **写研报输入**：`inputs/<factor>.md`（一段研报描述即可，越简洁越能暴露 prompt 设计强度）
-2. **LLM 生成 spec**：`python -m core.spec_generator <factor>`，让 spec_schema 闭环校验通过
-3. **跑全市场**：`python run.py <factor>`，得到 IC / ICIR / Sharpe / 单调性 / 覆盖率
+1. **写研报输入**：`sources/<pub>/<group>/{input.md | inputs/<factor>.md}`（券商 paper 共享 input.md；fundamental 系列每因子一份 inputs/<factor>.md）
+2. **LLM 生成 spec**：`python -m core.spec_generator <pub>/<group>/<factor>`（新建必须用限定路径），让 spec_schema 闭环校验通过
+3. **跑全市场**：`python run.py <factor>`（裸名 OK），得到 IC / ICIR / Sharpe / 单调性 / 覆盖率
 4. **冒烟验证（推荐）**：单股 / 3 股端到端手算对照（纯 numpy + rqdatac），理解因子真实行为，10 分钟换避免误读全市场结果
-5. **写沉淀文档**：`docs/<factor>.md`（**不可省略**），至少包含：
+5. **写沉淀文档**：`sources/<pub>/<group>/docs/<factor>.md`（**不可省略**），至少包含：
     - **因子定义**（数学 + 经济直觉）
     - **研报描述歧义** + 我们的工程选择 + 理由
     - **实现 N 步 spec** 高层逻辑
@@ -110,12 +119,12 @@ for f in $(ls specs); do python run.py $f --evaluate-only; done
     - **未来改进路径**（v2 / v3 候选）
 
 **参考模板**：
-- `docs/npf_mrq_sue8.md` —— 含数学技巧（望远镜求和 + 方差恒等式）的因子
-- `docs/npf_mrq_accs8.md` —— 含关键洞察（季节性过滤）+ 单股冒烟测试方法 + 多版本对照
+- `sources/fundamental/npf_series/docs/npf_mrq_sue8.md` —— 含数学技巧（望远镜求和 + 方差恒等式）
+- `sources/fundamental/npf_series/docs/npf_mrq_accs8.md` —— 含关键洞察（季节性过滤）+ 单股冒烟测试方法 + 多版本对照
 
 > 知识沉淀是这个系统在 5000+ 因子尺度上的**核心价值**——spec.yaml 让因子可执行，docs/<factor>.md 让因子的研究决策可追溯、可复用、可教学。**任何"非平凡的发现"必须立刻写进 docs**，否则 6 个月后没人记得。
 
-**沉淀文档约束**：每份 `docs/<factor>.md` **行数 ≤ 200**，找最精炼、最重点的表达，避免冗余啰嗦。宁可少写一句，不可多费一行。
+**沉淀文档约束**：每份 docs/<factor>.md **行数 ≤ 200**，找最精炼、最重点的表达，避免冗余啰嗦。宁可少写一句，不可多费一行。
 
 ---
 
@@ -149,7 +158,7 @@ for f in $(ls specs); do python run.py $f --evaluate-only; done
 formula: kurt_raw * (gate / gate)   # gate=0 → 0/0=NaN；gate=1 → 1/1=1
 ```
 
-**典型 spec 模板**：见 `specs/peak_minute_count/`（最简）和 `specs/peak_interval_kurt/`（高阶矩 + 守门 NaN）。
+**典型 spec 模板**：见 `sources/kysec/paper_27_microstructure/specs/peak_minute_count/`（最简）和 `.../specs/peak_interval_kurt/`（高阶矩 + 守门 NaN）。
 
 ---
 
@@ -174,22 +183,36 @@ git commit -m "fix(prompt): drop misleading anti-row_aggregate guidance"  # ✅
 ## 9. 目录速查
 
 ```
-inputs/                  研报文字（每因子一份 .md）
-prompts/                 LLM prompt（research_to_yaml.md = spec 生成 schema）
-specs/<factor>/          spec.yaml + .llm_session.json（LLM 对话日志）
+sources/                          ★ 业务资产按"来源"分组
+  kysec/                          开源证券
+    paper_27_microstructure/
+      input.md                    研报原文（paper-level 共享）
+      README.md                   论文元信息（作者/日期/共享方法论）
+      specs/<factor>/             spec.yaml + .llm_session.json
+      docs/<factor>.md            因子沉淀
+  founder/                        方正证券（同上结构）
+  fundamental/                    经典基本面，无券商研报来源
+    npf_series/  roe_series/  roic_series/  pe_series/  cross_section_regress/
+      inputs/<factor>.md          ★ 复数：每因子一份小 input
+      specs/<factor>/  docs/<factor>.md
+  internal/                       同事/内部因子（按贡献人或主题分）
+prompts/                          LLM prompt（research_to_yaml.md = spec 生成 schema）
 core/
-  config.py              路径 + DEFAULT_START_DATE / DEFAULT_END_DATE
-  spec_schema.py         spec.yaml 静态校验
-  spec_generator.py      LLM 单段式生成 + 重试闭环
-  operators/             算子库（fetch / compute / filter / rank / rolling /
-                         transform / merge / row_aggregate / row_polyfit /
-                         row_correlate）
-  cleaning/              MAD + zscore + mask
-  evaluation/            IC + 分层 + 绘图
-  yolo_engine.py         spec yaml → 算子图执行
-docs/<factor>.md         因子原理 + 工程经验沉淀（每因子一份）
-output/<factor>/         评估产物 (png + report.md)，gitignore
-run.py                   日常执行 CLI（默认 yolo + 评估）
+  config.py                       路径 + DEFAULT_START_DATE / DEFAULT_END_DATE
+  spec_schema.py                  spec.yaml 静态校验
+  spec_generator.py               LLM 单段式生成 + 重试闭环
+  spec_resolver.py                因子标识符 → 路径解析（裸名 / 限定路径）
+  operators/                      算子库（fetch / compute / filter / rank / rolling /
+                                  transform / merge / row_aggregate / row_polyfit /
+                                  row_correlate / minute_intraday_aggregate /
+                                  cross_section_regress）
+  cleaning/                       MAD + zscore + mask
+  evaluation/                     IC + 分层 + 绘图
+  yolo_engine.py                  spec yaml → 算子图执行
+output/<factor>/                  评估产物 (png + report.md)，gitignore；按 factor 名 flat
+run.py                            日常执行 CLI（默认 yolo + 评估，裸名/限定路径都接受）
+scripts/migrate_to_sources.py     一次性迁移脚本（保留为审计痕迹）
+docs/                             项目级架构文档（如 multi_factor_paper_architecture.md）
 ```
 
 `.gitignore` 已忽略 `output/`、`*.bak/`、`*.parquet`、`__pycache__/`、`.env`。

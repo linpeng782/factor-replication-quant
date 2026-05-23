@@ -8,16 +8,24 @@
 
 ```bash
 source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate  # Python 3.11
+pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared    # 共享原语库（首次配置）
 ```
 
 | 变量 | 路径 | 说明 |
 |------|------|------|
-| `RAW_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/` | 原始因子（YOLO 输出） |
-| `CLEANED_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/` | 清洗后因子（MAD + zscore + mask） |
+| `RAW_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/` | 原始因子（spec engine 产物，统一 panel 命名空间） |
+| `CLEANED_FACTOR_DIR` | `/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/` | 清洗后因子（MAD + zscore + mask） |
 | `OUTPUT_DIR` | `factor-repilcation-quant/output/` | 评估产物（png + report） |
 | `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` / `VWAP_POST_PATH` | `.../backtest_engine/cache_dir/` | 预计算 mask + vwap，评估时**零 API 调用** |
 
 预计算数据已更新到 2026-05-15。
+
+**alpha-shared 共享库**：因子评估的 IC / 分层回测 / 清洗 / mask 加载等 primitive
+统一抽到 `/nfs/volume-1593-1/peterzhenglinpeng/alpha-shared/`（独立 git 仓），
+本仓 `core/evaluation/{ic,layered,returns}.py` 与 `core/cleaning/{preprocess,
+mask_loader}.py` 都是 thin wrapper 转发到 `alpha_shared.*`。改算法去 alpha-shared
+改一份；改完务必跑 `scripts/regression_baseline_replication.py` + `regression_compare.py`
+确认两边数值零漂移。
 
 ---
 

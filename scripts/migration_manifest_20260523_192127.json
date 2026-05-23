@@ -1,0 +1,3186 @@
+{
+  "timestamp": "2026-05-23T19:21:28.423992",
+  "total_planned": 454,
+  "completed_count": 454,
+  "failure": null,
+  "completed": [
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/BETA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/BETA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "BETA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/BETA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/BETA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "BETA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/BETA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/BETA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "BETA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/BETA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/BETA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "BETA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/BETA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/BETA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "BETA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTP10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTP10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTP10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTP20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTP20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTP20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTP30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTP30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTP30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTP5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTP5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTP5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CNTP60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CNTP60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CNTP60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORR10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORR10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORR10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORR20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORR20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORR20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORR30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORR30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORR30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORR5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORR5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORR5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/CORR60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/CORR60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "CORR60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/HIGH0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/HIGH0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "HIGH0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMAX10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMAX10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMAX10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMAX20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMAX20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMAX20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMAX30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMAX30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMAX30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMAX5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMAX5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMAX5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMAX60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMAX60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMAX60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMIN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMIN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMIN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMIN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMIN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMIN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMIN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMIN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMIN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMIN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMIN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMIN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMIN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMIN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMIN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMXD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMXD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMXD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMXD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMXD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMXD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMXD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMXD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMXD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMXD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMXD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMXD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/IMXD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/IMXD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "IMXD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KLEN.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KLEN.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KLEN"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KLOW.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KLOW.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KLOW"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KLOW2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KLOW2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KLOW2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KMID.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KMID.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KMID"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KMID2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KMID2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KMID2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KSFT.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KSFT.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KSFT"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KSFT2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KSFT2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KSFT2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KUP.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KUP.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KUP"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/KUP2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/KUP2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "KUP2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/LOW0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/LOW0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "LOW0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV11_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV11_10.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV11_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV11_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV11_20.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV11_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV11_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV11_30.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV11_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV11_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV11_5.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV11_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV11_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV11_60.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV11_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV1_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV1_10.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV1_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV1_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV1_20.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV1_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV1_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV1_30.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV1_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV1_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV1_5.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV1_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV1_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV1_60.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV1_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV3_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV3_10.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV3_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV3_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV3_20.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV3_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV3_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV3_30.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV3_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV3_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV3_5.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV3_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV3_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV3_60.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV3_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV5_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV5_10.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV5_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV5_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV5_20.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV5_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV5_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV5_30.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV5_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV5_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV5_5.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV5_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV5_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV5_60.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV5_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV7_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV7_10.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV7_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV7_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV7_20.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV7_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV7_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV7_30.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV7_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV7_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV7_5.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV7_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV7_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV7_60.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV7_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV9_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV9_10.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV9_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV9_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV9_20.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV9_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV9_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV9_30.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV9_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV9_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV9_5.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV9_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MARS_PV9_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/mars/MARS_PV9_60.parquet",
+      "producer": "mars",
+      "panel_kind": "raw",
+      "factor": "MARS_PV9_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MAX10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MAX10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MAX10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MAX20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MAX20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MAX20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MAX30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MAX30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MAX30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MAX5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MAX5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MAX5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MAX60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MAX60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MAX60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MIN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MIN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MIN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MIN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MIN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MIN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MIN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MIN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MIN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MIN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MIN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MIN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/MIN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/MIN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "MIN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/OPEN0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/OPEN0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "OPEN0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLU10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLU10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLU10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLU20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLU20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLU20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLU30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLU30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLU30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLU5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLU5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLU5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/QTLU60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/QTLU60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "QTLU60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RANK10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RANK10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RANK10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RANK20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RANK20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RANK20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RANK30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RANK30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RANK30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RANK5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RANK5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RANK5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RANK60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RANK60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RANK60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RESI10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RESI10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RESI10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RESI20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RESI20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RESI20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RESI30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RESI30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RESI30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RESI5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RESI5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RESI5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RESI60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RESI60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RESI60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/ROC10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/ROC10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "ROC10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/ROC20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/ROC20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "ROC20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/ROC30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/ROC30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "ROC30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/ROC5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/ROC5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "ROC5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/ROC60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/ROC60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "ROC60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSQR10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSQR10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSQR10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSQR20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSQR20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSQR20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSQR30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSQR30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSQR30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSQR5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSQR5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSQR5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSQR60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSQR60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSQR60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSV10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSV10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSV10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSV20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSV20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSV20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSV30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSV30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSV30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSV5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSV5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSV5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/RSV60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/RSV60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "RSV60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/STD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/STD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "STD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/STD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/STD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "STD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/STD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/STD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "STD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/STD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/STD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "STD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/STD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/STD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "STD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMP10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMP10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMP10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMP20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMP20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMP20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMP30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMP30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMP30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMP5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMP5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMP5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/SUMP60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/SUMP60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "SUMP60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VMA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VMA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VMA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VMA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VMA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VMA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VMA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VMA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VMA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VMA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VMA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VMA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VMA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VMA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VMA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSTD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSTD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSTD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSTD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSTD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSTD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSTD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSTD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSTD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSTD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSTD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSTD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSTD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSTD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSTD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMP10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMP10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMP10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMP20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMP20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMP20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMP30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMP30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMP30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMP5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMP5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMP5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VSUMP60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VSUMP60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VSUMP60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/VWAP0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/VWAP0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "VWAP0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/WVMA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/WVMA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "WVMA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/WVMA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/WVMA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "WVMA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/WVMA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/WVMA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "WVMA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/WVMA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/WVMA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "WVMA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/WVMA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/alpha158/WVMA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "raw",
+      "factor": "WVMA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/BETA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/BETA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "BETA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/BETA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/BETA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "BETA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/BETA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/BETA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "BETA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/BETA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/BETA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "BETA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/BETA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/BETA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "BETA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTP10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTP10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTP10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTP20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTP20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTP20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTP30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTP30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTP30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTP5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTP5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTP5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CNTP60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CNTP60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CNTP60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORR10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORR10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORR10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORR20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORR20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORR20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORR30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORR30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORR30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORR5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORR5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORR5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/CORR60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/CORR60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "CORR60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/HIGH0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/HIGH0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "HIGH0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMAX10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMAX10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMAX10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMAX20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMAX20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMAX20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMAX30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMAX30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMAX30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMAX5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMAX5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMAX5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMAX60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMAX60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMAX60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMIN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMIN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMIN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMIN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMIN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMIN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMIN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMIN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMIN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMIN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMIN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMIN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMIN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMIN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMIN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMXD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMXD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMXD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMXD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMXD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMXD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMXD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMXD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMXD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMXD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMXD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMXD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/IMXD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/IMXD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "IMXD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KLEN.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KLEN.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KLEN"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KLOW.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KLOW.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KLOW"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KLOW2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KLOW2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KLOW2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KMID.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KMID.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KMID"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KMID2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KMID2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KMID2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KSFT.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KSFT.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KSFT"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KSFT2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KSFT2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KSFT2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KUP.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KUP.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KUP"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/KUP2.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/KUP2.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "KUP2"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/LOW0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/LOW0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "LOW0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV11_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV11_10.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV11_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV11_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV11_20.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV11_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV11_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV11_30.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV11_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV11_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV11_5.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV11_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV11_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV11_60.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV11_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV1_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV1_10.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV1_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV1_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV1_20.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV1_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV1_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV1_30.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV1_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV1_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV1_5.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV1_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV1_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV1_60.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV1_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV3_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV3_10.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV3_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV3_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV3_20.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV3_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV3_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV3_30.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV3_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV3_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV3_5.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV3_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV3_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV3_60.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV3_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV5_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV5_10.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV5_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV5_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV5_20.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV5_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV5_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV5_30.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV5_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV5_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV5_5.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV5_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV5_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV5_60.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV5_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV7_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV7_10.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV7_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV7_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV7_20.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV7_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV7_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV7_30.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV7_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV7_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV7_5.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV7_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV7_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV7_60.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV7_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV9_10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV9_10.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV9_10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV9_20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV9_20.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV9_20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV9_30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV9_30.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV9_30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV9_5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV9_5.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV9_5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MARS_PV9_60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/mars/MARS_PV9_60.parquet",
+      "producer": "mars",
+      "panel_kind": "cleaned",
+      "factor": "MARS_PV9_60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MAX10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MAX10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MAX10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MAX20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MAX20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MAX20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MAX30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MAX30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MAX30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MAX5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MAX5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MAX5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MAX60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MAX60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MAX60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MIN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MIN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MIN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MIN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MIN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MIN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MIN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MIN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MIN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MIN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MIN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MIN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/MIN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/MIN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "MIN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/OPEN0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/OPEN0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "OPEN0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLU10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLU10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLU10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLU20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLU20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLU20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLU30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLU30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLU30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLU5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLU5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLU5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/QTLU60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/QTLU60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "QTLU60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RANK10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RANK10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RANK10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RANK20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RANK20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RANK20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RANK30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RANK30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RANK30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RANK5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RANK5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RANK5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RANK60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RANK60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RANK60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RESI10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RESI10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RESI10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RESI20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RESI20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RESI20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RESI30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RESI30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RESI30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RESI5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RESI5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RESI5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RESI60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RESI60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RESI60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/ROC10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/ROC10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "ROC10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/ROC20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/ROC20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "ROC20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/ROC30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/ROC30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "ROC30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/ROC5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/ROC5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "ROC5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/ROC60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/ROC60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "ROC60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSQR10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSQR10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSQR10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSQR20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSQR20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSQR20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSQR30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSQR30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSQR30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSQR5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSQR5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSQR5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSQR60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSQR60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSQR60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSV10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSV10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSV10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSV20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSV20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSV20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSV30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSV30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSV30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSV5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSV5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSV5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/RSV60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/RSV60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "RSV60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/STD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/STD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "STD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/STD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/STD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "STD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/STD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/STD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "STD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/STD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/STD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "STD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/STD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/STD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "STD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMP10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMP10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMP10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMP20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMP20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMP20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMP30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMP30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMP30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMP5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMP5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMP5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/SUMP60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/SUMP60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "SUMP60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VMA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VMA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VMA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VMA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VMA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VMA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VMA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VMA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VMA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VMA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VMA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VMA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VMA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VMA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VMA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSTD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSTD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSTD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSTD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSTD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSTD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSTD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSTD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSTD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSTD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSTD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSTD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSTD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSTD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSTD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMD10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMD10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMD10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMD20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMD20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMD20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMD30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMD30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMD30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMD5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMD5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMD5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMD60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMD60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMD60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMN10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMN10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMN10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMN20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMN20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMN20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMN30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMN30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMN30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMN5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMN5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMN5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMN60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMN60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMN60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMP10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMP10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMP10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMP20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMP20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMP20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMP30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMP30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMP30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMP5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMP5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMP5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VSUMP60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VSUMP60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VSUMP60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/VWAP0.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/VWAP0.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "VWAP0"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/WVMA10.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/WVMA10.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "WVMA10"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/WVMA20.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/WVMA20.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "WVMA20"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/WVMA30.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/WVMA30.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "WVMA30"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/WVMA5.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/WVMA5.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "WVMA5"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/WVMA60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/alpha158/WVMA60.parquet",
+      "producer": "alpha158",
+      "panel_kind": "cleaned",
+      "factor": "WVMA60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/eruption_followup_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/eruption_followup_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "eruption_followup_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/eruption_turnover_corr.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/eruption_turnover_corr.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "eruption_turnover_corr"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/eruption_turnover_sensitivity.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/eruption_turnover_sensitivity.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "eruption_turnover_sensitivity"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/npf_apoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/npf_apoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "npf_apoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/npf_ayoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/npf_ayoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "npf_ayoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/npf_mrq_accs8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/npf_mrq_accs8.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "npf_mrq_accs8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/npf_mrq_sue8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/npf_mrq_sue8.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "npf_mrq_sue8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/npf_pqoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/npf_pqoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "npf_pqoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/npf_pyoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/npf_pyoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "npf_pyoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/pe_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/pe_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "pe_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/pe_ttm_delta60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/pe_ttm_delta60.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "pe_ttm_delta60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/pe_ttm_new.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/pe_ttm_new.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "pe_ttm_new"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_interval_kurt.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_interval_kurt.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_interval_kurt"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_interval_skew.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_interval_skew.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_interval_skew"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_interval_std.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_interval_std.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_interval_std"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_minute_count.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_minute_count.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_minute_count"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_ridge_price_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_ridge_price_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_ridge_price_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_ridge_turnover_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_ridge_turnover_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_ridge_turnover_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peak_weighted_quantile.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peak_weighted_quantile.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peak_weighted_quantile"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/peakridge_minute_corr.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/peakridge_minute_corr.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "peakridge_minute_corr"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/reg_pb_gshe.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/reg_pb_gshe.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "reg_pb_gshe"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/reg_pe_hist.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/reg_pe_hist.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "reg_pe_hist"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/ridge_interval_kurt.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/ridge_interval_kurt.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "ridge_interval_kurt"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/ridge_interval_skew.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/ridge_interval_skew.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "ridge_interval_skew"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/ridge_interval_std.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/ridge_interval_std.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "ridge_interval_std"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/ridge_minute_count.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/ridge_minute_count.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "ridge_minute_count"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/ridge_minute_return.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/ridge_minute_return.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "ridge_minute_return"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/ridge_relative_vwap.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/ridge_relative_vwap.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "ridge_relative_vwap"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roe_apoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roe_apoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roe_apoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roe_ayoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roe_ayoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roe_ayoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roe_mrq_new.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roe_mrq_new.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roe_mrq_new"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roe_pqoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roe_pqoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roe_pqoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roe_pyoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roe_pyoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roe_pyoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roic_ttm_all_rnk8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roic_ttm_all_rnk8.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roic_ttm_all_rnk8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roic_ttm_dev_std8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roic_ttm_dev_std8.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roic_ttm_dev_std8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/roic_ttm_ind_rnk8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/roic_ttm_ind_rnk8.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "roic_ttm_ind_rnk8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/valley_relative_vwap.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/valley_relative_vwap.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "valley_relative_vwap"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/valley_ridge_price_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/valley_ridge_price_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "valley_ridge_price_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor/valley_weighted_quantile.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/factor-panel/spec/valley_weighted_quantile.parquet",
+      "producer": "spec",
+      "panel_kind": "raw",
+      "factor": "valley_weighted_quantile"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/eruption_followup_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/eruption_followup_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "eruption_followup_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/eruption_turnover_corr.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/eruption_turnover_corr.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "eruption_turnover_corr"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/eruption_turnover_sensitivity.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/eruption_turnover_sensitivity.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "eruption_turnover_sensitivity"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/npf_apoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/npf_apoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "npf_apoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/npf_ayoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/npf_ayoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "npf_ayoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/npf_mrq_accs8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/npf_mrq_accs8.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "npf_mrq_accs8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/npf_mrq_sue8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/npf_mrq_sue8.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "npf_mrq_sue8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/npf_pqoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/npf_pqoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "npf_pqoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/npf_pyoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/npf_pyoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "npf_pyoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/pe_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/pe_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "pe_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/pe_ttm_delta60.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/pe_ttm_delta60.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "pe_ttm_delta60"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/pe_ttm_new.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/pe_ttm_new.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "pe_ttm_new"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_interval_kurt.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_interval_kurt.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_interval_kurt"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_interval_skew.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_interval_skew.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_interval_skew"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_interval_std.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_interval_std.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_interval_std"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_minute_count.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_minute_count.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_minute_count"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_ridge_price_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_ridge_price_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_ridge_price_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_ridge_turnover_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_ridge_turnover_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_ridge_turnover_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peak_weighted_quantile.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peak_weighted_quantile.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peak_weighted_quantile"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/peakridge_minute_corr.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/peakridge_minute_corr.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "peakridge_minute_corr"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/reg_pb_gshe.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/reg_pb_gshe.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "reg_pb_gshe"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/reg_pe_hist.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/reg_pe_hist.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "reg_pe_hist"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/ridge_interval_kurt.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/ridge_interval_kurt.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "ridge_interval_kurt"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/ridge_interval_skew.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/ridge_interval_skew.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "ridge_interval_skew"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/ridge_interval_std.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/ridge_interval_std.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "ridge_interval_std"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/ridge_minute_count.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/ridge_minute_count.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "ridge_minute_count"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/ridge_minute_return.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/ridge_minute_return.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "ridge_minute_return"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/ridge_relative_vwap.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/ridge_relative_vwap.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "ridge_relative_vwap"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roe_apoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roe_apoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roe_apoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roe_ayoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roe_ayoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roe_ayoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roe_mrq_new.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roe_mrq_new.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roe_mrq_new"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roe_pqoq_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roe_pqoq_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roe_pqoq_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roe_pyoy_mrq.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roe_pyoy_mrq.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roe_pyoy_mrq"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roic_ttm_all_rnk8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roic_ttm_all_rnk8.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roic_ttm_all_rnk8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roic_ttm_dev_std8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roic_ttm_dev_std8.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roic_ttm_dev_std8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/roic_ttm_ind_rnk8.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/roic_ttm_ind_rnk8.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "roic_ttm_ind_rnk8"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/valley_relative_vwap.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/valley_relative_vwap.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "valley_relative_vwap"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/valley_ridge_price_ratio.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/valley_ridge_price_ratio.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "valley_ridge_price_ratio"
+    },
+    {
+      "src": "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor/valley_weighted_quantile.parquet",
+      "dst": "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/cleaned-factor-panel/spec/valley_weighted_quantile.parquet",
+      "producer": "spec",
+      "panel_kind": "cleaned",
+      "factor": "valley_weighted_quantile"
+    }
+  ]
+}

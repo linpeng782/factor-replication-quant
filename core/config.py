@@ -26,16 +26,19 @@ VWAP_POST_PATH = Path(
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
 # ==================== 外部因子数据目录 ====================
-# 所有原始因子统一放在 raw_factor/，清洗后统一放在 cleaned_factor/
-_BASE_FACTOR_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication")
-RAW_FACTOR_DIR = _BASE_FACTOR_DIR / "raw_factor"
-CLEANED_FACTOR_DIR = _BASE_FACTOR_DIR / "cleaned_factor"
+# 因子 panel 已统一到 my-alpha-engine 的 factor-panel/<producer>/ 命名空间下。
+# 本项目（spec engine）产物落在 spec/ 子目录下。
+_PANEL_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine")
+RAW_FACTOR_DIR = _PANEL_BASE / "factor-panel" / "spec"
+CLEANED_FACTOR_DIR = _PANEL_BASE / "cleaned-factor-panel" / "spec"
 
 # 分钟级因子用：原始 per-stock 分钟 parquet 目录（用户日更）+ 中间产物缓存目录
 MINUTE_DATA_DIR = Path(
     "/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir/stock_data_1m_post"
 )
-INTERMEDIATE_CACHE_DIR = _BASE_FACTOR_DIR / "intermediate_cache"
+INTERMEDIATE_CACHE_DIR = Path(
+    "/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/intermediate_cache"
+)
 
 # ==================== 默认评估区间 ====================
 # CLI 不显式指定 --start-date/--end-date 时使用

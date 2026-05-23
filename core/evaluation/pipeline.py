@@ -138,15 +138,8 @@ def evaluate_single_factor(
                 f"range={factor_clean.index.min().date()} ~ {factor_clean.index.max().date()})"
             )
 
-        # ==================== 2. 加载 vwap & 构建 forward returns ====================
-        logger.info("[2/4] 加载 vwap & 构建 forward returns...")
-        vwap_long = pd.read_parquet(config.VWAP_POST_PATH, columns=["order_book_id", "datetime", "post_vwap"])
-        vwap_long["datetime"] = pd.to_datetime(vwap_long["datetime"])
-        vwap_wide = (
-            vwap_long.set_index(["datetime", "order_book_id"])["post_vwap"]
-            .unstack(level="order_book_id")
-            .sort_index()
-        )
+        # ==================== 2. 加载 forward returns（labels 直读，PIT canonical 源） ====================
+        logger.info("[2/4] 加载 forward returns（labels 直读）...")
 
         # 评估时截取：根据 start/end_date 从清洗因子中截断
         factor_eval = factor_clean.copy()
@@ -154,17 +147,39 @@ def evaluate_single_factor(
             factor_eval = factor_eval.loc[factor_eval.index >= pd.Timestamp(start_date)]
         if end_date:
             factor_eval = factor_eval.loc[factor_eval.index <= pd.Timestamp(end_date)]
-
-        # 对齐 vwap 到评估区间的 factor
-        vwap_aligned = vwap_wide.reindex(index=factor_eval.index, columns=factor_eval.columns)
         factor_clean = factor_eval  # 后续分析用截取后的因子
 
-        # 构建 forward returns（同时截断 factor_clean 到 vwap 有效日期）
-        forward_returns = build_forward_returns(vwap_aligned, horizons=ic_horizons)
-        # 1d return 用于分层回测
-        return_1d = build_forward_returns(vwap_aligned, horizons=(1,))[1]
+        # 直接读 labels parquet——跟 alpha-engine 用同一文件，bit-exact 一致
+        # 缺失 horizon 时 fall back 到 vwap_panel 现算（非 bit-exact 但仍 PIT）
+        def _load_forward_return(h):
+            label_path = config.LABELS_DIR / f"forward_return_{h}d.parquet"
+            if label_path.exists():
+                df = pd.read_parquet(label_path)
+                df.index = pd.to_datetime(df.index)
+                return df
+            # fallback：从 vwap_panel 现算
+            logger.warning(
+                f"forward_return_{h}d.parquet 不存在，从 vwap_panel.parquet 现算"
+            )
+            vwap_wide = pd.read_parquet(config.VWAP_PANEL_PATH)
+            vwap_wide.index = pd.to_datetime(vwap_wide.index)
+            return build_forward_returns(vwap_wide.sort_index(), horizons=[h])[h]
 
-        logger.info(f"  -> vwap aligned shape: {vwap_aligned.shape}")
+        # 对齐到评估期 factor 的 index × columns
+        forward_returns = {}
+        for h in ic_horizons:
+            r = _load_forward_return(h)
+            forward_returns[h] = r.reindex(
+                index=factor_eval.index, columns=factor_eval.columns
+            )
+        # 1d return 用于分层回测
+        return_1d = _load_forward_return(1).reindex(
+            index=factor_eval.index, columns=factor_eval.columns
+        )
+
+        logger.info(
+            f"  -> 加载 horizons={list(forward_returns.keys())} + 1d，shape={return_1d.shape}"
+        )
 
         # ==================== 3. Direction 判断 ====================
         logger.info("[3/4] Direction 判断 & IC / 分层回测...")

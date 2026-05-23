@@ -20,6 +20,18 @@ NEW_STOCK_MASK_PATH = Path(
 VWAP_POST_PATH = Path(
     "/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir/vwap_post.parquet"
 )
+# PIT canonical vwap 宽表面板（由 my-alpha-engine/full_build/build_labels.py 副产）
+# 取代 VWAP_POST_PATH 作为评估的 forward_returns 源——后者依赖米筐 adjust_type="post_volume" 黑盒，
+# 这个由本地 raw OHLCV + ex_factor 手动复权派生，全管线可审计 PIT。
+VWAP_PANEL_PATH = Path(
+    "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/meta-data/vwap_panel.parquet"
+)
+# 预算的 forward_return_{N}d.parquet 由 my-alpha-engine/full_build/build_labels.py 产出。
+# replication 评估直接读取，与 alpha-engine 共享同一文件 → bit-exact。
+# 缺失的 horizon 会 fallback 到 vwap_panel.parquet 现算。
+LABELS_DIR = Path(
+    "/nfs/ofs-prediction/peterzhenglinpeng/my-alpha-engine/labels"
+)
 
 # ==================== 项目内输出目录 ====================
 # 报告、图片等评估输出

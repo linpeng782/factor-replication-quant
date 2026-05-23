@@ -8,6 +8,9 @@ scripts/*.png
 
 # 数据文件
 *.parquet
+# 例外：回归 baseline parquet（小，要进 git）
+!scripts/regression_baselines/*.parquet
+scripts/regression_baselines/_eval_artifacts/
 
 # Python
 __pycache__/

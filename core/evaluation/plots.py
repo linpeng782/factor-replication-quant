@@ -96,7 +96,11 @@ def _get_group_styling(g: int):
 
 
 def _plot_group_nav(ax, group_nav: pd.DataFrame):
-    """右上：分组累计净值曲线（仅显示 G1~Gg，不显示 LongShort）"""
+    """右上：分组累计净值曲线 + LongShort 在右轴
+
+    G1~Gg 走左轴（同 long-only 量级，方便对比 group spread）；LongShort 走右轴
+    （灰色粗线），避免好因子 LS NAV 远超 G_g 把 group spread 在视觉上压扁。
+    """
     g_cols = [c for c in group_nav.columns if c != "LongShort"]
     g = len(g_cols)
     colors, lws, alphas = _get_group_styling(g)
@@ -110,10 +114,38 @@ def _plot_group_nav(ax, group_nav: pd.DataFrame):
             alpha=alphas[i],
         )
     ax.axhline(1, color="gray", alpha=0.4, linewidth=0.8)
-    ax.set_title("Group Cumulative NAV")
-    ax.set_ylabel("NAV")
-    ax.legend(loc="best", ncol=2, fontsize=9)
+    ax.set_title("Group Cumulative NAV (LongShort on right axis)")
+    ax.set_ylabel("NAV (G1–Gg)")
     ax.grid(alpha=0.3)
+
+    # LongShort：右轴 + 灰色粗线，与 group 颜色明显区分
+    handles_left, labels_left = ax.get_legend_handles_labels()
+    if "LongShort" in group_nav.columns:
+        ax2 = ax.twinx()
+        ls_color = "#555555"  # 中性深灰
+        ax2.plot(
+            group_nav.index,
+            group_nav["LongShort"].values,
+            label="LongShort",
+            color=ls_color,
+            linewidth=2.6,
+            alpha=0.95,
+            zorder=10,
+        )
+        ax2.set_ylabel("LongShort NAV", color=ls_color)
+        ax2.tick_params(axis="y", labelcolor=ls_color)
+        # 不画右轴 grid，避免与左轴 grid 叠成网格
+        ax2.grid(False)
+        handles_right, labels_right = ax2.get_legend_handles_labels()
+        ax.legend(
+            handles_left + handles_right,
+            labels_left + labels_right,
+            loc="best",
+            ncol=2,
+            fontsize=9,
+        )
+    else:
+        ax.legend(loc="best", ncol=2, fontsize=9)
 
 
 def _plot_ic_time_series(ax, ic_series: pd.Series, horizon: int, ic_row: pd.Series):
@@ -187,15 +219,17 @@ def _plot_summary_table(
     ax.axis("off")
     ax.set_title("Summary", fontweight="bold")
 
-    # ==================== 上半：Layered Summary ====================
+    # ==================== 上半：Layered Summary（G1-Gg + LongShort）====================
     summary = layered_result["summary"]
     g_cols = [c for c in summary.index if c != "LongShort"]
-    col_labels1 = ["Metric"] + g_cols
+    has_ls = "LongShort" in summary.index
+    display_cols = g_cols + (["LongShort"] if has_ls else [])
+    col_labels1 = ["Metric"] + display_cols
     table_data1 = [
-        ["Ann Return", *[f"{summary.loc[c, 'ann_return']:+.2%}" for c in g_cols]],
-        ["Ann Vol", *[f"{summary.loc[c, 'ann_vol']:.2%}" for c in g_cols]],
-        ["Sharpe", *[f"{summary.loc[c, 'sharpe']:+.3f}" for c in g_cols]],
-        ["Turnover", *[f"{summary.loc[c, 'mean_turnover']:.1%}" for c in g_cols]],
+        ["Ann Return", *[f"{summary.loc[c, 'ann_return']:+.2%}" for c in display_cols]],
+        ["Ann Vol", *[f"{summary.loc[c, 'ann_vol']:.2%}" for c in display_cols]],
+        ["Sharpe", *[f"{summary.loc[c, 'sharpe']:+.3f}" for c in display_cols]],
+        ["Turnover", *[f"{summary.loc[c, 'mean_turnover']:.1%}" for c in display_cols]],
     ]
     table1 = ax.table(
         cellText=table_data1,
@@ -211,6 +245,19 @@ def _plot_summary_table(
         table1[(0, j)].set_text_props(color="white", fontweight="bold")
     for i in range(1, len(table_data1) + 1):
         table1[(i, 0)].set_text_props(fontweight="bold")
+    # LongShort 列高亮（与 G 列视觉区分）
+    if has_ls:
+        ls_col_idx = len(col_labels1) - 1
+        for i in range(len(table_data1) + 1):  # 含表头
+            table1[(i, ls_col_idx)].set_facecolor(
+                "#1F4E79" if i == 0 else "#D9E2F3"
+            )
+            if i == 0:
+                table1[(i, ls_col_idx)].set_text_props(
+                    color="white", fontweight="bold"
+                )
+            else:
+                table1[(i, ls_col_idx)].set_text_props(fontweight="bold")
 
     # ==================== 下半：IC Summary ====================
     # 列：Metric + 每个 horizon（比如 2d / 5d）

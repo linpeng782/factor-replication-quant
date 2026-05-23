@@ -1,0 +1,76 @@
+# 论文：开源_微观_27（市场微观结构系列 27），因子 f10 量峰间隔峰度
+# 论文目标：RankIC 7.19%, RankICIR 4.63, 多空年化 23.30%
+#
+# 过去 20 日"同日相邻量峰之间的分钟间隔"分布的峰度（pooled across 20 days）。
+# 由算子产出每日 5 阶矩 (n=Σ1, m1=Σ, m2=Σ², m3=Σ³, m4=Σ⁴) → rolling sum 20d → 还原 mean/var/μ4 → kurt。
+#
+# 公式推导（X = 间隔，N = 总间隔数）：
+#   μ = m1/N，Var = m2/N − μ²
+#   μ₄ = E[(X−μ)⁴] = m4/N − 4μ·m3/N + 6μ²·m2/N − 3μ⁴
+#   N·μ₄ = m4 − 4μ·m3 + 6μ²·m2 − 3N·μ⁴
+#   excess kurt = μ₄/Var² − 3 = (N·μ₄)/(N·Var²) − 3
+factor:
+  name: peak_interval_kurt
+  name_cn: 量峰间隔峰度
+  category: 微观结构
+  direction: 1
+  column: peak_interval_kurt
+  description: 过去 20 日量峰之间的同日时间间隔分布峰度（pooled）；衡量"量峰簇集程度"。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、分类、reduce 到日频（峰间隔 5 阶矩）
+    action: minute_intraday_aggregate
+    cache_key: prv_v3
+    std_window: 20
+    std_threshold: 1.0
+    features:
+      - peak_interval_n
+      - peak_interval_m1
+      - peak_interval_m2
+      - peak_interval_m3
+      - peak_interval_m4
+    output_dataframe: data
+
+  # 20 日 rolling sum 各阶矩（pooled across 20 trading days）
+  - { name: pi_n_20,  action: rolling, source_column: peak_interval_n,  output_column: pi_n_20,  window: 20, agg: sum, group_by: order_book_id }
+  - { name: pi_m1_20, action: rolling, source_column: peak_interval_m1, output_column: pi_m1_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: pi_m2_20, action: rolling, source_column: peak_interval_m2, output_column: pi_m2_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: pi_m3_20, action: rolling, source_column: peak_interval_m3, output_column: pi_m3_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: pi_m4_20, action: rolling, source_column: peak_interval_m4, output_column: pi_m4_20, window: 20, agg: sum, group_by: order_book_id }
+
+  # mean 与 var
+  - name: pi_mean
+    action: compute
+    formula: pi_m1_20 / pi_n_20
+    source_columns: [pi_m1_20, pi_n_20]
+    output_column: pi_mean
+  - name: pi_var
+    action: compute
+    formula: pi_m2_20 / pi_n_20 - pi_mean ** 2
+    source_columns: [pi_m2_20, pi_n_20, pi_mean]
+    output_column: pi_var
+
+  # excess kurtosis 的"裸"值（不带样本数 / var 守门）
+  - name: kurt_raw
+    action: compute
+    formula: (pi_m4_20 - 4 * pi_mean * pi_m3_20 + 6 * pi_mean ** 2 * pi_m2_20 - 3 * pi_n_20 * pi_mean ** 4)
+      / (pi_n_20 * pi_var ** 2) - 3
+    source_columns: [pi_m4_20, pi_mean, pi_m3_20, pi_m2_20, pi_n_20, pi_var]
+    output_column: kurt_raw
+
+  # 守门 mask（n>=5 且 var>0.000000000001 才有效）→ 用 divide-by-mask 把不合规位置变 NaN。
+  # gate 为 bool；与 raw 相乘时 0 → 结果 0，1 → 结果保持。再除以 gate 自身：0/0=NaN, 1/1=1。
+  # 故 kurt_raw * (gate / gate) 实现"gate=False 时输出 NaN"。
+  # 注意：pd.eval 不接 where() 函数，故走这条算术路径。
+  - name: kurt_gate
+    action: compute
+    formula: (pi_n_20 >= 5) * (pi_var > 0.000000000001)
+    source_columns: [pi_n_20, pi_var]
+    output_column: kurt_gate
+
+  - name: peak_interval_kurt
+    action: compute
+    formula: kurt_raw * (kurt_gate / kurt_gate)
+    source_columns: [kurt_raw, kurt_gate]
+    output_column: peak_interval_kurt

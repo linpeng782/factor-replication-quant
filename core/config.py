@@ -31,6 +31,12 @@ _BASE_FACTOR_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replicatio
 RAW_FACTOR_DIR = _BASE_FACTOR_DIR / "raw_factor"
 CLEANED_FACTOR_DIR = _BASE_FACTOR_DIR / "cleaned_factor"
 
+# 分钟级因子用：原始 per-stock 分钟 parquet 目录（用户日更）+ 中间产物缓存目录
+MINUTE_DATA_DIR = Path(
+    "/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir/stock_data_1m_post"
+)
+INTERMEDIATE_CACHE_DIR = _BASE_FACTOR_DIR / "intermediate_cache"
+
 # ==================== 默认评估区间 ====================
 # CLI 不显式指定 --start-date/--end-date 时使用
 DEFAULT_START_DATE = "20160101"

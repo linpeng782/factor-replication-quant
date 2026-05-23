@@ -20,7 +20,7 @@ import pandas as pd
 from . import Context, OpRegistry
 
 
-_BUILTINS: Set[str] = {"abs", "log", "exp", "sqrt", "where", "True", "False", "None"}
+_BUILTINS: Set[str] = {"abs", "log", "exp", "sqrt", "where", "nan", "True", "False", "None"}
 
 
 @OpRegistry.register("compute")
@@ -34,8 +34,10 @@ def op_compute(ctx: Context, step: Dict, fetcher: Any) -> None:
     out = step["output_column"]
     sources: list = list(step["source_columns"])
 
-    # 校验：formula 引用的所有标识符必须出现在 source_columns 中
-    tokens = set(re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", formula)) - _BUILTINS
+    # 校验：formula 引用的所有标识符必须出现在 source_columns 中。
+    # 用 lookbehind 排除"紧跟数字/点的标识符"（如 1e-12 中的 e、1.5e10 中的 e10），
+    # 避免把科学计数法的尾部误判成跨表标识符。
+    tokens = set(re.findall(r"(?<![0-9.])[a-zA-Z_][a-zA-Z0-9_]*", formula)) - _BUILTINS
     extra = tokens - set(sources)
     if extra:
         raise ValueError(
@@ -43,8 +45,9 @@ def op_compute(ctx: Context, step: Dict, fetcher: Any) -> None:
             f"source_columns={sources}"
         )
 
-    # 求值：限定 local_dict 只暴露声明的 source_columns，杜绝跨表/跨列引用
+    # 求值：限定 local_dict 只暴露声明的 source_columns + 安全字面量，杜绝跨表/跨列引用
     local = {c: df[c] for c in sources}
+    local["nan"] = float("nan")
     try:
         result = pd.eval(formula, local_dict=local, engine="numexpr")
     except Exception:

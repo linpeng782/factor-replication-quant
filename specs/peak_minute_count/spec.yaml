@@ -1,0 +1,28 @@
+# 论文：开源_微观_27（市场微观结构系列 27），因子 f1 量峰分钟数
+# 论文目标：RankIC 10.62%, RankICIR 4.36, 多空年化 31.58%
+factor:
+  name: peak_minute_count
+  name_cn: 量峰分钟数
+  category: 微观结构
+  direction: 1
+  column: peak_minute_count
+  description: 过去 20 日量峰分钟数；分钟级成交量按"过去 20 日同时点 ±1σ"分类峰/岭/谷，
+    "量峰" = 自身喷发且前后分钟均不喷发的孤立大额成交；衡量知情交易参与度。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、分类、reduce 到日频（peak_count）
+    action: minute_intraday_aggregate
+    cache_key: prv_v3
+    std_window: 20
+    std_threshold: 1.0
+    features:
+      - peak_count
+    output_dataframe: data
+  - name: 过去 20 日量峰分钟数（mean）
+    action: rolling
+    source_column: peak_count
+    output_column: peak_minute_count
+    window: 20
+    agg: mean
+    group_by: order_book_id

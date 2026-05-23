@@ -24,7 +24,7 @@ from loguru import logger
 
 warnings.filterwarnings("ignore")
 
-from core.config import RAW_FACTOR_DIR
+from core.config import MINUTE_DATA_DIR, RAW_FACTOR_DIR
 from core.spec_schema import validate_spec
 
 from .operators import Context, OpRegistry
@@ -41,6 +41,7 @@ from .operators import row_aggregate  # noqa: F401
 from .operators import row_polyfit  # noqa: F401
 from .operators import row_correlate  # noqa: F401
 from .operators import cross_section_regress  # noqa: F401
+from .operators import minute_intraday_aggregate  # noqa: F401
 
 
 # ── 多线程 get_factor 工人函数 ─────────────────────────────
@@ -249,9 +250,28 @@ class DataFetcher:
 
 def build_universe(universe_cfg: dict, trade_date: str, fetcher: DataFetcher) -> List[str]:
     primary = universe_cfg.get("primary_index", "000906.XSHG")
+    if primary == "MINUTE_DIR":
+        return _scan_minute_dir(MINUTE_DATA_DIR)
     if primary == "ALL":
         return fetcher.all_instruments(type_="CS")["order_book_id"].tolist()
     return fetcher.get_index_components(primary, trade_date)
+
+
+def _scan_minute_dir(minute_dir: Path) -> List[str]:
+    """扫 stock_data_1m_post/ 取股票池：保留形如 000001.XSHE / 600000.XSHG 的 parquet。
+    跳过下划线开头的辅助文件（_adjfactor_daily.parquet 等）。
+    """
+    if not minute_dir.is_dir():
+        raise FileNotFoundError(f"分钟数据目录不存在: {minute_dir}")
+    universe = sorted(
+        p.stem
+        for p in minute_dir.glob("[0-9]*.parquet")
+        if p.stem.endswith((".XSHE", ".XSHG"))
+    )
+    if not universe:
+        raise RuntimeError(f"分钟数据目录扫不到任何 [0-9]*.XSH[EG].parquet: {minute_dir}")
+    logger.info(f"[universe] MINUTE_DIR 扫到 {len(universe)} 只股票（{minute_dir}）")
+    return universe
 
 
 # ── 引擎主体 ───────────────────────────────────────────────

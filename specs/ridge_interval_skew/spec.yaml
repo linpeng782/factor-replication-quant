@@ -1,0 +1,89 @@
+factor:
+  name: ridge_interval_skew
+  name_cn: 量岭间隔偏度
+  category: 微观结构
+  direction: -1
+  column: ridge_interval_skew
+  description: 过去 20 日 pooled ridge 间隔的偏度。论文 IC -8.08% LS 22.19% IR 2.66。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - ridge_interval_n
+  - ridge_interval_m1
+  - ridge_interval_m2
+  - ridge_interval_m3
+  output_dataframe: data
+- name: pi_n_20
+  action: rolling
+  source_column: ridge_interval_n
+  output_column: pi_n_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: pi_m1_20
+  action: rolling
+  source_column: ridge_interval_m1
+  output_column: pi_m1_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: pi_m2_20
+  action: rolling
+  source_column: ridge_interval_m2
+  output_column: pi_m2_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: pi_m3_20
+  action: rolling
+  source_column: ridge_interval_m3
+  output_column: pi_m3_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: pi_mean
+  action: compute
+  formula: pi_m1_20 / pi_n_20
+  source_columns:
+  - pi_m1_20
+  - pi_n_20
+  output_column: pi_mean
+- name: pi_var
+  action: compute
+  formula: pi_m2_20 / pi_n_20 - pi_mean ** 2
+  source_columns:
+  - pi_m2_20
+  - pi_n_20
+  - pi_mean
+  output_column: pi_var
+- name: skew_raw
+  action: compute
+  formula: (pi_m3_20 - 3 * pi_mean * pi_m2_20 + 2 * pi_n_20 * pi_mean ** 3) / (pi_n_20
+    * (pi_var ** 1.5))
+  source_columns:
+  - pi_m3_20
+  - pi_mean
+  - pi_m2_20
+  - pi_n_20
+  - pi_var
+  output_column: skew_raw
+- name: gate
+  action: compute
+  formula: (pi_n_20 >= 5) * (pi_var > 0.000000000001)
+  source_columns:
+  - pi_n_20
+  - pi_var
+  output_column: gate
+- name: ridge_interval_skew
+  action: compute
+  formula: skew_raw * (gate / gate)
+  source_columns:
+  - skew_raw
+  - gate
+  output_column: ridge_interval_skew

@@ -169,6 +169,55 @@ calculation_steps:
 ```
 两组列长度必须相等；任一侧含 NaN → 整行结果为 NaN；常数序列 → NaN（var=0 不可除）。
 
+### `minute_intraday_aggregate`
+**仅用于分钟级研报**（开源_微观_27、方正《适度冒险》/《完整潮汐》/《飞蛾扑火》等）。
+逐股票从 `MINUTE_DATA_DIR` 流式 load 分钟数据 → 同时点 σ → 喷发标签 → 峰/岭/谷分类
+→ 日频 reduce → 缓存到 per-stock parquet。spec 自动产出**日频 long 表**（同 fetch get_factor），
+下游照常用 rolling/compute/rank。
+
+```yaml
+- action: minute_intraday_aggregate
+  cache_key: prv_v1                # 必填；任何参数变化自动 cache miss，无需 bump
+  std_window: 20                   # 同时点 σ 窗口（日），默认 20
+  std_threshold: 1.0               # 喷发判定阈值（×σ），默认 1.0
+  features:                        # 必填，从 superset 中挑
+    - peak_count
+    - peak_interval_n
+    - peak_interval_m1
+    - peak_interval_m2
+  output_dataframe: data           # 默认 data
+```
+
+**superset 列**（features 必须是其子集）：
+- 三类计数：`peak_count`, `ridge_count`, `valley_count`
+- 三类成交：`{peak,ridge,valley}_volume_sum`, `{peak,ridge,valley}_turnover_sum`, `{peak,ridge,valley}_vwap`
+- 峰/岭日内间隔 5 阶矩：`peak_interval_n` / `m1` / `m2` / `m3` / `m4`，`ridge_interval_n` / `m1..m4`
+- 喷发后下一分钟成交额：`eruption_next_turnover_sum`, `eruption_next_turnover_sumsq`
+- 日频价/量：`daily_high`, `daily_low`, `daily_close`, `daily_volume`, `daily_turnover`
+
+**important**：spec 用此算子时 universe 必须 `primary_index: MINUTE_DIR`（自动扫分钟数据目录）。
+warmup 日（前 std_window 日）所有 feature 输出 NaN——下游 rolling 自然把 NaN 顺延，无需特殊处理。
+
+**5 阶矩 → kurt 的标准模式**（过去 N 日 pooled 间隔的 kurtosis）：
+```yaml
+# 1) 5 步 rolling sum 各阶矩
+- { action: rolling, source_column: peak_interval_n,  output_column: pi_n_20,  window: 20, agg: sum, group_by: order_book_id }
+- # ...m1..m4 类同
+# 2) compute mean / var
+- { action: compute, formula: pi_m1_20 / pi_n_20, source_columns: [pi_m1_20, pi_n_20], output_column: pi_mean }
+- { action: compute, formula: pi_m2_20 / pi_n_20 - pi_mean ** 2, source_columns: [pi_m2_20, pi_n_20, pi_mean], output_column: pi_var }
+# 3) compute kurt_raw（不带守门）
+- { action: compute,
+    formula: (pi_m4_20 - 4*pi_mean*pi_m3_20 + 6*pi_mean**2*pi_m2_20 - 3*pi_n_20*pi_mean**4) / (pi_n_20 * pi_var ** 2) - 3,
+    source_columns: [pi_m4_20, pi_mean, pi_m3_20, pi_m2_20, pi_n_20, pi_var],
+    output_column: kurt_raw }
+# 4) divide-by-mask 把样本不足 / var≈0 的位置变 NaN
+- { action: compute, formula: (pi_n_20 >= 5) * (pi_var > 0.000000000001),
+    source_columns: [pi_n_20, pi_var], output_column: gate }
+- { action: compute, formula: kurt_raw * (gate / gate),
+    source_columns: [kurt_raw, gate], output_column: <factor> }
+```
+
 ### `cross_section_regress`
 按 date 分组做截面 OLS：每个交易日跨股票回归 y = X·β + ε，输出残差列。
 经典用途：风格剥离 / 嵌套残差化 / 因子正交化。
@@ -196,6 +245,9 @@ calculation_steps:
 8. **PIT 财务用 `api: get_pit_financials_ex`（按 quarter）；日频因子和 _mrq_n 字段用 `api: get_factor`**。
 9. **资产负债表（净资产、总资产等）是时点值，直接用，不要 diff**。
 10. **不需要 rename 步骤**——fetch 时用 `output_column` 直接命名，transform 时用 `output_column` 直接命名最终因子。
+11. **`compute` 公式中 `pd.eval` 不支持 `where()` 函数**（虽然 `_BUILTINS` 里有 `where`，那是给标识符校验用的）。条件 NaN 用 divide-by-mask 惯用法：`expr * (gate / gate)`，gate=0 → 0/0=NaN，gate=1 → 1/1=1。
+12. **科学计数法 `1e-12` 在 `compute` 里 OK**，但更建议写 `0.000000000001` 避免理解负担；正则已支持，老 spec 不用回改。
+13. **分钟级因子用 `minute_intraday_aggregate`**：见对应 action 模板；不要尝试用 `fetch api: get_price frequency: 1m` 复刻（米筐分钟 API 不接、本地 parquet 已就绪）。
 
 # Few-shot 示例
 

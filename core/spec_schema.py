@@ -102,6 +102,8 @@ def validate_spec(spec_yaml: dict) -> None:
             _validate_fetch(step, sym, loc)
         elif action == "merge":
             _validate_merge(step, sym, loc)
+        elif action == "minute_intraday_aggregate":
+            _validate_minute_intraday_aggregate(step, sym, loc)
         elif action in COLUMN_ADDING_ACTIONS:
             _validate_column_adding(step, sym, loc)
         elif action in NO_OUTPUT_ACTIONS:
@@ -190,6 +192,37 @@ def _validate_filter(step: dict, sym: _SymbolTable, loc: str) -> None:
     if not sym.has_df(target_df):
         raise SpecError(f"{loc}: output_dataframe {target_df!r} 未被定义")
     # filter 的 condition 列引用校验放算子运行时（pandas.query 会自然报错）
+
+
+def _validate_minute_intraday_aggregate(
+    step: dict, sym: _SymbolTable, loc: str
+) -> None:
+    """分钟级聚合算子：自创建主表（不消费 ctx 已有列）。校验 cache_key/features/参数。"""
+    target_df = step.get("output_dataframe", "data")
+    sym.create(target_df)
+
+    cache_key = step.get("cache_key")
+    if not isinstance(cache_key, str) or not cache_key:
+        raise SpecError(f"{loc}: cache_key 必填且为非空字符串")
+
+    features = step.get("features")
+    if not isinstance(features, list) or not features:
+        raise SpecError(f"{loc}: features 必填且为非空 list")
+    for f in features:
+        if not isinstance(f, str) or not f:
+            raise SpecError(f"{loc}: features 列名必须是非空字符串，实际 {f!r}")
+
+    sw = step.get("std_window", 20)
+    if not isinstance(sw, int) or sw <= 0:
+        raise SpecError(f"{loc}: std_window 必须是正整数，实际 {sw!r}")
+
+    sth = step.get("std_threshold", 1.0)
+    if not isinstance(sth, (int, float)) or sth <= 0:
+        raise SpecError(f"{loc}: std_threshold 必须是正数，实际 {sth!r}")
+
+    # features 列名注册到 sym 表（下游 source_column 校验依赖此）
+    for f in features:
+        sym.add(target_df, f, loc)
 
 
 def _collect_source_columns(step: dict, loc: str) -> List[str]:

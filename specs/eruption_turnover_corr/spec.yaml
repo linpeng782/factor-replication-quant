@@ -1,0 +1,68 @@
+# 论文：开源_微观_27（市场微观结构系列 27），因子 f19 喷发成交额相关性
+# 论文目标：RankIC -10.94%, RankICIR -3.99, 多空年化 29.72%, IR 2.73, 多头 15.12%
+#
+# 过去 20 日 pooled，X = 喷发分钟成交额，Y = 下一分钟成交额，计算 Pearson(X, Y)。
+# 直觉：相关性高 → 大额成交后资金强跟随 → 散户主导 → 未来表现弱。direction = -1。
+#
+# Pearson 数学（避免存 X、Y 列表，全程矢量化）：
+#   设 N = ΣE = 喷发分钟数；ΣX = Σ E·T[m]; ΣY = Σ E·T[m+1]; ΣXY = Σ E·T[m]·T[m+1]
+#       ΣX² = Σ E·T[m]²; ΣY² = Σ E·T[m+1]²
+#   ρ = (N·ΣXY − ΣX·ΣY) / sqrt((N·ΣX² − (ΣX)²)·(N·ΣY² − (ΣY)²))
+#   推导：cov = E[XY]−E[X]E[Y] = (N·ΣXY−ΣX·ΣY)/N²；σ²_X 同理；N² 在 ρ 上下相消，故公式如上。
+factor:
+  name: eruption_turnover_corr
+  name_cn: 喷发成交额相关性
+  category: 微观结构
+  direction: -1
+  column: eruption_turnover_corr
+  description: 过去 20 日喷发分钟成交额（X）与下一分钟成交额（Y）的 Pearson 相关系数。
+    高相关 → 大额成交后资金强跟随（散户主导）→ 未来收益弱。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、分类、reduce 到日频（喷发 X/Y 6 阶矩）
+    action: minute_intraday_aggregate
+    cache_key: prv_v3
+    std_window: 20
+    std_threshold: 1.0
+    features:
+      - eruption_count
+      - eruption_turnover_sum
+      - eruption_turnover_sumsq
+      - eruption_next_turnover_sum
+      - eruption_next_turnover_sumsq
+      - eruption_xy_sum
+    output_dataframe: data
+
+  # 20 日 rolling sum 6 列（pooled across 20 trading days）
+  - { name: n_20,   action: rolling, source_column: eruption_count,             output_column: n_20,   window: 20, agg: sum, group_by: order_book_id }
+  - { name: sx_20,  action: rolling, source_column: eruption_turnover_sum,      output_column: sx_20,  window: 20, agg: sum, group_by: order_book_id }
+  - { name: sx2_20, action: rolling, source_column: eruption_turnover_sumsq,    output_column: sx2_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: sy_20,  action: rolling, source_column: eruption_next_turnover_sum, output_column: sy_20,  window: 20, agg: sum, group_by: order_book_id }
+  - { name: sy2_20, action: rolling, source_column: eruption_next_turnover_sumsq, output_column: sy2_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: sxy_20, action: rolling, source_column: eruption_xy_sum,            output_column: sxy_20, window: 20, agg: sum, group_by: order_book_id }
+
+  # Pearson 分子 / 两个 scaled variance / sqrt 分母
+  - { name: corr_num, action: compute,
+      formula: "n_20 * sxy_20 - sx_20 * sy_20",
+      source_columns: [n_20, sxy_20, sx_20, sy_20], output_column: corr_num }
+  - { name: var_x, action: compute,
+      formula: "n_20 * sx2_20 - sx_20 * sx_20",
+      source_columns: [n_20, sx2_20, sx_20], output_column: var_x }
+  - { name: var_y, action: compute,
+      formula: "n_20 * sy2_20 - sy_20 * sy_20",
+      source_columns: [n_20, sy2_20, sy_20], output_column: var_y }
+  - { name: corr_den, action: compute,
+      formula: "sqrt(var_x * var_y)",
+      source_columns: [var_x, var_y], output_column: corr_den }
+  - { name: corr_raw, action: compute,
+      formula: "corr_num / corr_den",
+      source_columns: [corr_num, corr_den], output_column: corr_raw }
+
+  # 守门：N>=10 且两侧方差都非零；divide-by-mask 把不合规位置变 NaN
+  - { name: corr_gate, action: compute,
+      formula: "(n_20 >= 10) * (var_x > 0.000000000001) * (var_y > 0.000000000001)",
+      source_columns: [n_20, var_x, var_y], output_column: corr_gate }
+  - { name: eruption_turnover_corr, action: compute,
+      formula: "corr_raw * (corr_gate / corr_gate)",
+      source_columns: [corr_raw, corr_gate], output_column: eruption_turnover_corr }

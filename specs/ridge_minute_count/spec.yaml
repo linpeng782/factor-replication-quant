@@ -1,0 +1,25 @@
+factor:
+  name: ridge_minute_count
+  name_cn: 量岭分钟数
+  category: 微观结构
+  direction: -1
+  column: ridge_minute_count
+  description: 过去 20 日量岭分钟数（连续大额成交时点 = 跟随交易/散户特征）。论文 IC -9.04% LS 26.20% IR 2.20。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - ridge_count
+  output_dataframe: data
+- name: ridge_minute_count
+  action: rolling
+  source_column: ridge_count
+  output_column: ridge_minute_count
+  window: 20
+  agg: mean
+  group_by: order_book_id

@@ -1,0 +1,34 @@
+factor:
+  name: valley_relative_vwap
+  name_cn: 量谷相对加权价
+  category: 微观结构
+  direction: 1
+  column: valley_relative_vwap
+  description: 过去 20 日 valley_vwap / daily_vwap 的均值（均后复权口径）。论文 IC +8.69% LS 25.35%
+    IR 3.04。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - valley_vwap
+  - daily_vwap
+  output_dataframe: data
+- name: valley_rel_vwap_daily
+  action: compute
+  formula: valley_vwap / daily_vwap
+  source_columns:
+  - valley_vwap
+  - daily_vwap
+  output_column: valley_rel_vwap_daily
+- name: valley_relative_vwap
+  action: rolling
+  source_column: valley_rel_vwap_daily
+  output_column: valley_relative_vwap
+  window: 20
+  agg: mean
+  group_by: order_book_id

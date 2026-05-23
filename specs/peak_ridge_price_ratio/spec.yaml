@@ -1,0 +1,33 @@
+factor:
+  name: peak_ridge_price_ratio
+  name_cn: 峰岭加权价格比
+  category: 微观结构
+  direction: 1
+  column: peak_ridge_price_ratio
+  description: 过去 20 日 peak_vwap / ridge_vwap 的均值。论文 IC +4.70% LS 10.31% IR 1.81。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - peak_vwap
+  - ridge_vwap
+  output_dataframe: data
+- name: peak_ridge_ratio_daily
+  action: compute
+  formula: peak_vwap / ridge_vwap
+  source_columns:
+  - peak_vwap
+  - ridge_vwap
+  output_column: peak_ridge_ratio_daily
+- name: peak_ridge_price_ratio
+  action: rolling
+  source_column: peak_ridge_ratio_daily
+  output_column: peak_ridge_price_ratio
+  window: 20
+  agg: mean
+  group_by: order_book_id

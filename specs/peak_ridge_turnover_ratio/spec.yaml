@@ -1,0 +1,41 @@
+factor:
+  name: peak_ridge_turnover_ratio
+  name_cn: 峰岭成交比
+  category: 微观结构
+  direction: 1
+  column: peak_ridge_turnover_ratio
+  description: 过去 20 日 peak_turnover_sum / ridge_turnover_sum。论文 IC +10.28% LS 27.13%
+    IR 2.89。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - peak_turnover_sum
+  - ridge_turnover_sum
+  output_dataframe: data
+- name: peak_to_20
+  action: rolling
+  source_column: peak_turnover_sum
+  output_column: peak_to_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: ridge_to_20
+  action: rolling
+  source_column: ridge_turnover_sum
+  output_column: ridge_to_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: peak_ridge_turnover_ratio
+  action: compute
+  formula: peak_to_20 / ridge_to_20
+  source_columns:
+  - peak_to_20
+  - ridge_to_20
+  output_column: peak_ridge_turnover_ratio

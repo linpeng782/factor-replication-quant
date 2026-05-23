@@ -1,0 +1,110 @@
+factor:
+  name: eruption_turnover_sensitivity
+  name_cn: 喷发成交额敏感度
+  category: 微观结构
+  direction: -1
+  column: eruption_turnover_sensitivity
+  description: OLS slope of (next-min turnover) on (eruption-min turnover) over 20-day
+    pooled。论文 IC -7.14% LS 15.61% IR 2.18。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - eruption_count
+  - eruption_turnover_sum
+  - eruption_turnover_sumsq
+  - eruption_next_turnover_sum
+  - eruption_xy_sum
+  output_dataframe: data
+- name: n_20
+  action: rolling
+  source_column: eruption_count
+  output_column: n_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: sx_20
+  action: rolling
+  source_column: eruption_turnover_sum
+  output_column: sx_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: sx2_20
+  action: rolling
+  source_column: eruption_turnover_sumsq
+  output_column: sx2_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: sy_20
+  action: rolling
+  source_column: eruption_next_turnover_sum
+  output_column: sy_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: sxy_20
+  action: rolling
+  source_column: eruption_xy_sum
+  output_column: sxy_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: mean_x
+  action: compute
+  formula: sx_20 / n_20
+  source_columns:
+  - sx_20
+  - n_20
+  output_column: mean_x
+- name: mean_y
+  action: compute
+  formula: sy_20 / n_20
+  source_columns:
+  - sy_20
+  - n_20
+  output_column: mean_y
+- name: slope_num
+  action: compute
+  formula: sxy_20 - n_20 * mean_x * mean_y
+  source_columns:
+  - sxy_20
+  - n_20
+  - mean_x
+  - mean_y
+  output_column: slope_num
+- name: slope_den
+  action: compute
+  formula: sx2_20 - n_20 * mean_x ** 2
+  source_columns:
+  - sx2_20
+  - n_20
+  - mean_x
+  output_column: slope_den
+- name: slope_raw
+  action: compute
+  formula: slope_num / slope_den
+  source_columns:
+  - slope_num
+  - slope_den
+  output_column: slope_raw
+- name: sgate
+  action: compute
+  formula: (n_20 >= 10) * (slope_den > 1.0)
+  source_columns:
+  - n_20
+  - slope_den
+  output_column: sgate
+- name: eruption_turnover_sensitivity
+  action: compute
+  formula: slope_raw * (sgate / sgate)
+  source_columns:
+  - slope_raw
+  - sgate
+  output_column: eruption_turnover_sensitivity

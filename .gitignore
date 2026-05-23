@@ -12,6 +12,11 @@ scripts/*.png
 !scripts/regression_baselines/*.parquet
 scripts/regression_baselines/_eval_artifacts/
 
+# Factor Inventory：inventory.parquet 进 git；plots 与 latest 软链不进 git
+!factor_inventory/*/inventory.parquet
+factor_inventory/latest
+factor_inventory/*/plots/
+
 # Python
 __pycache__/
 *.pyc

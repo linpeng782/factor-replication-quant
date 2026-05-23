@@ -71,6 +71,11 @@ python run.py roe_mrq_new --start-date 20200101 --end-date 20251231 --workers 16
 
 # 5) 批量回归用 shell 循环（按 sources 子目录）
 for f in $(ls sources/kysec/paper_27_microstructure/specs); do python run.py $f --evaluate-only; done
+
+# 6) Factor Inventory：所有 panel 因子的总账（alpha158 + spec，跳过 mars）
+#    输出：factor_inventory/<时间戳>/inventory.parquet + plots/<producer>/<factor>.png
+#    用于 LGBM 特征选择、因子库质量监控、写报告等场景
+python scripts/build_factor_inventory.py     # ~2 分钟（100 workers, 197 因子）
 ```
 
 **CLI 设计原则**：

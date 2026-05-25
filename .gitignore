@@ -16,6 +16,8 @@ scripts/regression_baselines/_eval_artifacts/
 !factor_inventory/*/inventory.parquet
 factor_inventory/latest
 factor_inventory/*/plots/
+# 因子相关性快照：matrix.parquet + summary.md + heatmap.png 都进 git（审计 trail）
+!factor_inventory/correlation/*/matrix.parquet
 
 # Python
 __pycache__/

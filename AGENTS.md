@@ -74,8 +74,13 @@ for f in $(ls sources/kysec/paper_27_microstructure/specs); do python run.py $f 
 
 # 6) Factor Inventory：所有 panel 因子的总账（alpha158 + spec，跳过 mars）
 #    输出：factor_inventory/<时间戳>/inventory.parquet + plots/<producer>/<factor>.png
-#    用于 LGBM 特征选择、因子库质量监控、写报告等场景
 python scripts/build_factor_inventory.py     # ~2 分钟（100 workers, 197 因子）
+
+# 7) 因子相关性矩阵 + 聚类热力图 + 自动 summary（独立性 / 冗余对 / 去重建议）
+#    输出：factor_inventory/correlation/<时间戳>__<run>/{matrix.parquet, heatmap.png, summary.md}
+#    实现：3 次 BLAS GEMM 一次算 N²；direction 校正；scipy 层次聚类排序
+python scripts/factor_correlation.py --pattern 'pj_*' --name paper_33   # ~10s for 18 因子
+python scripts/factor_correlation.py --name microstructure_41           # ~45s for 41 因子
 ```
 
 **CLI 设计原则**：

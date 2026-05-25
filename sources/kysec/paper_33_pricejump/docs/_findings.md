@@ -5,20 +5,33 @@
 
 ---
 
-## 1. 算子设计的红利：没有 paper_27 mp20 那种 78% 高缺失陷阱
+## 1. 6 因子缺失率温和（10-16%）的真实原因——是因子选择的幸运，**不是算子设计的功劳**
 
-paper_27 当时三个因子（`ridge_relative_vwap` 等）miss_listed 高达 78%，根因是 `先日 ratio → 20d mean`：
-- ridge_vwap 在 0-ridge 日是 NaN
-- rolling.mean 默认 min_periods=20 → 任一天 NaN 整窗 NaN
-- 后来用 `__mp10` 变体降到 ~10%
+> ⚠️ 自我修正（2026-05-25 review 时发现）：本节初版错误地把"无高缺失"归功于 sum-then-derive
+> 算子设计；但 6 个因子的 spec 全部严格对齐 paper 原文（不是为避免 NaN 而偷换公式）。
+> 真正原因如下分析。
 
-paper_33 的 6 因子全部 24–29% raw NaN，**根因不同**：
-- 没用"先日 ratio → 20d mean"模式
-- 涉及 ridge 的因子（`pj_ridge_minute_return`、`pj_ridge_interval_skew`）走"先 sum moments → 算 skew"
-- 涉及 jump 的因子走"先 sum 6 阶矩 → 算 Pearson"
-- moments / sums 在 0-ridge 日是 0（不是 NaN），rolling.sum 不被 NaN 传染
+**逐因子审视 spec 与 paper 形式的关系**（与 paper 行号对照）：
 
-**结论**：写新因子 spec 时优先用"sum-then-derive"模式，避开"日 ratio → mean"的 NaN 雪崩。这条已经在 AGENTS.md §4 因子变体约定里有引用（mp10 案例），将来设计同类因子时该作为 default。
+| 因子 | 形式 | paper 原文 | 是否危险（per-day ratio + sparse 分母）|
+|------|-----|-----------|----------------------------------|
+| `pj_peak_minute_count` | rolling.mean(peak_count) | L219 "数量" | ❌ 没有 ratio，无风险 |
+| `pj_ridge_minute_return` | rolling.sum(ridge_return_sum) | L269 "加总" | ❌ sum-and-done，无 ratio |
+| `pj_valley_relative_vwap` | **per-day ratio → mean(20)** | L338 "每日做比、20 日均值" | ⚠️ 形式危险，但 valley 是 ~80% 时点（非跳跃 = 价谷），**valley_vwap 几乎永有定义**，分母不稀疏 → 实测安全 |
+| `pj_valley_weighted_quantile` | **per-day quantile → mean(20)** | L548 "20 日均值" | ⚠️ 同上，valley_vwap 稠密 → 安全 |
+| `pj_ridge_interval_skew` | pool moments → derive | L434 "20 日间隔分布" | ❌ pool-then-derive 模式，paper 用语本身就是 pool |
+| `pj_jump_turnover_corr` | pool moments → Pearson | L488 "过去 20 天 ... 相关系数" | ❌ pool-then-derive，paper 用语本身就是 pool |
+
+**关键**：3 号、4 号是 **per-day ratio → mean** 模式（paper_27 mp20 78% 雪崩的同款危险模式），但因为 paper_33 的 valley = 非跳跃时点 ≈ 80% 分钟，valley_vwap 几乎每天都有定义，**所以分母不稀疏，雪崩自然不发生**。这是 paper 选择"价谷"作为分母而带来的红利，**不是我们 spec 设计的功劳**。
+
+**Phase 5 扩 17 因子时必然会重现 78% 雪崩的因子**：
+- **p12 价格谷岭加权价格比** (`valley_vwap / ridge_vwap`) —— `ridge_vwap` 在 ridge 极稀疏时会 NaN（实测平安银行 4 月 ridge 仅 0.7/天），per-day ratio → 20d mean，**与 paper_27 的 `valley_ridge_price_ratio` 完全同构，必须复用 `__mp10` 模板**
+- **p13 价格峰岭成交额比** —— 形式取决于 paper 措辞；如果是"先 sum 后比"（类比 paper_27 `peak_ridge_turnover_ratio`）则安全，如果是"日比再 mean"则危险
+
+**正确的工程结论**：
+1. **不要为避免 NaN 偷换 paper 公式**——这是 paper_27 那次"sum-then-ratio 更接近 paper"幻觉的核心教训
+2. 当 paper 公式确实是 per-day ratio → mean 且分母稀疏时，**唯一忠实做法是 paper_27 mp10 模板**（保留语义、放宽 min_periods、做衰减实验决定 sweet spot）
+3. 6 因子缺失率温和是结构红利不是设计红利，但**复现忠实度是真功夫**——这才是 docs 该记录的真东西
 
 ---
 

@@ -57,7 +57,7 @@
 
 - **方向 100% 一致**：6 因子的 IC 符号全部与论文吻合
 - **量级符合预期**：4 个因子 5d ICIR ~0.67–0.69（≈ paper RankICIR / 5），与频率换算 + 无中性化的损耗一致
-- **缺失率全员可控（24–29%）**：算子设计避开了 paper_27 mp20 的 78% 缺失陷阱（详见 [docs/_findings.md §1](docs/_findings.md)）——所有 ridge / jump 类因子都走"先 sum moments → 再算 skew/corr"路径，moments 在 0-ridge 日是 0 不是 NaN
+- **缺失率全员可控（miss_listed 10–16%）**：6 个 spec 全部严格对齐 paper 原文公式；之所以没有 paper_27 那种 78% 雪崩，是因为这 6 因子里的 per-day ratio 类（p4 / p5）分母用的是 valley（非跳跃时点 ≈80% 分钟），分母天然稠密——**是因子选择的结构红利，不是算子设计**。详见 [docs/_findings.md §1](docs/_findings.md) 的自我修正分析；如果 Phase 5 扩到 17 因子，**p12 价格谷岭加权价格比必然重现 78% 问题，需复用 paper_27 `__mp10` 模板**
 - **两个偏弱因子有解释**：
   - `pj_peak_minute_count`（0.212）：paper 自己 Table 7 就承认 p1 比 paper_27 f1 弱（3.0 vs 4.36），是真特性不是 bug
   - `pj_valley_weighted_quantile`（0.169）：paper L420 明说要做 20d 反转中性化，v1 spec 没做（v2 待办）

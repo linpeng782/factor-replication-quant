@@ -1,0 +1,28 @@
+# 论文：开源_微观_33（市场微观结构系列 33），因子 p3 价岭分钟收益
+# 论文目标：RankIC -8.51%, RankICIR -3.8, 多空年化 25.93%, IR 2.96（paper.md L269, L330）
+factor:
+  name: pj_ridge_minute_return
+  name_cn: 价岭分钟收益
+  category: 微观结构
+  direction: -1
+  column: pj_ridge_minute_return
+  description: 过去 20 日价岭时点的分钟涨跌幅加总（paper.md L269）。
+    "价岭" = 跳跃 ∧ ¬局域情绪低迷 ∧ 缺口（paper.md L171）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - ridge_return_sum
+  output_dataframe: data
+- name: pj_ridge_minute_return
+  action: rolling
+  source_column: ridge_return_sum
+  output_column: pj_ridge_minute_return
+  window: 20
+  agg: sum
+  group_by: order_book_id

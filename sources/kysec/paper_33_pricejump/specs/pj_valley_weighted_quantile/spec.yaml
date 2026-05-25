@@ -1,0 +1,76 @@
+# 论文：开源_微观_33（市场微观结构系列 33），因子 p5 价谷加权价分位点
+# 论文目标：RankIC 5.40%, RankICIR 3.5（paper.md Table 7 L548-554）
+factor:
+  name: pj_valley_weighted_quantile
+  name_cn: 价谷加权价分位点
+  category: 微观结构
+  direction: 1
+  column: pj_valley_weighted_quantile
+  description: 过去 20 日 valley_vwap 在 [min(high,low,prev_close), max(...)] 的分位点均值。
+    类比 paper_27 同名因子，但价谷定义来自价格跳跃判定（振幅 <1σ）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - valley_vwap
+  - daily_high
+  - daily_low
+  - daily_close
+  output_dataframe: data
+- name: prev_close (shift 1)
+  action: transform
+  method: shift
+  source_column: daily_close
+  output_column: prev_close
+  periods: 1
+  group_by: order_book_id
+- name: high_bound
+  action: row_aggregate
+  source_columns:
+  - daily_high
+  - daily_low
+  - prev_close
+  agg: max
+  output_column: high_bound
+- name: low_bound
+  action: row_aggregate
+  source_columns:
+  - daily_high
+  - daily_low
+  - prev_close
+  agg: min
+  output_column: low_bound
+- name: quantile_daily_raw
+  action: compute
+  formula: (valley_vwap - low_bound) / (high_bound - low_bound)
+  source_columns:
+  - valley_vwap
+  - high_bound
+  - low_bound
+  output_column: quantile_daily_raw
+- name: qgate
+  action: compute
+  formula: high_bound - low_bound > 0.000001
+  source_columns:
+  - high_bound
+  - low_bound
+  output_column: qgate
+- name: quantile_daily
+  action: compute
+  formula: quantile_daily_raw * (qgate / qgate)
+  source_columns:
+  - quantile_daily_raw
+  - qgate
+  output_column: quantile_daily
+- name: pj_valley_weighted_quantile
+  action: rolling
+  source_column: quantile_daily
+  output_column: pj_valley_weighted_quantile
+  window: 20
+  agg: mean
+  group_by: order_book_id

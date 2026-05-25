@@ -1,0 +1,28 @@
+# 论文：开源_微观_33（市场微观结构系列 33），因子 p1 价峰分钟数
+# 论文目标：RankIC 6.38%, RankICIR 3.0, 多空年化 16.4%, IR 2.1（paper.md L219, L263）
+factor:
+  name: pj_peak_minute_count
+  name_cn: 价峰分钟数
+  category: 微观结构
+  direction: 1
+  column: pj_peak_minute_count
+  description: 过去 20 日价峰时点数；分钟级振幅按"过去 20 日同时点 1σ"判定跳跃，
+    "价峰" = 跳跃 ∧ ¬局域情绪高涨 ∧ ¬缺口（paper.md L171）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、跳跃分类、reduce 到日频（peak_count）
+    action: minute_pricejump_aggregate
+    cache_key: pjr_v1
+    std_window: 20
+    std_threshold: 1.0
+    features:
+      - peak_count
+    output_dataframe: data
+  - name: 过去 20 日价峰分钟数（mean）
+    action: rolling
+    source_column: peak_count
+    output_column: pj_peak_minute_count
+    window: 20
+    agg: mean
+    group_by: order_book_id

@@ -1,0 +1,62 @@
+# 论文：开源_微观_33（市场微观结构系列 33），因子 p16 价格跳跃成交额相关性
+# 论文目标：RankIC -10.23%, RankICIR -3.8, 多空年化 31.17%, IR 2.98（paper.md L488）
+#
+# 过去 20 日 pooled，X = 跳跃分钟成交额，Y = 下一分钟成交额，计算 Pearson(X, Y)。
+#
+# Pearson 数学（与 paper_27 eruption_turnover_corr 同构）：
+#   N = ΣE_jump = 跳跃分钟数；ΣX = Σ E·T[m]; ΣY = Σ E·T[m+1]; ΣXY = Σ E·T[m]·T[m+1]
+#   ρ = (N·ΣXY − ΣX·ΣY) / sqrt((N·ΣX² − (ΣX)²)·(N·ΣY² − (ΣY)²))
+factor:
+  name: pj_jump_turnover_corr
+  name_cn: 价格跳跃成交额相关性
+  category: 微观结构
+  direction: -1
+  column: pj_jump_turnover_corr
+  description: 过去 20 日跳跃分钟成交额（X）与下一分钟成交额（Y）的 Pearson 相关系数。
+    高相关 → 跳跃后资金强跟随（散户主导）→ 未来收益弱（paper.md L488）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、跳跃分类、reduce 到日频（跳跃 X/Y 6 阶矩）
+    action: minute_pricejump_aggregate
+    cache_key: pjr_v1
+    std_window: 20
+    std_threshold: 1.0
+    features:
+      - jump_count
+      - jump_turnover_sum
+      - jump_turnover_sumsq
+      - jump_next_turnover_sum
+      - jump_next_turnover_sumsq
+      - jump_xy_sum
+    output_dataframe: data
+
+  - { name: n_20,   action: rolling, source_column: jump_count,                output_column: n_20,   window: 20, agg: sum, group_by: order_book_id }
+  - { name: sx_20,  action: rolling, source_column: jump_turnover_sum,         output_column: sx_20,  window: 20, agg: sum, group_by: order_book_id }
+  - { name: sx2_20, action: rolling, source_column: jump_turnover_sumsq,       output_column: sx2_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: sy_20,  action: rolling, source_column: jump_next_turnover_sum,    output_column: sy_20,  window: 20, agg: sum, group_by: order_book_id }
+  - { name: sy2_20, action: rolling, source_column: jump_next_turnover_sumsq,  output_column: sy2_20, window: 20, agg: sum, group_by: order_book_id }
+  - { name: sxy_20, action: rolling, source_column: jump_xy_sum,               output_column: sxy_20, window: 20, agg: sum, group_by: order_book_id }
+
+  - { name: corr_num, action: compute,
+      formula: "n_20 * sxy_20 - sx_20 * sy_20",
+      source_columns: [n_20, sxy_20, sx_20, sy_20], output_column: corr_num }
+  - { name: var_x, action: compute,
+      formula: "n_20 * sx2_20 - sx_20 * sx_20",
+      source_columns: [n_20, sx2_20, sx_20], output_column: var_x }
+  - { name: var_y, action: compute,
+      formula: "n_20 * sy2_20 - sy_20 * sy_20",
+      source_columns: [n_20, sy2_20, sy_20], output_column: var_y }
+  - { name: corr_den, action: compute,
+      formula: "sqrt(var_x * var_y)",
+      source_columns: [var_x, var_y], output_column: corr_den }
+  - { name: corr_raw, action: compute,
+      formula: "corr_num / corr_den",
+      source_columns: [corr_num, corr_den], output_column: corr_raw }
+
+  - { name: corr_gate, action: compute,
+      formula: "(n_20 >= 10) * (var_x > 0.000000000001) * (var_y > 0.000000000001)",
+      source_columns: [n_20, var_x, var_y], output_column: corr_gate }
+  - { name: pj_jump_turnover_corr, action: compute,
+      formula: "corr_raw * (corr_gate / corr_gate)",
+      source_columns: [corr_raw, corr_gate], output_column: pj_jump_turnover_corr }

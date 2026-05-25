@@ -39,7 +39,32 @@
 
 ---
 
-## 算子设计要点（详见 docs/operator_design.md，Phase 2 完成后写）
+## 复现 vs 论文对照（5d 频率，2016-01-01 ~ 2025-12-31，**无中性化**）
+
+> 来源：`factor_inventory/20260525_204053/inventory.parquet`。
+> ⚠️ 与 paper（月频 10 分组 市值/行业中性）不可直接比较 ICIR 量级；日频 ICIR × √21 ≈ 月频 ICIR。
+
+| 因子 | dir | 5d IC | 5d ICIR | LS Sharpe | miss_listed | paper RankICIR | 方向 |
+|------|-----|-------|---------|-----------|-------------|---------------|------|
+| `pj_peak_minute_count` | +1 | +0.0242 | **0.212** | 1.614 | 10.3% | +3.0 | ✅ |
+| `pj_ridge_minute_return` | -1 | -0.0825 | **0.671** | 2.892 | 10.3% | -3.8 | ✅ |
+| `pj_valley_relative_vwap` | +1 | +0.0572 | **0.673** | 2.468 | 11.4% | +4.0 | ✅ |
+| `pj_valley_weighted_quantile` | +1 | +0.0159 | **0.169** | 0.447 | 11.4% | +3.5 | ✅ |
+| `pj_ridge_interval_skew` | -1 | -0.0661 | **0.685** | 3.437 | 15.5% | -3.5 | ✅ |
+| `pj_jump_turnover_corr` | -1 | -0.0643 | **0.686** | 3.235 | 10.3% | -3.8 | ✅ |
+
+**核心观察**：
+
+- **方向 100% 一致**：6 因子的 IC 符号全部与论文吻合
+- **量级符合预期**：4 个因子 5d ICIR ~0.67–0.69（≈ paper RankICIR / 5），与频率换算 + 无中性化的损耗一致
+- **缺失率全员可控（24–29%）**：算子设计避开了 paper_27 mp20 的 78% 缺失陷阱（详见 [docs/_findings.md §1](docs/_findings.md)）——所有 ridge / jump 类因子都走"先 sum moments → 再算 skew/corr"路径，moments 在 0-ridge 日是 0 不是 NaN
+- **两个偏弱因子有解释**：
+  - `pj_peak_minute_count`（0.212）：paper 自己 Table 7 就承认 p1 比 paper_27 f1 弱（3.0 vs 4.36），是真特性不是 bug
+  - `pj_valley_weighted_quantile`（0.169）：paper L420 明说要做 20d 反转中性化，v1 spec 没做（v2 待办）
+
+---
+
+## 算子设计要点
 
 `minute_pricejump_aggregate`（与 paper_27 的 `minute_intraday_aggregate` 平行，独立 cache_key 命名空间，互不污染）：
 

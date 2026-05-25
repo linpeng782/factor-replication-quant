@@ -1,0 +1,36 @@
+# 论文：开源_微观_33（市场微观结构系列 33），因子 p4 价谷相对加权价
+# 论文目标：RankIC 6.53%, RankICIR 4.0, 多空年化 18.37%, IR 2.38（paper.md L338）
+factor:
+  name: pj_valley_relative_vwap
+  name_cn: 价谷相对加权价
+  category: 微观结构
+  direction: 1
+  column: pj_valley_relative_vwap
+  description: 过去 20 日 valley_vwap / daily_vwap 的均值（paper.md L338）。
+    "价谷" = 振幅 < 1σ 的非跳跃时点（paper.md L163）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - valley_vwap
+  - daily_vwap
+  output_dataframe: data
+- name: valley_rel_vwap_daily
+  action: compute
+  formula: valley_vwap / daily_vwap
+  source_columns:
+  - valley_vwap
+  - daily_vwap
+  output_column: valley_rel_vwap_daily
+- name: pj_valley_relative_vwap
+  action: rolling
+  source_column: valley_rel_vwap_daily
+  output_column: pj_valley_relative_vwap
+  window: 20
+  agg: mean
+  group_by: order_book_id

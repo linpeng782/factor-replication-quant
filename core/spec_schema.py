@@ -102,7 +102,8 @@ def validate_spec(spec_yaml: dict) -> None:
             _validate_fetch(step, sym, loc)
         elif action == "merge":
             _validate_merge(step, sym, loc)
-        elif action == "minute_intraday_aggregate":
+        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate"):
+            # 两个分钟级聚合算子契约完全一致（cache_key + features + std_window/threshold）
             _validate_minute_intraday_aggregate(step, sym, loc)
         elif action in COLUMN_ADDING_ACTIONS:
             _validate_column_adding(step, sym, loc)

@@ -42,6 +42,7 @@ from .operators import row_polyfit  # noqa: F401
 from .operators import row_correlate  # noqa: F401
 from .operators import cross_section_regress  # noqa: F401
 from .operators import minute_intraday_aggregate  # noqa: F401
+from .operators import minute_pricejump_aggregate  # noqa: F401
 
 
 # ── 多线程 get_factor 工人函数 ─────────────────────────────

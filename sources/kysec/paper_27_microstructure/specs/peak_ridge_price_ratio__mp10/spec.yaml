@@ -1,0 +1,37 @@
+factor:
+  name: peak_ridge_price_ratio__mp10
+  name_cn: 峰岭加权价格比（mp10）
+  category: 微观结构
+  direction: 1
+  column: peak_ridge_price_ratio__mp10
+  description: |
+    Variant of `peak_ridge_price_ratio`; 唯一改动 = rolling step `min_periods: 20 → 10`。
+    动机：原版 78.51% 缺失。放宽到 10 允许窗口内最多 10 天 NaN，预期 miss → 30–45%；
+    用本变体观察 ICIR 衰减曲线。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、分类、reduce 到日频
+  action: minute_intraday_aggregate
+  cache_key: prv_v3
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - peak_vwap
+  - ridge_vwap
+  output_dataframe: data
+- name: peak_ridge_ratio_daily
+  action: compute
+  formula: peak_vwap / ridge_vwap
+  source_columns:
+  - peak_vwap
+  - ridge_vwap
+  output_column: peak_ridge_ratio_daily
+- name: peak_ridge_price_ratio__mp10
+  action: rolling
+  source_column: peak_ridge_ratio_daily
+  output_column: peak_ridge_price_ratio__mp10
+  window: 20
+  min_periods: 10
+  agg: mean
+  group_by: order_book_id

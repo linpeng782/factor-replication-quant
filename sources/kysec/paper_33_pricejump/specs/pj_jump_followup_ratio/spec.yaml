@@ -1,0 +1,41 @@
+# paper_33 因子 p14 价格跳跃成交额跟随比例（paper.md Table 7 RankIC -8.92% RankICIR -3.5）
+factor:
+  name: pj_jump_followup_ratio
+  name_cn: 价格跳跃成交额跟随比例
+  category: 微观结构
+  direction: -1
+  column: pj_jump_followup_ratio
+  description: 过去 20 日 jump_next_turnover_sum / jump_turnover_sum（散户跟随强度，类比 paper_27 eruption_followup_ratio）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - jump_turnover_sum
+  - jump_next_turnover_sum
+  output_dataframe: data
+- name: jx_to_20
+  action: rolling
+  source_column: jump_turnover_sum
+  output_column: jx_to_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: jy_to_20
+  action: rolling
+  source_column: jump_next_turnover_sum
+  output_column: jy_to_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: pj_jump_followup_ratio
+  action: compute
+  formula: jy_to_20 / jx_to_20
+  source_columns:
+  - jy_to_20
+  - jx_to_20
+  output_column: pj_jump_followup_ratio

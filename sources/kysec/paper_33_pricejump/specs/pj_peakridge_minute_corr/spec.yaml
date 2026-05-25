@@ -1,0 +1,27 @@
+# paper_33 因子 p17 同时点价格峰岭数相关性（paper.md Table 7 RankIC +5.45% RankICIR +2.1）
+# 注：paper_33 此因子方向是 +1（与 paper_27 同名因子方向 -1 不同；详见 paper.md L568 Table 7）
+factor:
+  name: pj_peakridge_minute_corr
+  name_cn: 同时点价格峰岭数相关性
+  category: 微观结构
+  direction: 1
+  column: pj_peakridge_minute_corr
+  description: 过去 20 日同时点（minute_of_day）的峰数与岭数的 Pearson 相关。已在 operator 内 pooled，spec 直接取列。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - peakridge_minute_corr_pooled
+  output_dataframe: data
+- name: pj_peakridge_minute_corr
+  action: rolling
+  source_column: peakridge_minute_corr_pooled
+  output_column: pj_peakridge_minute_corr
+  window: 1
+  agg: mean
+  group_by: order_book_id

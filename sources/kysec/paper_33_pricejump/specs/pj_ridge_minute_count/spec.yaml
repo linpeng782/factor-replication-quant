@@ -1,0 +1,26 @@
+# paper_33 因子 p2 价岭分钟数（paper.md Table 7 RankIC -7.65% RankICIR -2.3）
+factor:
+  name: pj_ridge_minute_count
+  name_cn: 价岭分钟数
+  category: 微观结构
+  direction: -1
+  column: pj_ridge_minute_count
+  description: 过去 20 日价岭时点数（连续大额跳跃 = 跟随交易/散户特征）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - ridge_count
+  output_dataframe: data
+- name: pj_ridge_minute_count
+  action: rolling
+  source_column: ridge_count
+  output_column: pj_ridge_minute_count
+  window: 20
+  agg: mean
+  group_by: order_book_id

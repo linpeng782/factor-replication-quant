@@ -1,0 +1,37 @@
+# paper_33 因子 p12 价格谷岭加权价格比（paper.md Table 7 RankIC +4.14% RankICIR +2.9）
+# ⚠️ paper-faithful 版（mp20）：与 paper_27 valley_ridge_price_ratio 同构
+# 预期 miss_listed ~78%（ridge_vwap 在 ridge 极稀疏的天 NaN，per-day ratio → 20d mean 引发雪崩）
+# 生产用请改 pj_valley_ridge_price_ratio__mp10 变体（参考 paper_27 mp10 实验衰减曲线）
+factor:
+  name: pj_valley_ridge_price_ratio
+  name_cn: 价格谷岭加权价格比
+  category: 微观结构
+  direction: 1
+  column: pj_valley_ridge_price_ratio
+  description: 过去 20 日 valley_vwap / ridge_vwap 的均值（paper §7 cross-category 类比 paper_27 valley_ridge_price_ratio）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - valley_vwap
+  - ridge_vwap
+  output_dataframe: data
+- name: valley_ridge_ratio_daily
+  action: compute
+  formula: valley_vwap / ridge_vwap
+  source_columns:
+  - valley_vwap
+  - ridge_vwap
+  output_column: valley_ridge_ratio_daily
+- name: pj_valley_ridge_price_ratio
+  action: rolling
+  source_column: valley_ridge_ratio_daily
+  output_column: pj_valley_ridge_price_ratio
+  window: 20
+  agg: mean
+  group_by: order_book_id

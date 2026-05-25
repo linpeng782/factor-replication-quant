@@ -51,7 +51,9 @@ from . import Context, OpRegistry
 
 # Bump 此版本 → params_hash 变 → 全量缓存失效
 # v1 (2026-05-25): 初版；含 paper_33 6 代表因子需要的 superset
-_FEATURES_SUPERSET_VERSION = "v1"
+# v2 (2026-05-25): 扩 17 因子全集；加 peak_interval_*、ridge_vwap、peak/ridge_turnover_sum、
+#                  peakridge_minute_corr_pooled
+_FEATURES_SUPERSET_VERSION = "v2"
 
 
 _SUPERSET_COLUMNS: List[str] = [
@@ -59,17 +61,25 @@ _SUPERSET_COLUMNS: List[str] = [
     "peak_count", "ridge_count", "valley_count",
     # 跳跃自身计数（peak ∪ ridge ∪ 适中跳跃 = 全部 jump 时点）
     "jump_count",
+    # 三类成交量 / 成交额聚合（p13 用 peak/ridge_turnover_sum）
+    "peak_turnover_sum", "ridge_turnover_sum",
+    "valley_volume_sum",
+    # 三类 vwap（p12 = valley_vwap / ridge_vwap；p4 用 valley_vwap）
+    "ridge_vwap", "valley_vwap",
     # 价岭分钟收益（p3）：当日所有 ridge 分钟的 1-min 同日收益之和
     "ridge_return_sum",
-    # 价岭日内时间间隔的 5 阶矩 sum（p10 skew 在 spec 端用 m1/m2/m3/n 还原）
+    # 价峰日内时间间隔 5 阶矩 sum（p6/p7/p8 std/skew/kurt）
+    "peak_interval_n", "peak_interval_m1", "peak_interval_m2",
+    "peak_interval_m3", "peak_interval_m4",
+    # 价岭日内时间间隔 5 阶矩 sum（p9/p10/p11 std/skew/kurt）
     "ridge_interval_n", "ridge_interval_m1", "ridge_interval_m2",
     "ridge_interval_m3", "ridge_interval_m4",
-    # 价谷成交量加权均价（p4 与 daily_vwap 做比；p5 与 [low,high,prev_close] 做分位）
-    "valley_volume_sum", "valley_vwap",
-    # 跳跃自身 X 阶矩 + 下一分钟 Y 阶矩 + XY（p16 价格跳跃成交额相关性）
+    # 跳跃自身 X 阶矩 + 下一分钟 Y 阶矩 + XY（p14/p15/p16）
     "jump_turnover_sum", "jump_turnover_sumsq",
     "jump_next_turnover_sum", "jump_next_turnover_sumsq",
     "jump_xy_sum",
+    # 同时点峰岭数相关性（p17）：operator 内置 std_window 日 Pearson over minute_of_day
+    "peakridge_minute_corr_pooled",
     # 日频价格 / 总量
     "daily_high", "daily_low", "daily_close", "daily_vwap",
     "daily_volume", "daily_turnover",
@@ -308,15 +318,30 @@ def _compute_one_stock(
     V = wide_vol.to_numpy(dtype=float)
     T = wide_turnover.to_numpy(dtype=float)
 
+    # —— 三类成交额聚合（peak/ridge 用于 p13；valley_volume 用于 valley_vwap）——
+    out["peak_turnover_sum"] = (T * is_peak).sum(axis=1)
+    out["ridge_turnover_sum"] = (T * is_ridge).sum(axis=1)
     out["valley_volume_sum"] = (V * is_valley).sum(axis=1)
+    peak_volume_sum = (V * is_peak).sum(axis=1)
+    ridge_volume_sum = (V * is_ridge).sum(axis=1)
+
+    # —— 三类 vwap（后复权 close × volume 加权，与 daily_* 同单位）——
     C_filled = wide_close.fillna(0).to_numpy(dtype=float)
     valley_pv = (C_filled * V * is_valley).sum(axis=1)
+    ridge_pv = (C_filled * V * is_ridge).sum(axis=1)
     with np.errstate(divide="ignore", invalid="ignore"):
         out["valley_vwap"] = np.where(out["valley_volume_sum"] > 0, valley_pv / out["valley_volume_sum"], np.nan)
+        out["ridge_vwap"] = np.where(ridge_volume_sum > 0, ridge_pv / ridge_volume_sum, np.nan)
 
-    # —— 价岭日内时间间隔 5 阶矩 ——
+    # —— 峰/岭日内时间间隔 5 阶矩 ——
     minute_cols = np.asarray(common_cols)
+    peak_moments = _interval_moments_per_row(is_peak, minute_cols)
     ridge_moments = _interval_moments_per_row(is_ridge, minute_cols)
+    out["peak_interval_n"] = peak_moments[:, 0]
+    out["peak_interval_m1"] = peak_moments[:, 1]
+    out["peak_interval_m2"] = peak_moments[:, 2]
+    out["peak_interval_m3"] = peak_moments[:, 3]
+    out["peak_interval_m4"] = peak_moments[:, 4]
     out["ridge_interval_n"] = ridge_moments[:, 0]
     out["ridge_interval_m1"] = ridge_moments[:, 1]
     out["ridge_interval_m2"] = ridge_moments[:, 2]
@@ -337,6 +362,38 @@ def _compute_one_stock(
     returns = np.full_like(C, np.nan)
     returns[:, 1:] = C[:, 1:] / C[:, :-1] - 1.0
     out["ridge_return_sum"] = np.nansum(returns * is_ridge, axis=1)
+
+    # —— peakridge_minute_corr_pooled（p17）：operator 内置 std_window 日 Pearson over minute_of_day ——
+    # 每天 t：P_k(t) = sum 过去 std_window 日 minute k 的 peak 计数；R_k(t) 同理
+    # 因子 = Pearson(P, R) over k ∈ minutes（与 paper_27 同款）
+    import warnings as _warnings
+    peak_int = is_peak.astype(np.int32)
+    ridge_int = is_ridge.astype(np.int32)
+    peak_pooled = (
+        pd.DataFrame(peak_int, index=wide_close.index, columns=common_cols)
+        .rolling(window=std_window, min_periods=std_window)
+        .sum()
+        .shift(1)
+        .to_numpy(dtype=float)
+    )
+    ridge_pooled = (
+        pd.DataFrame(ridge_int, index=wide_close.index, columns=common_cols)
+        .rolling(window=std_window, min_periods=std_window)
+        .sum()
+        .shift(1)
+        .to_numpy(dtype=float)
+    )
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("ignore", category=RuntimeWarning)
+        P_centered = peak_pooled - np.nanmean(peak_pooled, axis=1, keepdims=True)
+        R_centered = ridge_pooled - np.nanmean(ridge_pooled, axis=1, keepdims=True)
+        num = np.nansum(P_centered * R_centered, axis=1)
+        den = np.sqrt(
+            np.nansum(P_centered ** 2, axis=1) * np.nansum(R_centered ** 2, axis=1)
+        )
+        with np.errstate(divide="ignore", invalid="ignore"):
+            corr = np.where(den > 1e-12, num / den, np.nan)
+    out["peakridge_minute_corr_pooled"] = corr
 
     # —— 日频价格 / 总量 ——
     out["daily_high"] = wide_high.max(axis=1)

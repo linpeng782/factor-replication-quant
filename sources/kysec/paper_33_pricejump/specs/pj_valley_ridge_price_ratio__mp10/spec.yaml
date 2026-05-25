@@ -1,0 +1,38 @@
+# Variant of pj_valley_ridge_price_ratio; min_periods 20 → 10
+factor:
+  name: pj_valley_ridge_price_ratio__mp10
+  name_cn: 价格谷岭加权价格比(mp10)
+  category: 微观结构
+  direction: 1
+  column: pj_valley_ridge_price_ratio__mp10
+  description: |
+    Variant of `pj_valley_ridge_price_ratio`; 唯一改动 = rolling step `min_periods: 20 → 10`。
+    动机：原版预期 miss_listed ~78%（ridge_vwap 稀疏 + per-day ratio → 20d mean 雪崩）。
+    复用 paper_27 mp10 模板，预期 miss → ~10%。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - valley_vwap
+  - ridge_vwap
+  output_dataframe: data
+- name: valley_ridge_ratio_daily
+  action: compute
+  formula: valley_vwap / ridge_vwap
+  source_columns:
+  - valley_vwap
+  - ridge_vwap
+  output_column: valley_ridge_ratio_daily
+- name: pj_valley_ridge_price_ratio__mp10
+  action: rolling
+  source_column: valley_ridge_ratio_daily
+  output_column: pj_valley_ridge_price_ratio__mp10
+  window: 20
+  min_periods: 10
+  agg: mean
+  group_by: order_book_id

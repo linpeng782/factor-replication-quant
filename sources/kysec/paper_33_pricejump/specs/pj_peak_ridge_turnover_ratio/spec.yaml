@@ -1,0 +1,42 @@
+# paper_33 因子 p13 价格峰岭成交额比（paper.md Table 7 RankIC +6.03% RankICIR +2.0）
+# 类比 paper_27 peak_ridge_turnover_ratio：sum-then-ratio 模式（paper L770 paper_27 同款定义）
+factor:
+  name: pj_peak_ridge_turnover_ratio
+  name_cn: 价格峰岭成交额比
+  category: 微观结构
+  direction: 1
+  column: pj_peak_ridge_turnover_ratio
+  description: 过去 20 日 peak_turnover_sum / ridge_turnover_sum（先 sum 后比，sum 不被 NaN 传染）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+- name: 加载分钟、跳跃分类、reduce 到日频
+  action: minute_pricejump_aggregate
+  cache_key: pjr_v1
+  std_window: 20
+  std_threshold: 1.0
+  features:
+  - peak_turnover_sum
+  - ridge_turnover_sum
+  output_dataframe: data
+- name: peak_to_20
+  action: rolling
+  source_column: peak_turnover_sum
+  output_column: peak_to_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: ridge_to_20
+  action: rolling
+  source_column: ridge_turnover_sum
+  output_column: ridge_to_20
+  window: 20
+  agg: sum
+  group_by: order_book_id
+- name: pj_peak_ridge_turnover_ratio
+  action: compute
+  formula: peak_to_20 / ridge_to_20
+  source_columns:
+  - peak_to_20
+  - ridge_to_20
+  output_column: pj_peak_ridge_turnover_ratio

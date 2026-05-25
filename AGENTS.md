@@ -32,7 +32,7 @@ mask_loader}.py` 都是 thin wrapper 转发到 `alpha_shared.*`。改算法去 a
 ## 2. 核心工作流
 
 ```
-研报 sources/<pub>/<group>/{input.md | inputs/<factor>.md}
+研报 sources/<pub>/<group>/{paper.md | inputs/<factor>.md}
     ↓ python -m core.spec_generator <pub>/<group>/<factor>      （LLM + spec_schema 校验闭环）
 sources/<pub>/<group>/specs/<factor>/spec.yaml + .llm_session.json
     ↓ python run.py <factor>                                    （fetch + 算子图 + 评估）
@@ -44,7 +44,7 @@ sources/<pub>/<group>/docs/<factor>.md                          （因子原理 
 ```
 
 **因子源归类（sources/ 顶层）**：
-- `kysec/` — 开源证券（每篇研报一个 `paper_<NN>_<slug>/` 子目录，input.md 共享）
+- `kysec/` — 开源证券（每篇研报一个 `paper_<NN>_<slug>/` 子目录，paper.md 共享）
 - `founder/` — 方正证券（同上）
 - `fundamental/` — 经典基本面，无券商研报来源（按系列分：`npf_series/`、`roe_series/`、`roic_series/`、`pe_series/`、`cross_section_regress/`，**inputs/<factor>.md 为复数**，每因子一份）
 - `internal/` — 同事/内部因子（按贡献人或主题分）
@@ -81,7 +81,8 @@ python scripts/build_factor_inventory.py     # ~2 分钟（100 workers, 197 因�
 **CLI 设计原则**：
 - **spec 生成与执行分离**：`python -m core.spec_generator`（rare，慢）vs `python run.py`（daily，快）
 - **裸名 vs 限定路径**：执行时裸名优先（自动扫 `sources/*/*/specs/<factor>/`），重名时强制用 `<pub>/<group>/<factor>` 消歧；新建 spec 必须用限定路径
-- **约定优于配置**：研报输入路径由 group 目录推断（`group/inputs/<factor>.md` 或 `group/input.md`），CLI 不重复传
+- **约定优于配置**：研报输入路径由 group 目录推断（`group/inputs/<factor>.md` 或 `group/paper.md`），CLI 不重复传
+- **论文论断必须引证 paper.md**：任何关于"研报怎么定义 / 论文意图 / 论文方向"的论断，必须先 grep `sources/<pub>/<group>/paper.md` 找到行号，并在回答里给出引用；否则视为待验证假设（这条规则源于一次实测幻觉：未读 paper.md 就声称某种聚合方式"更接近论文本意"，事后验证完全不符）
 
 ---
 
@@ -98,6 +99,15 @@ python scripts/build_factor_inventory.py     # ~2 分钟（100 workers, 197 因�
 4. 多字段 fetch 用 `output_columns: {field: col}` 映射；多 DataFrame 用 `output_dataframe` + 显式 `merge` step
 
 **spec.md 不是规范**——曾经是双文件强制，现在已淘汰。人类阅读用 `sources/<pub>/<group>/docs/<factor>.md`（见 §6）。
+
+**因子变体（A/B 实验）命名约定 `<base>__<tag>`**：在已有因子上做参数实验时，**新建并列目录**，原 spec/parquet 一字不动：
+
+- tag 自描述：`mp15` / `mp10` = `min_periods` 取值；`agg20d` = 改了聚合方式；不要用 `v2` 这种黑盒名
+- spec.yaml 把 `factor.name` 和 `factor.column` 都同步成 `<base>__<tag>`
+- `description` 首段写 "Variant of <base>; 改了什么; 动机"——变体出生证，不另起 spec.md
+- 引擎按 `factor.name` 落 parquet，自然不撞原版；`factor_inventory` 自动并列对比
+- 淘汰档：`rm -rf specs/<base>__<tag>` + 删对应 raw/cleaned parquet；保留档进 commit
+- 案例：`*__mp10` 三件套（见 paper_27 README "min_periods 衰减实验"）
 
 ---
 
@@ -118,7 +128,7 @@ python scripts/build_factor_inventory.py     # ~2 分钟（100 workers, 197 因�
 
 **复现一个新因子的完整流程必须走完以下 5 步**：
 
-1. **写研报输入**：`sources/<pub>/<group>/{input.md | inputs/<factor>.md}`（券商 paper 共享 input.md；fundamental 系列每因子一份 inputs/<factor>.md）
+1. **写研报输入**：`sources/<pub>/<group>/{paper.md | inputs/<factor>.md}`（券商 paper 共享 paper.md；fundamental 系列每因子一份 inputs/<factor>.md）
 2. **LLM 生成 spec**：`python -m core.spec_generator <pub>/<group>/<factor>`（新建必须用限定路径），让 spec_schema 闭环校验通过
 3. **跑全市场**：`python run.py <factor>`（裸名 OK），得到 IC / ICIR / Sharpe / 单调性 / 覆盖率
 4. **冒烟验证（推荐）**：单股 / 3 股端到端手算对照（纯 numpy + rqdatac），理解因子真实行为，10 分钟换避免误读全市场结果
@@ -173,6 +183,8 @@ formula: kurt_raw * (gate / gate)   # gate=0 → 0/0=NaN；gate=1 → 1/1=1
 
 **典型 spec 模板**：见 `sources/kysec/paper_27_microstructure/specs/peak_minute_count/`（最简）和 `.../specs/peak_interval_kurt/`（高阶矩 + 守门 NaN）。
 
+**ridge 类因子高缺失率（已缓解 2026-05-25）**：`peak_ridge_price_ratio` / `valley_ridge_price_ratio` / `ridge_relative_vwap` 原版 miss_listed ~78%（rolling 默认 `min_periods=window=20` + ridge 稀疏，20 日窗口内任一天 0-ridge 即整窗 NaN）。已通过 `__mp10` 变体（`min_periods: 10`）降至 ~10%；ICIR 仅损失 ~7%。详见 paper_27 README "min_periods 衰减实验"。**别去 fillna ridge_vwap，会污染因子语义**。
+
 ---
 
 ## 8. Git 工作流
@@ -199,7 +211,7 @@ git commit -m "fix(prompt): drop misleading anti-row_aggregate guidance"  # ✅
 sources/                          ★ 业务资产按"来源"分组
   kysec/                          开源证券
     paper_27_microstructure/
-      input.md                    研报原文（paper-level 共享）
+      paper.md                    研报原文（paper-level 共享）
       README.md                   论文元信息（作者/日期/共享方法论）
       specs/<factor>/             spec.yaml + .llm_session.json
       docs/<factor>.md            因子沉淀

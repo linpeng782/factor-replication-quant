@@ -49,7 +49,7 @@
 | f17 | `eruption_followup_ratio` | 喷发成交额跟随比例 | 喷发后一分钟成交额 / 喷发时成交额 |
 | f18 | `eruption_turnover_sensitivity` | 喷发成交额敏感度 | 喷发成交额对下一分钟的敏感度 |
 | f19 | `eruption_turnover_corr` | 喷发成交额相关性 | 喷发时与下一分钟成交额的 Pearson 相关 |
-| f20 | `peakridge_minute_corr` | 同时点峰岭数相关性 | 同一时点量峰数与量岭数的相关性 |
+| f20 | `peak_ridge_minute_corr` | 同时点峰岭数相关性 | 同一时点量峰数与量岭数的相关性 |
 
 ---
 
@@ -79,7 +79,7 @@
 | 17 | `eruption_followup_ratio` | 喷发成交额跟随比例 | -10.59% | **-3.90** | 负 |
 | 18 | `peak_interval_std` | 量峰间隔标准差 | -8.57% | **-3.99** | 负 |
 | 19 | `eruption_turnover_corr` | 喷发成交额相关性 | -10.94% | **-3.99** | 负 |
-| 20 | `peakridge_minute_corr` | 同时点峰岭数相关性 | -6.67% | **-4.40** | 负 |
+| 20 | `peak_ridge_minute_corr` | 同时点峰岭数相关性 | -6.67% | **-4.40** | 负 |
 
 **头部结论**：量峰类的**间隔统计特征**（峰度/偏度）和量谷类的**相对加权价**占据 RankICIR 前三，是最稳健的因子。量岭类整体为负向，|ICIR| 多在 3.1–3.8 区间。
 
@@ -111,7 +111,7 @@
 | 16 | `peak_interval_std` | 量峰间隔标准差 | 0.0387 | **0.3682** | 负 | 10.27% |
 | 17 | `peak_interval_skew` | 量峰间隔偏度 | 0.0277 | **0.3219** | 正 | 10.27% |
 | 18 | `peak_interval_kurt` | 量峰间隔峰度 | 0.0248 | **0.3053** | 正 | 10.27% |
-| 19 | `peakridge_minute_corr` | 同时点峰岭数相关性 | 0.0099 | **0.2323** | 负 | 9.83% |
+| 19 | `peak_ridge_minute_corr` | 同时点峰岭数相关性 | 0.0099 | **0.2323** | 负 | 9.83% |
 | 20 | `peak_weighted_quantile` | 量峰加权价格分位 | 0.0102 | **0.1131** | 正 | 16.17% |
 
 ### 复现 vs 研报对照（Top 10）

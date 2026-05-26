@@ -41,7 +41,7 @@
 | p14 | `pj_jump_followup_ratio`       | -1 | **0.650** | 3.28 | 10.3% | -3.5 | ✅ |
 | p15 | `pj_jump_turnover_sensitivity` | -1 | **0.601** | 2.51 | 10.3% | -3.4 | ✅ |
 | p16 | `pj_jump_turnover_corr`        | -1 | **0.686** | 3.24 | 10.3% | -3.8 | ✅ |
-| p17 | `pj_peakridge_minute_corr`     | +1 | 0.244 | 0.60 | 10.3% | +2.1 | ✅ |
+| p17 | `pj_peak_ridge_minute_corr`     | +1 | 0.244 | 0.60 | 10.3% | +2.1 | ✅ |
 
 **核心观察**：
 

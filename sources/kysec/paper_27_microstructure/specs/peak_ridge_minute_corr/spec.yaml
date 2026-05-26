@@ -1,9 +1,9 @@
 factor:
-  name: peakridge_minute_corr
+  name: peak_ridge_minute_corr
   name_cn: 同时点峰岭数相关性
   category: 微观结构
   direction: -1
-  column: peakridge_minute_corr
+  column: peak_ridge_minute_corr
   description: 过去 20 日同时点（minute_of_day）的峰数与岭数的 Pearson 相关。已在 operator 内 pooled，spec
     直接取列。论文 IC -6.67% LS 22.78% IR 3.27。
 universe:
@@ -17,10 +17,10 @@ calculation_steps:
   features:
   - peakridge_minute_corr_pooled
   output_dataframe: data
-- name: peakridge_minute_corr
+- name: peak_ridge_minute_corr
   action: rolling
   source_column: peakridge_minute_corr_pooled
-  output_column: peakridge_minute_corr
+  output_column: peak_ridge_minute_corr
   window: 1
   agg: mean
   group_by: order_book_id

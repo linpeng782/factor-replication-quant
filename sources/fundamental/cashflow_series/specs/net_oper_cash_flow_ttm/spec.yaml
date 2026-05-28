@@ -1,0 +1,20 @@
+factor:
+  name: net_oper_cash_flow_ttm
+  name_cn: "经营活动现金流量净额 TTM"
+  category: 质量
+  direction: 1
+  column: net_oper_cash_flow_ttm
+  description: >
+    米筐 cash_flow_from_operating_activities_ttm_0：经营活动产生的现金流量净额 TTM
+    （以最近报告期为终点的 4 季度滚动）。因子方向 +1：现金流越大质量越高。
+    原始量纲与市值相关，未做缩放（按总表"现金流 TTM 值"原义实现）。
+
+universe:
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取经营活动现金流 TTM
+    action: fetch
+    api: get_factor
+    fields: [cash_flow_from_operating_activities_ttm_0]
+    output_column: net_oper_cash_flow_ttm

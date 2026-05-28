@@ -1,0 +1,102 @@
+factor:
+  name: np_delta_rank
+  name_cn: "最近一期单季度净利润环比变化在 8 期中的排名"
+  category: 景气
+  direction: 1
+  column: np_delta_rank
+  description: >
+    每个 (股票, 日期) 行向计算：定义 d_i = mrq_i - mrq_{i+1}（i=0..7），8 个环比变化；
+    当期 d_0 = mrq_0 - mrq_1，因子值 = d_0 在 {d_0..d_7} 中的 min-rank
+    （ascending=True，最小=1，最大=8）。需要 mrq_0..mrq_8 共 9 期。
+    用 `1 + sum(d_0 > d_i)` 表达 min-rank；`(d_0 - d_0)` 作 NaN 守门。
+    因子方向 +1：变化排名越高景气改善越显著。
+
+universe:
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取过去 9 期单季度净利润
+    action: fetch
+    api: get_factor
+    fields:
+      - net_profit_mrq_0
+      - net_profit_mrq_1
+      - net_profit_mrq_2
+      - net_profit_mrq_3
+      - net_profit_mrq_4
+      - net_profit_mrq_5
+      - net_profit_mrq_6
+      - net_profit_mrq_7
+      - net_profit_mrq_8
+    output_columns:
+      net_profit_mrq_0: net_profit_mrq_0
+      net_profit_mrq_1: net_profit_mrq_1
+      net_profit_mrq_2: net_profit_mrq_2
+      net_profit_mrq_3: net_profit_mrq_3
+      net_profit_mrq_4: net_profit_mrq_4
+      net_profit_mrq_5: net_profit_mrq_5
+      net_profit_mrq_6: net_profit_mrq_6
+      net_profit_mrq_7: net_profit_mrq_7
+      net_profit_mrq_8: net_profit_mrq_8
+
+  - name: 环比变化 d_0
+    action: compute
+    formula: net_profit_mrq_0 - net_profit_mrq_1
+    source_columns: [net_profit_mrq_0, net_profit_mrq_1]
+    output_column: d_0
+
+  - name: 环比变化 d_1
+    action: compute
+    formula: net_profit_mrq_1 - net_profit_mrq_2
+    source_columns: [net_profit_mrq_1, net_profit_mrq_2]
+    output_column: d_1
+
+  - name: 环比变化 d_2
+    action: compute
+    formula: net_profit_mrq_2 - net_profit_mrq_3
+    source_columns: [net_profit_mrq_2, net_profit_mrq_3]
+    output_column: d_2
+
+  - name: 环比变化 d_3
+    action: compute
+    formula: net_profit_mrq_3 - net_profit_mrq_4
+    source_columns: [net_profit_mrq_3, net_profit_mrq_4]
+    output_column: d_3
+
+  - name: 环比变化 d_4
+    action: compute
+    formula: net_profit_mrq_4 - net_profit_mrq_5
+    source_columns: [net_profit_mrq_4, net_profit_mrq_5]
+    output_column: d_4
+
+  - name: 环比变化 d_5
+    action: compute
+    formula: net_profit_mrq_5 - net_profit_mrq_6
+    source_columns: [net_profit_mrq_5, net_profit_mrq_6]
+    output_column: d_5
+
+  - name: 环比变化 d_6
+    action: compute
+    formula: net_profit_mrq_6 - net_profit_mrq_7
+    source_columns: [net_profit_mrq_6, net_profit_mrq_7]
+    output_column: d_6
+
+  - name: 环比变化 d_7
+    action: compute
+    formula: net_profit_mrq_7 - net_profit_mrq_8
+    source_columns: [net_profit_mrq_7, net_profit_mrq_8]
+    output_column: d_7
+
+  - name: 行向 min-rank（d_0 在 8 个变化中的排名）
+    action: compute
+    formula: >
+      (d_0 - d_0 + 1)
+      + (d_0 > d_1)
+      + (d_0 > d_2)
+      + (d_0 > d_3)
+      + (d_0 > d_4)
+      + (d_0 > d_5)
+      + (d_0 > d_6)
+      + (d_0 > d_7)
+    source_columns: [d_0, d_1, d_2, d_3, d_4, d_5, d_6, d_7]
+    output_column: np_delta_rank

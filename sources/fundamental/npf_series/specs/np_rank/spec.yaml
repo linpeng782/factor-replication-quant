@@ -1,0 +1,59 @@
+factor:
+  name: np_rank
+  name_cn: "最近一期单季度净利润在 8 期中的排名"
+  category: 景气
+  direction: 1
+  column: np_rank
+  description: >
+    每个 (股票, 日期) 行向计算：net_profit_mrq_0 在 {net_profit_mrq_0..net_profit_mrq_7}
+    8 期中的排名（method=min, ascending=True；最小值=1，最大值=8）。
+    用 `1 + sum(mrq_0 > mrq_i)` 表达 min-rank；以 `(mrq_0 - mrq_0)` 作 NaN 守门，
+    保证 mrq_0 缺失时结果为 NaN。因子方向 +1：排名越高景气越好。
+
+universe:
+  primary_index: ALL
+
+calculation_steps:
+  - name: 获取过去 8 期单季度净利润
+    action: fetch
+    api: get_factor
+    fields:
+      - net_profit_mrq_0
+      - net_profit_mrq_1
+      - net_profit_mrq_2
+      - net_profit_mrq_3
+      - net_profit_mrq_4
+      - net_profit_mrq_5
+      - net_profit_mrq_6
+      - net_profit_mrq_7
+    output_columns:
+      net_profit_mrq_0: net_profit_mrq_0
+      net_profit_mrq_1: net_profit_mrq_1
+      net_profit_mrq_2: net_profit_mrq_2
+      net_profit_mrq_3: net_profit_mrq_3
+      net_profit_mrq_4: net_profit_mrq_4
+      net_profit_mrq_5: net_profit_mrq_5
+      net_profit_mrq_6: net_profit_mrq_6
+      net_profit_mrq_7: net_profit_mrq_7
+
+  - name: 行向 min-rank（mrq_0 在 8 期中的排名）
+    action: compute
+    formula: >
+      (net_profit_mrq_0 - net_profit_mrq_0 + 1)
+      + (net_profit_mrq_0 > net_profit_mrq_1)
+      + (net_profit_mrq_0 > net_profit_mrq_2)
+      + (net_profit_mrq_0 > net_profit_mrq_3)
+      + (net_profit_mrq_0 > net_profit_mrq_4)
+      + (net_profit_mrq_0 > net_profit_mrq_5)
+      + (net_profit_mrq_0 > net_profit_mrq_6)
+      + (net_profit_mrq_0 > net_profit_mrq_7)
+    source_columns:
+      - net_profit_mrq_0
+      - net_profit_mrq_1
+      - net_profit_mrq_2
+      - net_profit_mrq_3
+      - net_profit_mrq_4
+      - net_profit_mrq_5
+      - net_profit_mrq_6
+      - net_profit_mrq_7
+    output_column: np_rank

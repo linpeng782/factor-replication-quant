@@ -7,8 +7,14 @@
 ## 1. 环境与路径
 
 ```bash
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate  # Python 3.11
-pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared    # 共享原语库（首次配置）
+# 远端 SSH 机器（高频因子产线，65 GB 分钟数据所在）
+source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate   # Python 3.11
+pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared     # 共享原语库（首次配置）
+
+# 本机 macOS（基本面因子复现；高频因子留远端，详见 LOCAL_SETUP.md）
+source /Users/didi/kdj/peterdidi/bin/activate                        # Python 3.11.9 venv
+pip install -e ~/alpha-shared                                        # 共享原语库（首次配置）
+export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根重定向
 ```
 
 | 变量 | 路径 | 说明 |
@@ -20,7 +26,7 @@ pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared    # 共享原�
 
 `<DATA_ROOT>` 默认 `/nfs/ofs-prediction/peterzhenglinpeng`；预计算数据已更新到 2026-05-15。
 
-**本机化运行**：`export FACTOR_REPL_DATA_ROOT=~/factor-repl-data` 一键把所有数据路径
+**本机化运行**：`export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA` 一键把所有数据路径
 重定向到本机；远端不设环境变量行为零变化。`OUTPUT_DIR` 是项目相对路径不受影响。
 
 **alpha-shared 共享库**：IC / 分层回测 / 清洗 / mask 加载 primitive 抽到

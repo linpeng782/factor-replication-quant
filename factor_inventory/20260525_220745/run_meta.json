@@ -1,5 +1,5 @@
 {
-  "eval_timestamp": "20260525_191158",
+  "eval_timestamp": "20260525_220745",
   "time_window": {
     "start": "2016-01-01",
     "end": "2025-12-31"
@@ -17,9 +17,9 @@
     "alpha158",
     "spec"
   ],
-  "n_factors": 206,
-  "n_succeeded": 206,
+  "n_factors": 218,
+  "n_succeeded": 218,
   "n_failed": 0,
-  "eval_seconds": 135.5,
+  "eval_seconds": 201.5,
   "n_workers": 100
 }

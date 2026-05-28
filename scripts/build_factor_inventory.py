@@ -34,8 +34,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(ALPHA_ENGINE_ROOT))
 
 # 必须在 sys.path 设好之后再 import alpha-engine 的东西
-import config as engine_config  # noqa: E402  （alpha-engine 的 config）
-from evaluation.pipeline import evaluate_all  # noqa: E402
+from alpha_engine import config as engine_config  # noqa: E402
+from alpha_engine.analysis.evaluation.pipeline import evaluate_all  # noqa: E402
 
 # ── 参数（手改） ─────────────────────────────────────────────
 START = "2016-01-01"
@@ -62,23 +62,98 @@ def _list_factors(producer: str) -> list[str]:
     return sorted(p.stem for p in panel_dir.glob("*.parquet"))
 
 
+def _load_spec_origins() -> dict[str, tuple[str, str]]:
+    """扫 sources/<pub>/<group>/specs/<factor>/spec.yaml 建 factor → (pub, group)。
+
+    路径形如 sources/kysec/paper_27_microstructure/specs/peak_minute_count/spec.yaml
+    → factor='peak_minute_count', pub='kysec', group='paper_27_microstructure'
+    """
+    sources = PROJECT_ROOT / "sources"
+    out: dict[str, tuple[str, str]] = {}
+    for spec_yaml in sources.glob("*/*/specs/*/spec.yaml"):
+        parts = spec_yaml.parts
+        # 倒数 5..1: pub, group, 'specs', factor, 'spec.yaml'
+        pub, group, _, factor = parts[-5], parts[-4], parts[-3], parts[-2]
+        if factor in out and out[factor] != (pub, group):
+            logger.warning(f"  spec 因子重名: {factor} 在 {out[factor]} 与 ({pub},{group})")
+        out[factor] = (pub, group)
+    logger.info(f"  spec origins: {len(out)} 个 spec 因子的 (pub, group) 已索引")
+    return out
+
+
+def _compute_missing_rates(
+    factor_names: list[str],
+    factor_to_producer: dict[str, str],
+    start: str,
+    end: str,
+) -> pd.DataFrame:
+    """对每个因子在 [start, end] 评估窗内算 overall + listed 两个缺失率。
+
+    - missing_rate_overall : 总 NaN cell 数 / 总 cell 数（混合"未上市"+"算法缺失"）
+    - missing_rate_listed  : 真业务缺失。用 vwap_panel.notna() 当上市 mask，
+                             仅在"已上市 (date, stock)"对里算 NaN 占比。
+                             这才是诊断算法健康度的关键指标——不受 panel 时间窗稀释。
+
+    数据源：cleaned-factor-panel（与 evaluate_all 看到的一致），不是 raw factor-panel。
+    """
+    logger.info(f"[missing_rate] 加载 vwap_panel 作上市 mask: {engine_config.VWAP_PANEL_PATH}")
+    vwap = pd.read_parquet(engine_config.VWAP_PANEL_PATH)
+    start_ts = pd.to_datetime(start)
+    end_ts = pd.to_datetime(end)
+    vwap = vwap.loc[(vwap.index >= start_ts) & (vwap.index <= end_ts)]
+
+    rows: dict[str, tuple[float, float]] = {}
+    t0 = time.time()
+    for i, fname in enumerate(factor_names):
+        producer = factor_to_producer[fname]
+        path = engine_config.CLEANED_FACTOR_PANEL_DIR / producer / f"{fname}.parquet"
+        if not path.exists():
+            rows[fname] = (float("nan"), float("nan"))
+            continue
+        df = pd.read_parquet(path)
+        df = df.loc[(df.index >= start_ts) & (df.index <= end_ts)]
+        if df.empty:
+            rows[fname] = (float("nan"), float("nan"))
+            continue
+
+        listed = vwap.reindex(index=df.index, columns=df.columns).notna()
+
+        total = df.size
+        na = int(df.isna().sum().sum())
+        listed_cells = int(listed.sum().sum())
+        na_in_listed = int((listed & df.isna()).sum().sum())
+
+        overall = na / total if total else float("nan")
+        listed_rate = na_in_listed / listed_cells if listed_cells else float("nan")
+        rows[fname] = (overall, listed_rate)
+
+        del df, listed
+
+    t = time.time() - t0
+    logger.info(f"[missing_rate] {len(factor_names)} 个因子完成，耗时 {t:.1f}s")
+    return pd.DataFrame.from_dict(
+        rows,
+        orient="index",
+        columns=["missing_rate_overall", "missing_rate_listed"],
+    ).rename_axis("factor")
+
+
 def _build_inventory(
     ic_summary: pd.DataFrame,
     layered_summary: pd.DataFrame,
+    missing_rates: pd.DataFrame,
     factor_to_producer: dict[str, str],
+    spec_origins: dict[str, tuple[str, str]],
     eval_ts: str,
 ) -> pd.DataFrame:
     """
-    把 evaluate_all 产出的 ic_summary + layered_summary 合并成 inventory。
+    把 evaluate_all 产出的 ic_summary + layered_summary + 缺失率合并成 inventory。
 
     ic_summary 列示例：direction, ic_mean_2d, ic_std_2d, icir_2d, ic_t_2d,
                       pct_positive_2d, ... (4 horizons)
     layered_summary 列示例：direction, monotonicity, ann_return_G1..G5,
                           sharpe_LongShort, ... (5 groups + LongShort)
-
-    我们做：
-    - 把 ic + layered 合到一张表（按 factor join）
-    - 加 producer / 时间窗 / eval_timestamp 列
+    missing_rates 列：missing_rate_overall, missing_rate_listed
     """
     ic = ic_summary.set_index("factor")
     layered = layered_summary.set_index("factor")
@@ -97,21 +172,26 @@ def _build_inventory(
     layered_sub = layered[layered_keep]
 
     # join：direction 在 ic 里已经有了，layered 里的 direction 跟 ic 一致，去重
-    inv = ic.join(layered_sub, how="left")
+    inv = ic.join(layered_sub, how="left").join(missing_rates, how="left")
 
     # 加元数据列
     inv["producer"] = inv.index.map(factor_to_producer)
+    # pub / group：spec 因子从 sources/<pub>/<group>/specs/ 路径推断；非 spec 行为 NaN
+    inv["pub"] = inv.index.map(lambda f: spec_origins.get(f, (None, None))[0])
+    inv["group"] = inv.index.map(lambda f: spec_origins.get(f, (None, None))[1])
     inv["time_window_start"] = START
     inv["time_window_end"] = END
     inv["eval_timestamp"] = eval_ts
 
-    # 列重排：身份 → IC → layered → meta
-    id_cols = ["producer", "direction"]
+    # 列重排：身份 → 来源 → 缺失率 → IC → layered → meta
+    # 缺失率放前面是因为它常作为"先筛掉低质量因子"的第一道闸
+    id_cols = ["producer", "pub", "group", "direction"]
+    missing_cols = ["missing_rate_overall", "missing_rate_listed"]
     ic_cols = sorted([c for c in inv.columns if c.startswith(("ic_mean", "ic_std", "icir", "ic_t", "pct_positive", "n_days_"))])
     layered_cols = [c for c in inv.columns if c in layered_keep]
     meta_cols = ["time_window_start", "time_window_end", "eval_timestamp"]
 
-    ordered = id_cols + ic_cols + layered_cols + meta_cols
+    ordered = id_cols + missing_cols + ic_cols + layered_cols + meta_cols
     inv = inv[[c for c in ordered if c in inv.columns]]
 
     return inv
@@ -176,7 +256,16 @@ def main():
 
     ic_summary = pd.read_csv(ic_csv)
     layered_summary = pd.read_csv(layered_csv)
-    inventory = _build_inventory(ic_summary, layered_summary, factor_to_producer, eval_ts)
+
+    # 3.5 算缺失率（overall + listed）
+    missing_rates = _compute_missing_rates(factor_list, factor_to_producer, START, END)
+
+    # 3.6 索引 spec 因子来源（pub, group），从 sources/<pub>/<group>/specs/<factor>/ 推断
+    spec_origins = _load_spec_origins()
+
+    inventory = _build_inventory(
+        ic_summary, layered_summary, missing_rates, factor_to_producer, spec_origins, eval_ts
+    )
 
     # 4. 写 inventory.parquet + inventory.csv
     inventory.to_parquet(out_dir / "inventory.parquet")

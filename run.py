@@ -26,6 +26,7 @@ FACTOR 两种形态都接受：
 from __future__ import annotations
 
 import argparse
+import datetime
 import os
 import sys
 from pathlib import Path
@@ -33,7 +34,13 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from core.config import DEFAULT_END_DATE, DEFAULT_START_DATE, RAW_FACTOR_DIR
+from core.config import (
+    DEFAULT_END_DATE,
+    DEFAULT_EVAL_END_DATE,
+    DEFAULT_EVAL_START_DATE,
+    DEFAULT_START_DATE,
+    RAW_FACTOR_DIR,
+)
 from core.evaluation import evaluate_single_factor
 from core.spec_generator import load_spec_yaml
 from core.yolo_engine import run_factor
@@ -52,15 +59,25 @@ def _load_existing_raw(factor_name: str) -> pd.DataFrame:
 def run_one(
     factor_name: str,
     mode: str,
-    start_date: str,
-    end_date: str,
+    fetch_start: str,
+    fetch_end: str,
+    eval_start: str,
+    eval_end: str,
 ) -> None:
     """
     单因子执行主路径。
     mode ∈ {'full', 'yolo', 'evaluate-only'}
+
+    fetch_start/fetch_end : 米筐拉数据 + panel 落盘窗口（默认 DEFAULT_START_DATE/END_DATE）
+    eval_start/eval_end   : IC / 分层评估窗口，从 panel 中截取（默认 DEFAULT_EVAL_*）
+
+    fetch ⊋ eval：fetch 区间通常覆盖 eval 区间，前面多出来的部分是 warm-up（防止
+    rolling / yoy / qoq 因子在评估区间起点是 NaN）。
     """
     logger.info("=" * 60)
     logger.info(f"🎯 {factor_name} | mode={mode}")
+    logger.info(f"   fetch: {fetch_start} ~ {fetch_end}")
+    logger.info(f"   eval : {eval_start} ~ {eval_end}")
     logger.info("=" * 60)
 
     spec_yaml = load_spec_yaml(factor_name)
@@ -71,16 +88,16 @@ def run_one(
         factor_df = run_factor(
             factor_name=factor_name,
             spec_yaml=spec_yaml,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=fetch_start,
+            end_date=fetch_end,
         )
 
     if mode in ("full", "evaluate-only"):
         evaluate_single_factor(
             factor_name=factor_name,
             factor_df=factor_df,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=eval_start,
+            end_date=eval_end,
             spec_yaml=spec_yaml,
         )
 
@@ -106,8 +123,26 @@ def main() -> None:
         "--evaluate-only", action="store_true", help="只评估（读已有 raw）"
     )
 
-    parser.add_argument("--start-date", default=DEFAULT_START_DATE)
-    parser.add_argument("--end-date", default=DEFAULT_END_DATE)
+    parser.add_argument(
+        "--start-date",
+        default=DEFAULT_START_DATE,
+        help=f"fetch 起始日（panel 落盘窗口起点；默认 {DEFAULT_START_DATE}）",
+    )
+    parser.add_argument(
+        "--end-date",
+        default=DEFAULT_END_DATE,
+        help=f"fetch 结束日（默认 {DEFAULT_END_DATE}）",
+    )
+    parser.add_argument(
+        "--eval-start-date",
+        default=DEFAULT_EVAL_START_DATE,
+        help=f"评估起始日（IC/ICIR 区间；默认 {DEFAULT_EVAL_START_DATE}）",
+    )
+    parser.add_argument(
+        "--eval-end-date",
+        default=DEFAULT_EVAL_END_DATE,
+        help=f"评估结束日（默认 {DEFAULT_EVAL_END_DATE}）",
+    )
     parser.add_argument(
         "--workers",
         type=int,
@@ -119,6 +154,19 @@ def main() -> None:
     if args.workers is not None:
         os.environ["FETCHER_WORKERS"] = str(args.workers)
 
+    # ── 运行日志落盘：sources/<pub>/<group>/output/<factor>/run_<timestamp>.log ──
+    try:
+        from core.spec_resolver import resolve_output_dir
+        log_dir = resolve_output_dir(args.factor)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_path = log_dir / f"run_{ts}.log"
+        logger.add(log_path, level="DEBUG", encoding="utf-8",
+                   format="{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {message}")
+        logger.info(f"📝 运行日志: {log_path}")
+    except Exception:
+        pass  # log 落盘失败不影响主流程
+
     if args.yolo_only:
         mode = "yolo"
     elif args.evaluate_only:
@@ -127,7 +175,14 @@ def main() -> None:
         mode = "full"
 
     try:
-        run_one(args.factor, mode, args.start_date, args.end_date)
+        run_one(
+            args.factor,
+            mode,
+            fetch_start=args.start_date,
+            fetch_end=args.end_date,
+            eval_start=args.eval_start_date,
+            eval_end=args.eval_end_date,
+        )
     except Exception as exc:
         logger.exception(f"❌ {args.factor} 失败: {exc}")
         sys.exit(1)

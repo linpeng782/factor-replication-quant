@@ -1,5 +1,5 @@
 # 评估产物
-sources/*/output/
+**/output/
 
 # 备份目录（mv -bak 隔离用）
 *.bak/

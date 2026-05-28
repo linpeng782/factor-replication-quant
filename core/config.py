@@ -50,7 +50,12 @@ CLEANED_FACTOR_DIR = _PANEL_BASE / "cleaned-factor-panel" / "spec"
 MINUTE_DATA_DIR = _DATA_ROOT / "backtest_engine/cache_dir/stock_data_1m_post"
 INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "factor-replication/intermediate_cache"
 
-# ==================== 默认评估区间 ====================
-# CLI 不显式指定 --start-date/--end-date 时使用
-DEFAULT_START_DATE = "20160101"
-DEFAULT_END_DATE = "20251231"
+# ==================== 默认 fetch / 评估区间 ====================
+# fetch 区间（panel 落盘窗口）— 提前到 2010 给所有因子留 ≥4 年 warm-up，
+# 使得最复杂的 8 期 PIT 滚动因子（npf_mrq_sue8 / np_*_rank 等）能从 2014-01-02 起有有效值
+DEFAULT_START_DATE = "20100101"
+DEFAULT_END_DATE = "20260527"
+
+# 评估区间（IC / ICIR 计算窗口）— 保持原值，跟历史对齐数字（PROGRESS §四 + 2026-05-28 对齐报告）可比
+DEFAULT_EVAL_START_DATE = "20160101"
+DEFAULT_EVAL_END_DATE = "20251231"

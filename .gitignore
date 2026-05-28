@@ -1,7 +1,5 @@
 # 评估产物
-output/
-output.bak/
-scripts/*.png
+
 
 # 备份目录（mv -bak 隔离用）
 *.bak/

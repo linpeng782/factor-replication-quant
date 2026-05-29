@@ -12,9 +12,15 @@ source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate   # Python 3.
 pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared     # 共享原语库（首次配置）
 
 # 本机 macOS（基本面因子复现；高频因子留远端，详见 LOCAL_SETUP.md）
-source /Users/didi/kdj/peterdidi/bin/activate                        # Python 3.11.9 venv
-pip install -e ~/alpha-shared                                        # 共享原语库（首次配置）
+source /Users/didi/kdj/peterdidi/bin/activate                        # Python 3.11.9 venv（本机唯一 venv，勿再找）
+pip install -e /Users/didi/kdj/alpha-shared                          # 共享原语库（editable，首次配置）
 export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根重定向
+
+# 本机路径速记（避免反复探测）：
+#   venv         /Users/didi/kdj/peterdidi
+#   本仓         /Users/didi/kdj/factor-repilcation-quant
+#   alpha-shared /Users/didi/kdj/alpha-shared
+#   数据根       /Users/didi/DATA  （RAW_FACTOR_DIR 下本机有 ~22 个基本面 raw 因子）
 ```
 
 | 变量 | 路径 | 说明 |
@@ -29,11 +35,27 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 **本机化运行**：`export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA` 一键把所有数据路径
 重定向到本机；远端不设环境变量行为零变化。`OUTPUT_DIR` 是项目相对路径不受影响。
 
-**alpha-shared 共享库**：IC / 分层回测 / 清洗 / mask 加载 primitive 抽到
-`/nfs/volume-1593-1/peterzhenglinpeng/alpha-shared/`（独立 git 仓），本仓
-`core/evaluation/{ic,layered,returns}.py` + `core/cleaning/{preprocess,mask_loader}.py`
-是 thin wrapper 转发到 `alpha_shared.*`。改算法去 alpha-shared 改一份；改完务必跑
-`scripts/regression_baseline_replication.py` + `regression_compare.py` 验两边数值零漂移。
+**本机数据现状（`/Users/didi/DATA`，已验证就绪，勿再探测）**：
+
+| 路径 | 内容 | 形状/数量 |
+|------|------|-----------|
+| `my-alpha-engine/factor-panel/spec/*.parquet` | raw 因子（宽表 date×obid） | 22 个基本面因子 |
+| `my-alpha-engine/cleaned-factor-panel/spec/*.parquet` | 清洗后因子 | 同名 22 个 |
+| `my-alpha-engine/labels/forward_return_{1,2,5,10,20}d.parquet` | PIT 远期收益（评估直读，bit-exact） | (5178, 5501) |
+| `my-alpha-engine/meta-data/vwap_panel.parquet` | PIT vwap 宽表（labels 缺 horizon 时 fallback 现算） | (5178, 5501) |
+| `backtest_engine/cache_dir/combo_mask_long.parquet` | 长表 [obid, datetime, tradable, is_st, is_suspended, is_limit_up] | 17.25M 行 |
+| `backtest_engine/cache_dir/new_stock_mask_long.parquet` | 长表 [obid, datetime, is_new_stock] | 17.17M 行 |
+
+本机 22 因子可直接 `python run.py <factor> --evaluate-only`（零 API 调用）。
+跑脚本前置：`source /Users/didi/kdj/peterdidi/bin/activate` 且在仓库根执行（`core` 包在 cwd）。
+
+**alpha-shared 共享库**：IC / 分层回测 / 清洗 / mask 加载等**数值算法**全部在
+`/nfs/volume-1593-1/peterzhenglinpeng/alpha-shared/`（本机 `/Users/didi/kdj/alpha-shared`，
+独立 git 仓）。本仓**不再镜像其目录结构、无 thin wrapper**——`core/evaluation.py`
+直接 `from alpha_shared.{evaluation,cleaning}...` 取算法，mask 路径在调用点注入 config。
+改算法去 alpha-shared 改一份；改完务必跑 `scripts/regression_baseline_replication.py`
++ `regression_compare.py` 验两边数值零漂移。本仓评估代码只剩两个本地文件：
+`core/evaluation.py`（编排 evaluate_single_factor）+ `core/eval_plots.py`（可视化，本地审美保留）。
 
 ---
 
@@ -168,8 +190,8 @@ core/
   operators/         fetch / compute / filter / rank / rolling / transform / merge /
                      row_aggregate / row_polyfit / row_correlate /
                      minute_intraday_aggregate / cross_section_regress
-  cleaning/          MAD + zscore + mask（thin wrapper 到 alpha-shared）
-  evaluation/        IC + 分层 + 绘图（thin wrapper 到 alpha-shared）
+  evaluation.py      单因子评估编排 evaluate_single_factor（算法直连 alpha_shared）
+  eval_plots.py      评估可视化（2×2 报告 PNG，本地审美）
   yolo_engine.py     spec yaml → 算子图执行
 output/<factor>/     评估产物 (png + report.md)，gitignore；按 factor 名 flat
 run.py               日常 CLI（默认 yolo + 评估，裸名/限定路径都接受）

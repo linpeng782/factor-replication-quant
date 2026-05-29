@@ -27,11 +27,12 @@ import pandas as pd
 from loguru import logger
 
 import core.config as config
-from core.cleaning import load_filter_masks, prepare_factor
-from core.evaluation.ic import compute_ic_report, compute_ic_series
-from core.evaluation.returns import build_forward_returns
-from core.evaluation.layered import layered_backtest
-from core.evaluation.plots import plot_factor_report
+from alpha_shared.cleaning.mask_loader import load_filter_masks
+from alpha_shared.cleaning.preprocess import prepare_factor
+from alpha_shared.evaluation.ic import compute_ic_report, compute_ic_series
+from alpha_shared.evaluation.returns import build_forward_returns
+from alpha_shared.evaluation.layered import layered_backtest
+from core.eval_plots import plot_factor_report
 
 
 def evaluate_single_factor(
@@ -112,7 +113,10 @@ def evaluate_single_factor(
         else:
             logger.info("[1/4] 加载完整 mask & 清洗因子...")
             # 先加载完整 mask（不截断），确保清洗后的因子保留原始数据的完整时间范围
+            # mask 路径在此注入（alpha_shared.load_filter_masks 自身不依赖任何 config）
             pre_mask_full, post_mask_full = load_filter_masks(
+                combo_mask_path=config.COMBO_MASK_PATH,
+                new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
                 reindex_columns=factor_df.columns,
             )
 

@@ -138,10 +138,14 @@ def factor_name_from_arg(arg: str) -> str:
 
 def resolve_output_dir(arg: str) -> Path:
     """
-    评估产物目录：sources/<pub>/<group>/output/<factor>/
-    跟 spec.yaml 物理同 group，便于 paper-level 资产收口。
+    评估产物目录：<project_root>/output/<factor>/
+
+    平铺在项目根下，便于：
+    - 用户 ls output/ 一眼浏览所有因子
+    - tar output/ 一行打包所有评估产物
+    - glob output/*/evaluation_*.png 批量读取
+
+    代码/spec 仍在 sources/<pub>/<group>/specs/<factor>/（开发者视角不变）。
     """
-    spec_path = resolve_spec_path(arg)
-    group_dir = spec_path.parents[2]   # specs/<factor>/spec.yaml → group_dir
-    factor = spec_path.parent.name
-    return group_dir / "output" / factor
+    factor = resolve_spec_path(arg).parent.name
+    return PROJECT_ROOT / "output" / factor

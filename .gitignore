@@ -1,5 +1,5 @@
-# 评估产物
-**/output/
+# 评估产物（平铺在项目根 output/<factor>/）
+output/
 
 # 备份目录（mv -bak 隔离用）
 *.bak/

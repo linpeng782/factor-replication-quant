@@ -35,6 +35,10 @@ VWAP_PANEL_PATH = _DATA_ROOT / "my-alpha-engine/meta-data/vwap_panel.parquet"
 # 缺失的 horizon 会 fallback 到 vwap_panel.parquet 现算。
 LABELS_DIR = _DATA_ROOT / "my-alpha-engine/labels"
 
+# 行业 + 市值面板（由 stock-data-fetching 项目产出，评估时做行业市值中性化）
+INDUSTRY_PANEL_ZX_PATH = _DATA_ROOT / "backtest_engine/cache_dir/industry_panel_zx.parquet"
+MARKET_CAP_PANEL_PATH = _DATA_ROOT / "backtest_engine/cache_dir/market_cap_panel.parquet"
+
 # ==================== 项目内输出目录 ====================
 # 报告、图片等评估输出（项目代码相对路径，不受 _DATA_ROOT 影响）
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
@@ -45,6 +49,8 @@ OUTPUT_DIR = Path(__file__).parent.parent / "output"
 _PANEL_BASE = _DATA_ROOT / "my-alpha-engine"
 RAW_FACTOR_DIR = _PANEL_BASE / "factor-panel" / "spec"
 CLEANED_FACTOR_DIR = _PANEL_BASE / "cleaned-factor-panel" / "spec"
+# 行业市值中性化后的因子（清洗 → 中性化 → 再标准化），生产用版本
+NEU_FACTOR_DIR = _PANEL_BASE / "neu-factor-panel" / "spec"
 
 # 分钟级因子用：原始 per-stock 分钟 parquet 目录（用户日更）+ 中间产物缓存目录
 MINUTE_DATA_DIR = _DATA_ROOT / "backtest_engine/cache_dir/stock_data_1m_post"

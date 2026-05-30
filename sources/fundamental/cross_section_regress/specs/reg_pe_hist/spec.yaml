@@ -19,16 +19,16 @@ calculation_steps:
   fields:
   - net_profit_mrq_0
   - net_profit_mrq_4
-  - net_profitTTM
+  - net_profit_ttm_0
   - pe_ratio_ttm
   output_columns:
     net_profit_mrq_0: net_profit_mrq_0
     net_profit_mrq_4: net_profit_mrq_4
-    net_profitTTM: net_profitTTM
+    net_profit_ttm_0: net_profit_ttm_0
     pe_ratio_ttm: pe_ratio_ttm
 - name: 过滤正值要求
   action: filter
-  condition: net_profit_mrq_0 > 0 and net_profit_mrq_4 > 0 and net_profitTTM > 0
+  condition: net_profit_mrq_0 > 0 and net_profit_mrq_4 > 0 and net_profit_ttm_0 > 0
     and pe_ratio_ttm > 0
 - name: 计算单季净利润同比对数
   action: compute
@@ -39,9 +39,9 @@ calculation_steps:
   output_column: log_yoy
 - name: 计算净利润TTM对数
   action: compute
-  formula: log(net_profitTTM)
+  formula: log(net_profit_ttm_0)
   source_columns:
-  - net_profitTTM
+  - net_profit_ttm_0
   output_column: log_npttm
 - name: 计算PE_TTM对数
   action: compute

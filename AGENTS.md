@@ -27,6 +27,8 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 |------|------|------|
 | `RAW_FACTOR_DIR` | `<DATA_ROOT>/my-alpha-engine/factor-panel/spec/` | 原始因子（spec engine 产物） |
 | `CLEANED_FACTOR_DIR` | `<DATA_ROOT>/my-alpha-engine/cleaned-factor-panel/spec/` | 清洗后因子（MAD + zscore + mask） |
+| `NEU_FACTOR_DIR` | `<DATA_ROOT>/my-alpha-engine/neu-factor-panel/spec/` | 行业市值中性化后因子（强制；生产用版本） |
+| `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/backtest_engine/cache_dir/` | 中信行业 + 总市值面板（stock-data-fetching 产出） |
 | `OUTPUT_DIR` | `factor-repilcation-quant/output/` | 评估产物（png + report） |
 | `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` / `VWAP_POST_PATH` | `<DATA_ROOT>/backtest_engine/cache_dir/` | 预计算 mask + vwap，评估**零 API 调用** |
 
@@ -66,7 +68,8 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
     ↓ python -m core.spec_generator <pub>/<group>/<factor>      （LLM + spec_schema 校验闭环）
 sources/<pub>/<group>/specs/<factor>/spec.yaml + .llm_session.json
     ↓ python run.py <factor>                                    （fetch + 算子图 + 评估）
-raw_factor/<factor>.parquet → cleaned_factor/<factor>.parquet + output/<factor>/
+raw → cleaned（MAD+zscore+mask）→ neu（强制行业市值中性化）→ output/<factor>/
+      落 factor-panel / cleaned-factor-panel / neu-factor-panel 三层 + 两张 PNG（__cleaned/__neu）
     ↓ 沉淀
 sources/<pub>/<group>/docs/<factor>.md                          （因子原理 + 工程经验）
 ```
@@ -128,7 +131,11 @@ python scripts/factor_correlation.py --pattern 'pj_*' --name paper_33   # ~10s f
 2. **PIT 模式**：财务用 `get_pit_financials_ex`，公告日字段 `info_date`；`statements='all'` 才能拿全版本
 3. **`_mrq_n` 是单季度值**：`net_profit_mrq_0` 等已预计算单季度，**禁止再 diff**
 4. **市值用 `market_cap_3`**（米筐有 `_2`/`_3`，约定 `_3`）
-5. **TTM 财务字段是驼峰**：`net_profitTTM` / `revenueTTM`，**不是** `net_profit_ttm`；比率类仍蛇形 `pe_ratio_ttm` / `pb_ratio_lf`；现金流类用 `<base>_ttm_0`（无驼峰变体）
+5. **TTM 财务字段命名（以官方 get_factor 文档为准）**：
+   - **三大报表基础会计科目**（net_profit / revenue 等）：蛇形 + 数字尾缀 `_ttm_0`，即 `net_profit_ttm_0` / `revenue_ttm_0`
+   - **衍生比率**（pe/pb 等）：蛇形无数字 `pe_ratio_ttm` / `pb_ratio_lf`
+   - ⚠️ **不要用驼峰**：`net_profitTTM` 是未文档化遗留字段，实测**≈ 但 ≠** `net_profit_ttm_0`（约 0.5% 单元/860 只股票有差异，覆盖更少，对科创板等新股行为异常）；`revenueTTM` 更**直接返回 None 取不到数**，照驼峰写会静默拿全 NaN。一律用 `_ttm_0`。
+   - 实证见 `sources/fundamental/cross_section_regress/docs/reg_pe_hist.md`（2026-05-29 字段修订记录）。
 6. **季度数据 yoy=4，qoq=1**；资产负债表（净资产/总资产）是时点值，直接用不要 diff
 7. **清洗因子保留完整时间范围**：评估按 `--start-date/--end-date` 动态截取
 
@@ -190,10 +197,10 @@ core/
   operators/         fetch / compute / filter / rank / rolling / transform / merge /
                      row_aggregate / row_polyfit / row_correlate /
                      minute_intraday_aggregate / cross_section_regress
-  evaluation.py      单因子评估编排 evaluate_single_factor（算法直连 alpha_shared）
+  evaluation.py      单因子评估编排（清洗→强制行业市值中性化→cleaned/neu 各评一版）
   eval_plots.py      评估可视化（2×2 报告 PNG，本地审美）
   yolo_engine.py     spec yaml → 算子图执行
-output/<factor>/     评估产物 (png + report.md)，gitignore；按 factor 名 flat
+output/<factor>/     评估产物，gitignore；两张图 evaluation_<range>__{cleaned,neu}.png
 run.py               日常 CLI（默认 yolo + 评估，裸名/限定路径都接受）
 scripts/             一次性迁移脚本 + factor_inventory + factor_correlation 等
 docs/                项目级架构文档

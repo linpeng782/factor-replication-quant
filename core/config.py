@@ -52,6 +52,21 @@ NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
 INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "factor-replication/intermediate_cache"
 
+# ==================== 逐股原始行情（alpha158 等代码批量因子的生产原料） ====================
+# 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权在读时实时算（core.producers.alpha158.loader）。
+# 由 stock-data-fetching 仓产出/日更；当前仍在 my-alpha-engine-meta/（后续迁 raw-ohlcv/ 再改这里）。
+_RAW_OHLCV_ROOT = _MKT / "my-alpha-engine-meta"
+RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv"          # 逐股原始 OHLCV
+EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"    # 逐股稀疏复权因子
+INSTRUMENTS_INFO_PATH = _RAW_OHLCV_ROOT / "instruments_info.parquet"   # 股票基本信息（待补）
+TRADING_CALENDAR_PATH = _RAW_OHLCV_ROOT / "trading_calendar.parquet"   # 交易日历（待补）
+
+# 复权时价格字段 ×cum_factor、成交量字段 ÷cum_factor
+PRICE_FIELDS = ["open", "high", "low", "close", "limit_up", "limit_down"]
+VOLUME_FIELDS = ["volume"]
+# 因子批量计算并行进程数（本机核数自适应；脚本可覆盖）
+COMPUTE_WORKERS = max(4, (os.cpu_count() or 8))
+
 # ==================== 默认 fetch / 评估区间 ====================
 # fetch 区间（panel 落盘窗口）— 提前到 2010 给所有因子留 ≥4 年 warm-up，
 # 使得最复杂的 8 期 PIT 滚动因子（npf_mrq_sue8 / np_*_rank 等）能从 2014-01-02 起有有效值

@@ -101,6 +101,7 @@ def evaluate_single_factor(
     end_date: Optional[str] = None,
     spec_yaml: Optional[dict] = None,
     output_dir: Optional[Path] = None,
+    namespace: Optional[str] = None,
     ic_horizons: tuple = (5, 10, 20),
     primary_ic_horizon: int = 5,
     layer_rebalance: int = 5,
@@ -147,17 +148,23 @@ def evaluate_single_factor(
             layer_groups = ev_cfg.get("layer_groups", layer_groups)
             mad_n = ev_cfg.get("mad_n", mad_n)
 
+        # 命名空间分桶：cleaned/neu/output 落 <stage>/<source>/<group>/<factor>
+        # 显式传入 namespace（如 alpha158/kline，无 spec 的批量因子用）→ 直接用；
+        # 否则回退到从 spec 路径推导（cxl/kysec/founder 等研报因子，行为不变）。
+        if namespace is None:
+            from core.spec_resolver import resolve_namespace_safe
+            namespace = resolve_namespace_safe(factor_name)
+
         if output_dir is not None:
             report_dir = Path(output_dir)
+        elif namespace not in (None, "_misc/_misc"):
+            report_dir = config.OUTPUT_DIR / namespace / factor_name
         else:
             from core.spec_resolver import resolve_output_dir
 
             report_dir = resolve_output_dir(factor_name)
         report_dir.mkdir(parents=True, exist_ok=True)
 
-        # 命名空间分桶：cleaned/neu 落 factors/<stage>/<publisher>/<group>/<factor>.parquet
-        from core.spec_resolver import resolve_namespace_safe
-        namespace = resolve_namespace_safe(factor_name)
         cleaned_dir = config.CLEANED_FACTOR_BASE / namespace
         neu_dir = config.NEU_FACTOR_BASE / namespace
         cleaned_dir.mkdir(parents=True, exist_ok=True)

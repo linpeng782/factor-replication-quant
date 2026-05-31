@@ -136,6 +136,24 @@ def factor_name_from_arg(arg: str) -> str:
     return arg.rsplit("/", 1)[-1]
 
 
+def resolve_source(arg: str) -> str:
+    """因子标识符 → 来源（sources/<source>/... 顶层 publisher，如 cxl / kysec / founder）。
+
+    数据落盘按来源分桶：factors/<stage>/<source>/<factor>.parquet。
+    来源从 spec 路径推导（不在 spec 内容里）——改来源 = 挪 sources/ 目录，不动 spec。
+    """
+    spec_path = resolve_spec_path(arg)
+    return spec_path.relative_to(SOURCES_DIR).parts[0]
+
+
+def resolve_source_safe(factor_name: str, default: str = "_misc") -> str:
+    """惰性解析来源；解析不到（如临时/probe 因子无 spec）时回退 default，不抛错。"""
+    try:
+        return resolve_source(factor_name)
+    except (FileNotFoundError, ValueError):
+        return default
+
+
 def resolve_output_dir(arg: str) -> Path:
     """
     评估产物目录：<project_root>/output/<factor>/

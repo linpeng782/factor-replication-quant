@@ -18,42 +18,38 @@ _DATA_ROOT = Path(
     )
 )
 
-# ==================== 外部预计算数据路径 ====================
-# 这些路径指向 my-alpha-engine / backtest_engine 已生产的数据
+# ==================== 输入数据：market-data/ ====================
+# 按「角色」组织（非项目名）：所有评估输入数据归于 market-data/，由 stock-data-fetching 维护。
+_MKT = _DATA_ROOT / "market-data"
 
-COMBO_MASK_PATH = _DATA_ROOT / "backtest_engine/cache_dir/combo_mask_long.parquet"
+COMBO_MASK_PATH = _MKT / "masks/combo_mask_long.parquet"
+NEW_STOCK_MASK_PATH = _MKT / "masks/new_stock_mask_long.parquet"
 
-NEW_STOCK_MASK_PATH = _DATA_ROOT / "backtest_engine/cache_dir/new_stock_mask_long.parquet"
+VWAP_POST_PATH = _MKT / "prices/vwap_post.parquet"
+# PIT canonical vwap 宽表面板（build_labels.py 副产）；取代 VWAP_POST_PATH 作 forward_returns 源
+VWAP_PANEL_PATH = _MKT / "prices/vwap_panel.parquet"
+# 预算的 forward_return_{N}d.parquet；评估直读，缺失 horizon 回退 vwap_panel 现算
+LABELS_DIR = _MKT / "labels"
 
-VWAP_POST_PATH = _DATA_ROOT / "backtest_engine/cache_dir/vwap_post.parquet"
-# PIT canonical vwap 宽表面板（由 my-alpha-engine/full_build/build_labels.py 副产）
-# 取代 VWAP_POST_PATH 作为评估的 forward_returns 源——后者依赖米筐 adjust_type="post_volume" 黑盒，
-# 这个由本地 raw OHLCV + ex_factor 手动复权派生，全管线可审计 PIT。
-VWAP_PANEL_PATH = _DATA_ROOT / "my-alpha-engine/meta-data/vwap_panel.parquet"
-# 预算的 forward_return_{N}d.parquet 由 my-alpha-engine/full_build/build_labels.py 产出。
-# replication 评估直接读取，与 alpha-engine 共享同一文件 → bit-exact。
-# 缺失的 horizon 会 fallback 到 vwap_panel.parquet 现算。
-LABELS_DIR = _DATA_ROOT / "my-alpha-engine/labels"
-
-# 行业 + 市值面板（由 stock-data-fetching 项目产出，评估时做行业市值中性化）
-INDUSTRY_PANEL_ZX_PATH = _DATA_ROOT / "backtest_engine/cache_dir/industry_panel_zx.parquet"
-MARKET_CAP_PANEL_PATH = _DATA_ROOT / "backtest_engine/cache_dir/market_cap_panel.parquet"
+# 行业 + 市值面板（中性化用，stock-data-fetching 产出）
+INDUSTRY_PANEL_ZX_PATH = _MKT / "industry/industry_panel_zx.parquet"
+MARKET_CAP_PANEL_PATH = _MKT / "market_cap/market_cap_panel.parquet"
 
 # ==================== 项目内输出目录 ====================
 # 报告、图片等评估输出（项目代码相对路径，不受 _DATA_ROOT 影响）
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
-# ==================== 外部因子数据目录 ====================
-# 因子 panel 已统一到 my-alpha-engine 的 factor-panel/<producer>/ 命名空间下。
-# 本项目（spec engine）产物落在 spec/ 子目录下。
-_PANEL_BASE = _DATA_ROOT / "my-alpha-engine"
-RAW_FACTOR_DIR = _PANEL_BASE / "factor-panel" / "spec"
-CLEANED_FACTOR_DIR = _PANEL_BASE / "cleaned-factor-panel" / "spec"
-# 行业市值中性化后的因子（清洗 → 中性化 → 再标准化），生产用版本
-NEU_FACTOR_DIR = _PANEL_BASE / "neu-factor-panel" / "spec"
+# ==================== 因子产出：factors/<stage>/<source>/ ====================
+# 按「阶段」(raw/cleaned/neu) × 「来源」(cxl/kysec/founder/alpha158/...) 分桶。
+# 来源由 spec 路径推导（见 spec_resolver.resolve_source）；最终路径：
+#   <BASE>/<source>/<factor>.parquet
+_FACTORS = _DATA_ROOT / "factors"
+RAW_FACTOR_BASE = _FACTORS / "raw"           # 原始因子（spec 引擎/批量库产出）
+CLEANED_FACTOR_BASE = _FACTORS / "cleaned"   # 清洗后（MAD+zscore+mask）
+NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产用版本）
 
 # 分钟级因子用：原始 per-stock 分钟 parquet 目录（用户日更）+ 中间产物缓存目录
-MINUTE_DATA_DIR = _DATA_ROOT / "backtest_engine/cache_dir/stock_data_1m_post"
+MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
 INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "factor-replication/intermediate_cache"
 
 # ==================== 默认 fetch / 评估区间 ====================

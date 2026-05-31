@@ -40,9 +40,9 @@ def _patch_paths() -> None:
     import core.config as cfg
     import core.yolo_engine as ye
 
-    ye.RAW_FACTOR_DIR = SAND_RAW
-    cfg.RAW_FACTOR_DIR = SAND_RAW
-    cfg.CLEANED_FACTOR_DIR = SAND_CLEAN
+    ye.RAW_FACTOR_BASE = SAND_RAW
+    cfg.RAW_FACTOR_BASE = SAND_RAW
+    cfg.CLEANED_FACTOR_BASE = SAND_CLEAN
 
 
 def _intersection_compare(prod: Path, sand: Path, label: str) -> tuple[bool, str]:
@@ -179,7 +179,7 @@ def main() -> None:
     _run_full_pipeline(factor)
 
     # ── 对比 raw / cleaned parquet
-    from core.config import RAW_FACTOR_DIR as _patched_raw  # noqa: F401
+    from core.config import RAW_FACTOR_BASE as _patched_raw  # noqa: F401
     prod_raw = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor") / f"{factor}.parquet"
     prod_clean = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor") / f"{factor}.parquet"
 

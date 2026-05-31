@@ -240,7 +240,7 @@ warmup 日（前 std_window 日）所有 feature 输出 NaN——下游 rolling 
 4. **多字段 fetch 必须用 `output_columns` 映射**（不要尝试用 output_column 单字段）。
 5. **米筐 `_mrq_n` 字段（如 `net_profit_mrq_0`、`total_equity_mrq_0`）已是单季度值，不要再 transform diff_quarterly**；只有累计字段（如 `net_profit` 不带 `_mrq_n` 后缀）才需要 diff_quarterly。
 6. **市值字段统一用 `market_cap_3`**（米筐有 `market_cap` / `market_cap_2` / `market_cap_3`，项目约定取 `_3`）。
-6.1. **米筐 TTM 财务字段命名（以官方 get_factor 文档为准）**：三大报表基础会计科目（`net_profit` / `revenue` / `operating_revenue` / `gross_profit` 等）用**蛇形 + 数字尾缀** `_ttm_0`，即 `net_profit_ttm_0` / `revenue_ttm_0` / `gross_profit_ttm_0`。比率类衍生指标用蛇形无数字：`pe_ratio_ttm` / `pb_ratio_lf`。⚠️ **不要用驼峰**：`net_profitTTM` 是未文档化遗留别名（≈ 但 ≠ `net_profit_ttm_0`），而 `revenueTTM` **直接返回 None 取不到数**——照驼峰写会静默拿全 NaN。一律 `_ttm_0`（实证见 `sources/fundamental/cross_section_regress/docs/reg_pe_hist.md`）。
+6.1. **米筐 TTM 财务字段命名（以官方 get_factor 文档为准）**：三大报表基础会计科目（`net_profit` / `revenue` / `operating_revenue` / `gross_profit` 等）用**蛇形 + 数字尾缀** `_ttm_0`，即 `net_profit_ttm_0` / `revenue_ttm_0` / `gross_profit_ttm_0`。比率类衍生指标用蛇形无数字：`pe_ratio_ttm` / `pb_ratio_lf`。⚠️ **不要用驼峰**：`net_profitTTM` 是未文档化遗留别名（≈ 但 ≠ `net_profit_ttm_0`），而 `revenueTTM` **直接返回 None 取不到数**——照驼峰写会静默拿全 NaN。一律 `_ttm_0`（实证见 `sources/cxl/cross_section_regress/docs/reg_pe_hist.md`）。
 7. **季度数据 yoy 的 `periods=4`，qoq 的 `periods=1`**。
 8. **PIT 财务用 `api: get_pit_financials_ex`（按 quarter）；日频因子和 _mrq_n 字段用 `api: get_factor`**。
 9. **资产负债表（净资产、总资产等）是时点值，直接用，不要 diff**。

@@ -24,12 +24,12 @@ SANDBOX = Path("/tmp/migration_sandbox/raw_factor")
 
 
 def _patch_yolo_output_dir(sandbox: Path) -> None:
-    """yolo_engine 模块在 import 时把 RAW_FACTOR_DIR 拉成本地名 → 必须改 yolo_engine 的本地绑定。"""
+    """yolo_engine 模块在 import 时把 RAW_FACTOR_BASE 拉成本地名 → 必须改 yolo_engine 的本地绑定。"""
     sandbox.mkdir(parents=True, exist_ok=True)
     # 触发模块加载
     import core.yolo_engine as ye
 
-    ye.RAW_FACTOR_DIR = sandbox  # 直接覆盖本地绑定
+    ye.RAW_FACTOR_BASE = sandbox  # 直接覆盖本地绑定
 
 
 def _compare_parquet(prod: Path, sand: Path, factor: str) -> tuple[bool, str]:
@@ -109,7 +109,7 @@ def _compare_parquet(prod: Path, sand: Path, factor: str) -> tuple[bool, str]:
 def _run_one(factor: str, start_date: str, end_date: str) -> tuple[bool, str]:
     from core.spec_generator import load_spec_yaml
     from core.yolo_engine import run_factor
-    from core.config import RAW_FACTOR_DIR as PROD_DIR  # 比对时用
+    from core.config import RAW_FACTOR_BASE as PROD_DIR  # 比对时用
 
     print(f"\n=== {factor} ===")
     t0 = time.time()

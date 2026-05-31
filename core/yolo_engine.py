@@ -24,7 +24,8 @@ from loguru import logger
 
 warnings.filterwarnings("ignore")
 
-from core.config import MINUTE_DATA_DIR, RAW_FACTOR_DIR
+from core.config import MINUTE_DATA_DIR, RAW_FACTOR_BASE
+from core.spec_resolver import resolve_source_safe
 from core.spec_schema import validate_spec
 
 from .operators import Context, OpRegistry
@@ -343,8 +344,9 @@ class YoloEngine:
         wide = data.pivot(index="date", columns="order_book_id", values=factor_column)
         wide.index = pd.to_datetime(wide.index)
 
-        RAW_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
-        out_path = RAW_FACTOR_DIR / f"{factor_name}.parquet"
+        out_dir = RAW_FACTOR_BASE / resolve_source_safe(factor_name)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{factor_name}.parquet"
         wide.to_parquet(out_path)
         logger.info(
             f"[engine] ✅ 写入 {out_path}, shape={wide.shape}, "

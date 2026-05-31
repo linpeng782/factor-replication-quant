@@ -23,14 +23,15 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 #   数据根       /Users/didi/DATA  （RAW_FACTOR_DIR 下本机有 ~22 个基本面 raw 因子）
 ```
 
+数据根 `<DATA_ROOT>` 下**两个角色桶**：`factors/`（因子产出）+ `market-data/`（评估输入）。
+
 | 变量 | 路径 | 说明 |
 |------|------|------|
-| `RAW_FACTOR_DIR` | `<DATA_ROOT>/my-alpha-engine/factor-panel/spec/` | 原始因子（spec engine 产物） |
-| `CLEANED_FACTOR_DIR` | `<DATA_ROOT>/my-alpha-engine/cleaned-factor-panel/spec/` | 清洗后因子（MAD + zscore + mask） |
-| `NEU_FACTOR_DIR` | `<DATA_ROOT>/my-alpha-engine/neu-factor-panel/spec/` | 行业市值中性化后因子（强制；生产用版本） |
-| `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/backtest_engine/cache_dir/` | 中信行业 + 总市值面板（stock-data-fetching 产出） |
-| `OUTPUT_DIR` | `factor-repilcation-quant/output/` | 评估产物（png + report） |
-| `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` / `VWAP_POST_PATH` | `<DATA_ROOT>/backtest_engine/cache_dir/` | 预计算 mask + vwap，评估**零 API 调用** |
+| `RAW_FACTOR_BASE` / `CLEANED_FACTOR_BASE` / `NEU_FACTOR_BASE` | `<DATA_ROOT>/factors/{raw,cleaned,neu}/<source>/` | 因子三阶段；`<source>` 由 spec 路径推导（cxl/kysec/...） |
+| `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` | `<DATA_ROOT>/market-data/masks/` | 交易状态 mask，评估**零 API 调用** |
+| `VWAP_PANEL_PATH` / `VWAP_POST_PATH` / `LABELS_DIR` | `<DATA_ROOT>/market-data/{prices,labels}/` | PIT vwap + 远期收益 labels |
+| `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/market-data/{industry,market_cap}/` | 中信行业 + 总市值面板（stock-data-fetching 产出，中性化用） |
+| `OUTPUT_DIR` | `factor-repilcation-quant/output/<factor>/` | 评估产物（两张 PNG） |
 
 `<DATA_ROOT>` 默认 `/nfs/ofs-prediction/peterzhenglinpeng`；预计算数据已更新到 2026-05-15。
 
@@ -41,12 +42,13 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 
 | 路径 | 内容 | 形状/数量 |
 |------|------|-----------|
-| `my-alpha-engine/factor-panel/spec/*.parquet` | raw 因子（宽表 date×obid） | 22 个基本面因子 |
-| `my-alpha-engine/cleaned-factor-panel/spec/*.parquet` | 清洗后因子 | 同名 22 个 |
-| `my-alpha-engine/labels/forward_return_{1,2,5,10,20}d.parquet` | PIT 远期收益（评估直读，bit-exact） | (5178, 5501) |
-| `my-alpha-engine/meta-data/vwap_panel.parquet` | PIT vwap 宽表（labels 缺 horizon 时 fallback 现算） | (5178, 5501) |
-| `backtest_engine/cache_dir/combo_mask_long.parquet` | 长表 [obid, datetime, tradable, is_st, is_suspended, is_limit_up] | 17.25M 行 |
-| `backtest_engine/cache_dir/new_stock_mask_long.parquet` | 长表 [obid, datetime, is_new_stock] | 17.17M 行 |
+| `factors/{raw,cleaned,neu}/cxl/*.parquet` | cxl 系基本面因子 三阶段 | 各 22 个 |
+| `market-data/labels/forward_return_{1,2,5,10,20}d.parquet` | PIT 远期收益（评估直读，bit-exact） | (5178, 5501) |
+| `market-data/prices/vwap_panel.parquet` | PIT vwap 宽表（labels 缺 horizon 时 fallback 现算） | (5178, 5501) |
+| `market-data/masks/{combo,new_stock}_mask_long.parquet` | 交易状态长表（ST/停牌/涨停/新股） | ~17M 行 |
+| `market-data/{market_cap,industry}/*.parquet` | 总市值 + 中信行业面板（中性化用） | (5178/5196, ~5500) |
+
+旁注：`<DATA_ROOT>` 下还有 `alpha158/` `alpha191/` `cxl-work/` 等旧顶层目录，**尚未纳入 `factors/<source>/`**（待 alpha158 接入时统一）。
 
 本机 22 因子可直接 `python run.py <factor> --evaluate-only`（零 API 调用）。
 跑脚本前置：`source /Users/didi/kdj/peterdidi/bin/activate` 且在仓库根执行（`core` 包在 cwd）。
@@ -69,7 +71,7 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 sources/<pub>/<group>/specs/<factor>/spec.yaml + .llm_session.json
     ↓ python run.py <factor>                                    （fetch + 算子图 + 评估）
 raw → cleaned（MAD+zscore+mask）→ neu（强制行业市值中性化）→ output/<factor>/
-      落 factor-panel / cleaned-factor-panel / neu-factor-panel 三层 + 两张 PNG（__cleaned/__neu）
+      落 factors/{raw,cleaned,neu}/<source>/ 三层 + 两张 PNG（__cleaned/__neu）
     ↓ 沉淀
 sources/<pub>/<group>/docs/<factor>.md                          （因子原理 + 工程经验）
 ```
@@ -135,7 +137,7 @@ python scripts/factor_correlation.py --pattern 'pj_*' --name paper_33   # ~10s f
    - **三大报表基础会计科目**（net_profit / revenue 等）：蛇形 + 数字尾缀 `_ttm_0`，即 `net_profit_ttm_0` / `revenue_ttm_0`
    - **衍生比率**（pe/pb 等）：蛇形无数字 `pe_ratio_ttm` / `pb_ratio_lf`
    - ⚠️ **不要用驼峰**：`net_profitTTM` 是未文档化遗留字段，实测**≈ 但 ≠** `net_profit_ttm_0`（约 0.5% 单元/860 只股票有差异，覆盖更少，对科创板等新股行为异常）；`revenueTTM` 更**直接返回 None 取不到数**，照驼峰写会静默拿全 NaN。一律用 `_ttm_0`。
-   - 实证见 `sources/fundamental/cross_section_regress/docs/reg_pe_hist.md`（2026-05-29 字段修订记录）。
+   - 实证见 `sources/cxl/cross_section_regress/docs/reg_pe_hist.md`（2026-05-29 字段修订记录）。
 6. **季度数据 yoy=4，qoq=1**；资产负债表（净资产/总资产）是时点值，直接用不要 diff
 7. **清洗因子保留完整时间范围**：评估按 `--start-date/--end-date` 动态截取
 
@@ -149,7 +151,7 @@ python scripts/factor_correlation.py --pattern 'pj_*' --name paper_33   # ~10s f
 4. **冒烟验证（推荐）**：单股 / 3 股端到端手算对照（纯 numpy + rqdatac）
 5. **写沉淀文档** `sources/<pub>/<group>/docs/<factor>.md`（**不可省略**），含：因子定义（数学+经济直觉）/ 研报歧义+工程选择 / 实现高层逻辑 / 复现结果 / **非平凡洞察**（最值钱）/ 与基准差距 / 改进路径
 
-参考模板：`sources/fundamental/npf_series/docs/npf_mrq_sue8.md`（数学技巧）；`.../docs/npf_mrq_accs8.md`（关键洞察+冒烟方法+多版本对照）。
+参考模板：`sources/cxl/npf_series/docs/npf_mrq_sue8.md`（数学技巧）；`.../docs/npf_mrq_accs8.md`（关键洞察+冒烟方法+多版本对照）。
 
 > 知识沉淀是 5000+ 因子尺度的**核心价值**——spec.yaml 让因子可执行，docs/<factor>.md 让因子的研究决策可追溯、可复用、可教学。**任何"非平凡发现"必须立刻写进 docs**，否则 6 个月后没人记得。
 

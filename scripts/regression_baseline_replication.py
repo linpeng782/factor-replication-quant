@@ -66,7 +66,7 @@ def main():
 
     for factor_name in FACTORS:
         logger.info(f"\n--- {factor_name} ---")
-        raw_path = config.RAW_FACTOR_DIR / f"{factor_name}.parquet"
+        raw_path = config.RAW_FACTOR_BASE / f"{factor_name}.parquet"
         factor_df = pd.read_parquet(raw_path)
 
         result = evaluate_single_factor(

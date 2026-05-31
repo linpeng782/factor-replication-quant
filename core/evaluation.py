@@ -154,8 +154,14 @@ def evaluate_single_factor(
 
             report_dir = resolve_output_dir(factor_name)
         report_dir.mkdir(parents=True, exist_ok=True)
-        config.RAW_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
-        config.CLEANED_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
+
+        # 来源分桶：cleaned/neu 落 factors/<stage>/<source>/<factor>.parquet
+        from core.spec_resolver import resolve_source_safe
+        source = resolve_source_safe(factor_name)
+        cleaned_dir = config.CLEANED_FACTOR_BASE / source
+        neu_dir = config.NEU_FACTOR_BASE / source
+        cleaned_dir.mkdir(parents=True, exist_ok=True)
+        neu_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info("=" * 60)
         logger.info(f"📊 开始评估因子: {factor_name}")
@@ -193,7 +199,7 @@ def evaluate_single_factor(
             )
 
             # 保存清洗后因子到外部目录（完整时间范围）
-            cleaned_path = config.CLEANED_FACTOR_DIR / f"{factor_name}.parquet"
+            cleaned_path = cleaned_dir / f"{factor_name}.parquet"
             factor_clean.to_parquet(cleaned_path)
             logger.info(
                 f"  -> 清洗后因子已保存: {cleaned_path} "
@@ -208,8 +214,7 @@ def evaluate_single_factor(
         size = pd.read_parquet(config.MARKET_CAP_PANEL_PATH)
         size.index = pd.to_datetime(size.index)
         factor_neu = neutralize(factor_clean, industry, size, restandardize=True)
-        config.NEU_FACTOR_DIR.mkdir(parents=True, exist_ok=True)
-        neu_path = config.NEU_FACTOR_DIR / f"{factor_name}.parquet"
+        neu_path = neu_dir / f"{factor_name}.parquet"
         factor_neu.to_parquet(neu_path)
         logger.info(f"  -> 中性化因子已保存: {neu_path} (shape={factor_neu.shape})")
 

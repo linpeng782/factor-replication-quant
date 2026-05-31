@@ -39,10 +39,10 @@ MARKET_CAP_PANEL_PATH = _MKT / "market_cap/market_cap_panel.parquet"
 # 报告、图片等评估输出（项目代码相对路径，不受 _DATA_ROOT 影响）
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
-# ==================== 因子产出：factors/<stage>/<source>/ ====================
-# 按「阶段」(raw/cleaned/neu) × 「来源」(cxl/kysec/founder/alpha158/...) 分桶。
-# 来源由 spec 路径推导（见 spec_resolver.resolve_source）；最终路径：
-#   <BASE>/<source>/<factor>.parquet
+# ==================== 因子产出：factors/<stage>/<source>/<group>/ ====================
+# 按「阶段」(raw/cleaned/neu) × 「来源」(cxl/kysec/founder/...) × 「分组」(研报/系列) 分桶。
+# namespace=<source>/<group> 由 spec 路径推导（见 spec_resolver.resolve_namespace）；最终路径：
+#   <BASE>/<source>/<group>/<factor>.parquet
 _FACTORS = _DATA_ROOT / "factors"
 RAW_FACTOR_BASE = _FACTORS / "raw"           # 原始因子（spec 引擎/批量库产出）
 CLEANED_FACTOR_BASE = _FACTORS / "cleaned"   # 清洗后（MAD+zscore+mask）

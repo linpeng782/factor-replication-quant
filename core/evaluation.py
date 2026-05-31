@@ -155,11 +155,11 @@ def evaluate_single_factor(
             report_dir = resolve_output_dir(factor_name)
         report_dir.mkdir(parents=True, exist_ok=True)
 
-        # 来源分桶：cleaned/neu 落 factors/<stage>/<source>/<factor>.parquet
-        from core.spec_resolver import resolve_source_safe
-        source = resolve_source_safe(factor_name)
-        cleaned_dir = config.CLEANED_FACTOR_BASE / source
-        neu_dir = config.NEU_FACTOR_BASE / source
+        # 命名空间分桶：cleaned/neu 落 factors/<stage>/<publisher>/<group>/<factor>.parquet
+        from core.spec_resolver import resolve_namespace_safe
+        namespace = resolve_namespace_safe(factor_name)
+        cleaned_dir = config.CLEANED_FACTOR_BASE / namespace
+        neu_dir = config.NEU_FACTOR_BASE / namespace
         cleaned_dir.mkdir(parents=True, exist_ok=True)
         neu_dir.mkdir(parents=True, exist_ok=True)
 

@@ -139,7 +139,8 @@ def factor_name_from_arg(arg: str) -> str:
 def resolve_source(arg: str) -> str:
     """因子标识符 → 来源（sources/<source>/... 顶层 publisher，如 cxl / kysec / founder）。
 
-    数据落盘按来源分桶：factors/<stage>/<source>/<factor>.parquet。
+    仅取 namespace 的顶层（source）；实际落盘是 source/group 两级，见 resolve_namespace：
+    factors/<stage>/<source>/<group>/<factor>.parquet。
     来源从 spec 路径推导（不在 spec 内容里）——改来源 = 挪 sources/ 目录，不动 spec。
     """
     spec_path = resolve_spec_path(arg)
@@ -154,6 +155,25 @@ def resolve_source_safe(factor_name: str, default: str = "_misc") -> str:
         return default
 
 
+def resolve_namespace(arg: str) -> str:
+    """因子标识符 → '<publisher>/<group>'（数据/产出分桶，完整镜像 sources/ 两级）。
+
+    group = 研报/系列（拥有 ~10-20 个因子的自然单元）。落盘：
+      factors/<stage>/<publisher>/<group>/<factor>.parquet
+      output/<publisher>/<group>/<factor>/
+    """
+    spec_path = resolve_spec_path(arg)
+    return "/".join(spec_path.relative_to(SOURCES_DIR).parts[:2])
+
+
+def resolve_namespace_safe(factor_name: str, default: str = "_misc/_misc") -> str:
+    """惰性解析 namespace；解析不到时回退 default，不抛错。"""
+    try:
+        return resolve_namespace(factor_name)
+    except (FileNotFoundError, ValueError):
+        return default
+
+
 def resolve_output_dir(arg: str) -> Path:
     """
     评估产物目录：<project_root>/output/<factor>/
@@ -163,7 +183,9 @@ def resolve_output_dir(arg: str) -> Path:
     - tar output/ 一行打包所有评估产物
     - glob output/*/evaluation_*.png 批量读取
 
-    代码/spec 仍在 sources/<pub>/<group>/specs/<factor>/（开发者视角不变）。
+    按 <publisher>/<group> 分桶（镜像 factors/ 与 sources/），便于按研报浏览：
+      output/kysec/paper_27_microstructure/peak_minute_count/
     """
-    factor = resolve_spec_path(arg).parent.name
-    return PROJECT_ROOT / "output" / factor
+    spec_path = resolve_spec_path(arg)
+    namespace = "/".join(spec_path.relative_to(SOURCES_DIR).parts[:2])
+    return PROJECT_ROOT / "output" / namespace / spec_path.parent.name

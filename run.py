@@ -18,8 +18,8 @@ FACTOR 两种形态都接受：
 约定:
     spec 文件:    sources/<publisher>/<group>/specs/<FACTOR>/spec.yaml
     研报输入:     sources/<publisher>/<group>/{input.md, inputs/<FACTOR>.md}（与 run.py 无关）
-    因子产出:    factors/{raw,cleaned,neu}/<source>/<FACTOR>.parquet（source 由 spec 路径推导）
-    评估输出:    output/<FACTOR>/evaluation_<range>__{cleaned,neu}.png
+    因子产出:    factors/{raw,cleaned,neu}/<source>/<group>/<FACTOR>.parquet（namespace=source/group 由 spec 路径推导）
+    评估输出:    output/<source>/<group>/<FACTOR>/evaluation_<range>__{cleaned,neu}.png
 """
 
 from __future__ import annotations
@@ -42,12 +42,12 @@ from core.config import (
 )
 from core.evaluation import evaluate_single_factor
 from core.spec_generator import load_spec_yaml
-from core.spec_resolver import resolve_source_safe
+from core.spec_resolver import resolve_namespace_safe
 from core.yolo_engine import run_factor
 
 
 def _load_existing_raw(factor_name: str) -> pd.DataFrame:
-    path = RAW_FACTOR_BASE / resolve_source_safe(factor_name) / f"{factor_name}.parquet"
+    path = RAW_FACTOR_BASE / resolve_namespace_safe(factor_name) / f"{factor_name}.parquet"
     if not path.exists():
         raise FileNotFoundError(
             f"raw 因子不存在: {path}（先 'python run.py {factor_name} --yolo-only' 生成）"

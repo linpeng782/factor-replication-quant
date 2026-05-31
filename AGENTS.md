@@ -27,11 +27,11 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 
 | 变量 | 路径 | 说明 |
 |------|------|------|
-| `RAW_FACTOR_BASE` / `CLEANED_FACTOR_BASE` / `NEU_FACTOR_BASE` | `<DATA_ROOT>/factors/{raw,cleaned,neu}/<source>/` | 因子三阶段；`<source>` 由 spec 路径推导（cxl/kysec/...） |
+| `RAW_FACTOR_BASE` / `CLEANED_FACTOR_BASE` / `NEU_FACTOR_BASE` | `<DATA_ROOT>/factors/{raw,cleaned,neu}/<source>/<group>/` | 因子三阶段；namespace=`<source>/<group>` 由 spec 路径推导（cxl/cross_section_regress/...） |
 | `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` | `<DATA_ROOT>/market-data/masks/` | 交易状态 mask，评估**零 API 调用** |
 | `VWAP_PANEL_PATH` / `VWAP_POST_PATH` / `LABELS_DIR` | `<DATA_ROOT>/market-data/{prices,labels}/` | PIT vwap + 远期收益 labels |
 | `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/market-data/{industry,market_cap}/` | 中信行业 + 总市值面板（stock-data-fetching 产出，中性化用） |
-| `OUTPUT_DIR` | `factor-repilcation-quant/output/<factor>/` | 评估产物（两张 PNG） |
+| `OUTPUT_DIR` | `factor-repilcation-quant/output/<source>/<group>/<factor>/` | 评估产物（两张 PNG） |
 
 `<DATA_ROOT>` 默认 `/nfs/ofs-prediction/peterzhenglinpeng`；预计算数据已更新到 2026-05-15。
 
@@ -42,13 +42,13 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 
 | 路径 | 内容 | 形状/数量 |
 |------|------|-----------|
-| `factors/{raw,cleaned,neu}/cxl/*.parquet` | cxl 系基本面因子 三阶段 | 各 22 个 |
+| `factors/{raw,cleaned,neu}/cxl/<group>/*.parquet` | cxl 系基本面因子 三阶段（6 个 group 系列） | 各 22 个 |
 | `market-data/labels/forward_return_{1,2,5,10,20}d.parquet` | PIT 远期收益（评估直读，bit-exact） | (5178, 5501) |
 | `market-data/prices/vwap_panel.parquet` | PIT vwap 宽表（labels 缺 horizon 时 fallback 现算） | (5178, 5501) |
 | `market-data/masks/{combo,new_stock}_mask_long.parquet` | 交易状态长表（ST/停牌/涨停/新股） | ~17M 行 |
 | `market-data/{market_cap,industry}/*.parquet` | 总市值 + 中信行业面板（中性化用） | (5178/5196, ~5500) |
 
-旁注：`<DATA_ROOT>` 下还有 `alpha158/` `alpha191/` `cxl-work/` 等旧顶层目录，**尚未纳入 `factors/<source>/`**（待 alpha158 接入时统一）。
+旁注：`<DATA_ROOT>` 下还有 `alpha158/` `alpha191/` `cxl-work/` 等旧顶层目录，**尚未纳入 `factors/<source>/<group>/`**（待 alpha158 接入时统一）。
 
 本机 22 因子可直接 `python run.py <factor> --evaluate-only`（零 API 调用）。
 跑脚本前置：`source /Users/didi/kdj/peterdidi/bin/activate` 且在仓库根执行（`core` 包在 cwd）。
@@ -70,8 +70,8 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
     ↓ python -m core.spec_generator <pub>/<group>/<factor>      （LLM + spec_schema 校验闭环）
 sources/<pub>/<group>/specs/<factor>/spec.yaml + .llm_session.json
     ↓ python run.py <factor>                                    （fetch + 算子图 + 评估）
-raw → cleaned（MAD+zscore+mask）→ neu（强制行业市值中性化）→ output/<factor>/
-      落 factors/{raw,cleaned,neu}/<source>/ 三层 + 两张 PNG（__cleaned/__neu）
+raw → cleaned（MAD+zscore+mask）→ neu（强制行业市值中性化）→ output/<source>/<group>/<factor>/
+      落 factors/{raw,cleaned,neu}/<source>/<group>/ 三阶段 + 两张 PNG（__cleaned/__neu）
     ↓ 沉淀
 sources/<pub>/<group>/docs/<factor>.md                          （因子原理 + 工程经验）
 ```
@@ -202,7 +202,7 @@ core/
   evaluation.py      单因子评估编排（清洗→强制行业市值中性化→cleaned/neu 各评一版）
   eval_plots.py      评估可视化（2×2 报告 PNG，本地审美）
   yolo_engine.py     spec yaml → 算子图执行
-output/<factor>/     评估产物，gitignore；两张图 evaluation_<range>__{cleaned,neu}.png
+output/<source>/<group>/<factor>/  评估产物，gitignore；两张图 evaluation_<range>__{cleaned,neu}.png
 run.py               日常 CLI（默认 yolo + 评估，裸名/限定路径都接受）
 scripts/             一次性迁移脚本 + factor_inventory + factor_correlation 等
 docs/                项目级架构文档

@@ -132,7 +132,7 @@ def main():
                             f"ic5 {row['ic5_c']:+.4f}→{row['ic5_n']:+.4f} ({(time.time()-t0)/i:.1f}s/个均摊)")
 
     df = pd.DataFrame([r for r in rows if r.get("ok")])
-    out_csv = PROJECT_ROOT / "factor_inventory" / f"alpha158_cleaned_vs_neu_{pd.Timestamp.now():%Y%m%d_%H%M%S}.csv"
+    out_csv = config.INVENTORY_ROOT / "comparison" / f"alpha158_cleaned_vs_neu_{pd.Timestamp.now():%Y%m%d_%H%M%S}.csv"
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df.drop(columns=["ok"], errors="ignore").to_csv(out_csv, float_format="%.4f", index=False)
 

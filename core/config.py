@@ -48,6 +48,11 @@ RAW_FACTOR_BASE = _FACTORS / "raw"           # 原始因子（spec 引擎/批量
 CLEANED_FACTOR_BASE = _FACTORS / "cleaned"   # 清洗后（MAD+zscore+mask）
 NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产用版本）
 
+# ==================== 因子分析产物：factor-inventory/ ====================
+# 总账(inventory) / IC序列矩阵(ic_series) / 相关性(correlation) / 对比(comparison) 等
+# 数值分析产物——代码与数据分离，统一落数据根下（受 FACTOR_REPL_DATA_ROOT 控制）。
+INVENTORY_ROOT = _DATA_ROOT / "factor-inventory"
+
 # 分钟级因子用：原始 per-stock 分钟 parquet 目录（用户日更）+ 中间产物缓存目录
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
 INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "factor-replication/intermediate_cache"

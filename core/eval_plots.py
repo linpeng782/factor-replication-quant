@@ -2,7 +2,7 @@
 因子评估可视化
 ------------------------------------------------------------
 每个因子生成一张 2x2 综合报告图（全英文字体）：
-    [0, 0] Standardized factor distribution
+    [0, 0] Yearly rankIC & ICIR (grouped bars)  —— 默认；top_left="distribution" 可切回因子分布
     [0, 1] Group cumulative NAV (G1~Gg + LongShort)
     [1, 0] Daily IC time series + 20d rolling mean
     [1, 1] Summary table (Ann Return / Ann Vol / Sharpe / Turnover)
@@ -71,6 +71,41 @@ def _plot_factor_distribution(ax, factor_clean: pd.DataFrame):
         family="monospace",
         bbox=dict(boxstyle="round,pad=0.4", facecolor="lemonchiffon", alpha=0.7),
     )
+
+
+def _plot_yearly_ic(ax, ic_series: pd.Series, horizon: int):
+    """左上（默认）：逐年 rankIC(蓝, 左轴) 与 ICIR(橙, 右轴) 双色分组柱。
+
+    ic_series 为已按 direction 翻转后的日 IC（spearman=rankIC）。
+    rankIC_year = 年内日 IC 均值；ICIR_year = 年内日 IC 均值 / 标准差。
+    """
+    ic = ic_series.dropna()
+    if ic.empty:
+        ax.axis("off")
+        ax.text(0.5, 0.5, "No IC series", ha="center", va="center")
+        return
+    by = ic.groupby(ic.index.year)
+    years = sorted(by.groups.keys())
+    rankic = by.mean().reindex(years)
+    icir = (by.mean() / by.std()).reindex(years)
+    x = np.arange(len(years))
+    w = 0.28
+    ax.axhline(0, color="black", linewidth=0.8, alpha=0.6)
+    b1 = ax.bar(x - w / 2, rankic.values, w, color="#1f77b4",
+                edgecolor="white", linewidth=0.4, label="rankIC (L)")
+    ax.set_ylabel("rankIC", color="#1f77b4")
+    ax.tick_params(axis="y", labelcolor="#1f77b4")
+    ax2 = ax.twinx()
+    b2 = ax2.bar(x + w / 2, icir.values, w, color="#ff7f0e",
+                 edgecolor="white", linewidth=0.4, label="ICIR (R)")
+    ax2.set_ylabel("ICIR", color="#ff7f0e")
+    ax2.tick_params(axis="y", labelcolor="#ff7f0e")
+    ax2.axhline(0, color="#ff7f0e", alpha=0.3, linewidth=0.6, linestyle=":")
+    ax.set_xticks(x)
+    ax.set_xticklabels(years, rotation=45)
+    ax.set_title(f"Yearly rankIC & ICIR ({horizon}d)")
+    ax.grid(alpha=0.25, axis="y")
+    ax.legend([b1, b2], ["rankIC (L)", "ICIR (R)"], loc="upper left", fontsize=9)
 
 
 def _get_group_styling(g: int):
@@ -303,6 +338,7 @@ def plot_factor_report(
     primary_ic_horizon: int = 5,
     direction: int = 1,
     figsize=(16, 10),
+    top_left: str = "yearly_ic",
 ):
     """
     生成单因子 2x2 综合评估图
@@ -326,8 +362,11 @@ def plot_factor_report(
         title += "   [Flipped: IC direction = -1]"
     fig.suptitle(title, fontsize=15, fontweight="bold", y=0.995)
 
-    # [0,0] 分布（始终用原始 factor_clean，不翻转）
-    _plot_factor_distribution(axes[0, 0], factor_clean)
+    # [0,0] 默认逐年 rankIC/ICIR；top_left="distribution" 切回因子分布（始终用原始 factor_clean）
+    if top_left == "distribution" or primary_ic_horizon not in ic_series_dict:
+        _plot_factor_distribution(axes[0, 0], factor_clean)
+    else:
+        _plot_yearly_ic(axes[0, 0], ic_series_dict[primary_ic_horizon], primary_ic_horizon)
     # [0,1] 分组净值
     _plot_group_nav(axes[0, 1], layered_result["group_nav"])
     # [1,0] IC 时序

@@ -32,20 +32,20 @@ from core.evaluation import _analyze_and_plot
 START, END = "2016-01-01", "2025-12-31"
 IC_HORIZONS = (5, 10, 20)
 PRIMARY, LAYER_N, LAYER_G = 5, 5, 5
-NEU_BASE = config.NEU_FACTOR_BASE / "alpha158"
+NEU_BASE = config.NEU_FACTOR_BASE   # 全部来源（cxl + alpha158 + ...）
 _SHARED: dict = {}
 
 
 def _plot_one(neu_path_str: str) -> dict:
     logger.remove()
     p = Path(neu_path_str)
-    group, name = p.parts[-2], p.stem
+    src, group, name = p.parts[-3], p.parts[-2], p.stem
     try:
-        cleaned = pd.read_parquet(config.CLEANED_FACTOR_BASE / "alpha158" / group / f"{name}.parquet")
+        cleaned = pd.read_parquet(config.CLEANED_FACTOR_BASE / src / group / f"{name}.parquet")
         cleaned.index = pd.to_datetime(cleaned.index)
         neu = pd.read_parquet(p); neu.index = pd.to_datetime(neu.index)
         cev, nev = cleaned.loc[START:END], neu.loc[START:END]
-        report_dir = config.OUTPUT_DIR / "alpha158" / group / name
+        report_dir = config.OUTPUT_DIR / src / group / name
         report_dir.mkdir(parents=True, exist_ok=True)
         fr = _SHARED["fr"]; r1 = _SHARED["r1"]
         kw = dict(factor_name=name, forward_returns=fr, return_1d=r1,
@@ -65,7 +65,7 @@ def main():
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args()
 
-    files = sorted(NEU_BASE.glob("*/*.parquet"))
+    files = sorted(NEU_BASE.glob("*/*/*.parquet"))   # <source>/<group>/<factor>.parquet
     if args.limit:
         files = files[: args.limit]
     if not files:

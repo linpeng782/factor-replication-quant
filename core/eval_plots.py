@@ -73,11 +73,17 @@ def _plot_factor_distribution(ax, factor_clean: pd.DataFrame):
     )
 
 
+# 逐年图固定刻度（跨因子可比）：零线对齐在从底 1/6 处；含负区间、ICIR 顶到 1.2 不裁尖峰
+YEARLY_IC_YLIM = (-0.02, 0.10)
+YEARLY_ICIR_YLIM = (-0.24, 1.20)
+
+
 def _plot_yearly_ic(ax, ic_series: pd.Series, horizon: int):
     """左上（默认）：逐年 rankIC(蓝, 左轴) 与 ICIR(橙, 右轴) 双色分组柱。
 
     ic_series 为已按 direction 翻转后的日 IC（spearman=rankIC）。
     rankIC_year = 年内日 IC 均值；ICIR_year = 年内日 IC 均值 / 标准差。
+    坐标轴**固定**（跨因子可比）；超出范围的柱在顶部标注真实值，避免裁切丢信息。
     """
     ic = ic_series.dropna()
     if ic.empty:
@@ -94,17 +100,30 @@ def _plot_yearly_ic(ax, ic_series: pd.Series, horizon: int):
     b1 = ax.bar(x - w / 2, rankic.values, w, color="#1f77b4",
                 edgecolor="white", linewidth=0.4, label="rankIC (L)")
     ax.set_ylabel("rankIC", color="#1f77b4")
-    ax.tick_params(axis="y", labelcolor="#1f77b4")
+    ax.tick_params(axis="y", labelcolor="black")   # 刻度数字黑色（清晰）
+    ax.set_ylim(*YEARLY_IC_YLIM)
     ax2 = ax.twinx()
     b2 = ax2.bar(x + w / 2, icir.values, w, color="#ff7f0e",
                  edgecolor="white", linewidth=0.4, label="ICIR (R)")
     ax2.set_ylabel("ICIR", color="#ff7f0e")
-    ax2.tick_params(axis="y", labelcolor="#ff7f0e")
+    ax2.tick_params(axis="y", labelcolor="black")  # 刻度数字黑色（清晰）
     ax2.axhline(0, color="#ff7f0e", alpha=0.3, linewidth=0.6, linestyle=":")
+    ax2.axhline(0.5, color="#333333", linewidth=1.1, linestyle="--", alpha=0.9)  # ICIR=0.5 参考线（深灰）
+    ax2.set_ylim(*YEARLY_ICIR_YLIM)
+    # 超出固定范围的柱：在边界处标真实值（避免裁切隐藏信息）
+    for xi, v in zip(x - w / 2, rankic.values):
+        if pd.notna(v) and not (YEARLY_IC_YLIM[0] <= v <= YEARLY_IC_YLIM[1]):
+            yb = YEARLY_IC_YLIM[1] if v > YEARLY_IC_YLIM[1] else YEARLY_IC_YLIM[0]
+            ax.text(xi, yb, f"{v:+.3f}", ha="center", va="top" if v < 0 else "bottom",
+                    fontsize=6, color="#1f77b4")
+    for xi, v in zip(x + w / 2, icir.values):
+        if pd.notna(v) and not (YEARLY_ICIR_YLIM[0] <= v <= YEARLY_ICIR_YLIM[1]):
+            yb = YEARLY_ICIR_YLIM[1] if v > YEARLY_ICIR_YLIM[1] else YEARLY_ICIR_YLIM[0]
+            ax2.text(xi, yb, f"{v:.2f}", ha="center", va="top" if v < 0 else "bottom",
+                     fontsize=6, color="#d2691e")
     ax.set_xticks(x)
     ax.set_xticklabels(years, rotation=45)
-    ax.set_title(f"Yearly rankIC & ICIR ({horizon}d)")
-    ax.grid(alpha=0.25, axis="y")
+    ax.set_title(f"Yearly rankIC & ICIR ({horizon}d)  [IC {YEARLY_IC_YLIM[1]:.2f} / ICIR {YEARLY_ICIR_YLIM[1]:.1f} fixed]")
     ax.legend([b1, b2], ["rankIC (L)", "ICIR (R)"], loc="upper left", fontsize=9)
 
 

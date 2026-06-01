@@ -7,9 +7,10 @@
 
 ## 1. 数据 & 股票池
 
-**分钟数据**：`/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir/stock_data_1m_post/`
+**分钟数据**：`MINUTE_DATA_DIR`（本机 `<DATA_ROOT>/market-data/minute/stock_data_1m_post/`）
 - per-stock parquet（`<order_book_id>.parquet`），列 `[datetime, open, high, low, close, volume, total_turnover]`
-- 用户日更，5455+ 只股票，2010-至今
+- **后复权 1m**：价格 ×`ex_cum_factor`、**量/额不复权**；**2005-01-04 至今**，5455+ 只股票
+- 拉取（`stock-data-fetching/minute_ohlcv.py`）：`get_price(adjust_type='none')` → 价格 ×本地 `stock-ex-factors.ex_cum_factor`(ffill) → 量/额原样 → float32。已对 5 只股逐分钟验证与 SSH 参考一致（价 maxRel~4e-6=float32 舍入，量额 maxΔ=0）
 - 路径常量：`core.config.MINUTE_DATA_DIR`
 
 **股票池声明**：spec 写 `universe.primary_index: MINUTE_DIR`，`build_universe()` 自动扫目录返回 `[0-9]*.XSH[EG]` parquet stem。

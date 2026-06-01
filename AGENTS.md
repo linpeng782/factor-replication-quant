@@ -38,6 +38,8 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 **本机化运行**：`export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA` 一键把所有数据路径
 重定向到本机；远端不设环境变量行为零变化。`OUTPUT_DIR` 是项目相对路径不受影响。
 
+**数据起始统一 2005-01-01**：日频（raw OHLCV / ex-factors）与分钟频（1m）数据**一律从 2005-01-01 下载**（rqdatac 分钟最早即 2005-01-04）。复权口径：**价格后复权（× `ex_cum_factor`，ffill 到当日），成交量 / 成交额不复权**；复权因子用本地 `<DATA_ROOT>/market-data/my-alpha-engine-meta/stock-ex-factors/`（可日更，与米筐 `adjust_type='post'` 口径一致，已逐分钟 bit 级验证）。分钟拉取配方：`get_price(adjust_type='none')` 取原始 → 价格 ×`ex_cum_factor` → 量/额原样 → float32 落 `MINUTE_DATA_DIR`。
+
 **本机数据现状（`/Users/didi/DATA`，已验证就绪，勿再探测）**：
 
 | 路径 | 内容 | 形状/数量 |

@@ -53,16 +53,17 @@ NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产
 # 数值分析产物——代码与数据分离，统一落数据根下（受 FACTOR_REPL_DATA_ROOT 控制）。
 INVENTORY_ROOT = _DATA_ROOT / "factor-inventory"
 
-# 分钟级因子用：原始 per-stock 分钟 parquet 目录（用户日更）+ 中间产物缓存目录
+# 分钟级因子：后复权 per-stock 1m parquet 目录（stock-data-fetching/minute_ohlcv.py 产出）
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
-INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "factor-replication/intermediate_cache"
+# 分钟→日频特征 中间缓存（可再生；market-data/factors/factor-inventory 的同级兄弟）
+INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "intermediate-cache"
 
-# ==================== 逐股原始行情（alpha158 等代码批量因子的生产原料） ====================
+# ==================== 逐股原始日频行情（alpha158 生产原料 + 复权因子） ====================
 # 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权在读时实时算（core.producers.alpha158.loader）。
-# 由 stock-data-fetching 仓产出/日更；当前仍在 my-alpha-engine-meta/（后续迁 raw-ohlcv/ 再改这里）。
-_RAW_OHLCV_ROOT = _MKT / "my-alpha-engine-meta"
-RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv"          # 逐股原始 OHLCV
-EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"    # 逐股稀疏复权因子
+# 由 stock-data-fetching 仓产出/日更。daily/ 与 minute/ 对称。
+_RAW_OHLCV_ROOT = _MKT / "daily"
+RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv"          # 逐股原始日频 OHLCV
+EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"    # 逐股稀疏复权因子（日频/分钟共用）
 INSTRUMENTS_INFO_PATH = _RAW_OHLCV_ROOT / "instruments_info.parquet"   # 股票基本信息（待补）
 TRADING_CALENDAR_PATH = _RAW_OHLCV_ROOT / "trading_calendar.parquet"   # 交易日历（待补）
 

@@ -5,7 +5,10 @@ CLI 入口：串起 dataset → select(Stage1) → train(Stage2) → evaluate �
     python -m ml.run                          # 全203因子 → GBDT重要性选64 → 重训 → test模型IC
     python -m ml.run --top-k 64 --run-id exp001
     python -m ml.run --date-sample 5 --max-features 60   # 冒烟
-产物落 FACTOR_REPL_DATA_ROOT/ml/{models,predictions}/<run_id>/
+产物：
+    FACTOR_REPL_DATA_ROOT/ml/models/<run_id>/       model.txt + selected_features.json
+    FACTOR_REPL_DATA_ROOT/ml/predictions/<run_id>/  pred_panel + ic_series
+    <repo>/ml/logs/<run_id>/run.log                 训练全记录 + 入选因子重要性（方便查看）
 """
 from __future__ import annotations
 
@@ -30,7 +33,17 @@ def main() -> None:
     ap.add_argument("--max-features", type=int, default=None)
     ap.add_argument("--run-id", default=None)
     args = ap.parse_args()
-    run_id = args.run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    launch_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = args.run_id or launch_ts
+
+    # 日志：控制台 + 落盘 logs/<run_id>/run_<时间戳>.log
+    # 文件名带启动时间戳 → 即使复用 run_id，每次训练也是独立文件，绝不覆盖/追加
+    log_dir = config.ML_LOGS_DIR / run_id
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"run_{launch_ts}.log"
+    log_sink = logger.add(log_path, level="INFO",
+                          format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}")
+    logger.info(f"[run {run_id}] 启动 @ {launch_ts} | 日志: {log_path} | 参数: {vars(args)}")
 
     sp = build_dataset(args.sources, date_sample=args.date_sample, max_features=args.max_features)
 
@@ -39,9 +52,13 @@ def main() -> None:
     selected, scores, _ = selector(sp.X_train, sp.y_train, sp.X_valid, sp.y_valid, top_k=args.top_k)
     model_dir = config.ML_MODELS_DIR / run_id
     save_selection(selected, scores, f"{args.select_method}_gain", model_dir)
+    # 特征选择结果写入 run.log（入选 top-k + 重要性），不另产 csv
+    logger.info(f"[select-{args.select_method}] 入选 top-{len(selected)}（按重要性降序）：")
+    for i, f in enumerate(selected, 1):
+        logger.info(f"    {i:>3}. {f:<40} importance={scores[f]:.2f}")
 
     # Stage 2: 仅用选出的因子重训
-    model, best_it, _ = train_gbdt(sp.X_train[selected], sp.y_train, sp.X_valid[selected], sp.y_valid)
+    model, best_it, _ = train_gbdt(sp.X_train[selected], sp.y_train, sp.X_valid[selected], sp.y_valid, tag="final")
     model.save_model(str(model_dir / "model.txt"), num_iteration=best_it)
 
     # 评估：样本外模型 IC
@@ -52,6 +69,7 @@ def main() -> None:
     pred_dir = config.ML_PREDICTIONS_DIR / run_id; pred_dir.mkdir(parents=True, exist_ok=True)
     pred.to_parquet(pred_dir / "pred_panel.parquet")
     ic.to_frame("ic").to_parquet(pred_dir / "ic_series.parquet")
+    logger.remove(log_sink)
     return ic
 
 

@@ -127,3 +127,4 @@ ml/
   predictions/<run_id>/  # ŷ 面板 + ic_series（逐日截面 IC）
   datasets/<run_id>/     # (可选) train/valid/test 矩阵，便于复跑
 ```
++ 训练日志落在 **repo 内 `ml/logs/<run_id>/run.log`**（含入选因子重要性，方便查看；.gitignore 排除）。

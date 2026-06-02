@@ -31,7 +31,7 @@ def select_by_gbdt_importance(
 
     返回 (selected: list[str], scores: pd.Series 按重要性降序, booster)。仅用 train+valid。
     """
-    booster, best_it, _ = train_gbdt(X_train, y_train, X_valid, y_valid, params=params)
+    booster, best_it, _ = train_gbdt(X_train, y_train, X_valid, y_valid, params=params, tag="select")
     imp = booster.feature_importance(importance_type=importance_type, iteration=best_it)
     scores = pd.Series(imp, index=list(X_train.columns)).sort_values(ascending=False)
     k = min(top_k, len(scores))
@@ -46,7 +46,7 @@ def select_by_shap(
 ):
     """（后续）SHAP TreeExplainer：训 LightGBM → 采样 → mean(|SHAP|) 排序 → top_k。对照 gbdt-importance。"""
     import shap  # 延迟导入
-    booster, best_it, _ = train_gbdt(X_train, y_train, X_valid, y_valid, params=params)
+    booster, best_it, _ = train_gbdt(X_train, y_train, X_valid, y_valid, params=params, tag="select-shap")
     Xall = pd.concat([X_train, X_valid])
     Xs = Xall.sample(min(n_sample, len(Xall)), random_state=0)
     sv = shap.TreeExplainer(booster).shap_values(Xs)

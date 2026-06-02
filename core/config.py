@@ -58,8 +58,10 @@ INVENTORY_ROOT = _DATA_ROOT / "factor-inventory"
 # 代码线(repo 的 ml/) 与 数据线(此处) 分离，与 factors/ factor-inventory/ 平级。
 ML_ROOT = _DATA_ROOT / "ml"
 ML_MODELS_DIR = ML_ROOT / "models"            # lgbm 模型 + 超参 + RobustZScore 尺子
-ML_PREDICTIONS_DIR = ML_ROOT / "predictions"  # ŷ 面板 + test 评估(IC/分层)
+ML_PREDICTIONS_DIR = ML_ROOT / "predictions"  # ŷ 面板 + test 评估(IC)
 ML_DATASETS_DIR = ML_ROOT / "datasets"        # (可选) train/valid/test 矩阵，便于复跑
+# 日志落在【repo 内 ml/logs/】（方便查看，受 .gitignore 排除），非数据根
+ML_LOGS_DIR = Path(__file__).parent.parent / "ml" / "logs"   # 每次 run 的训练日志
 
 # 分钟级因子：后复权 per-stock 1m parquet 目录（stock-data-fetching/minute_ohlcv.py 产出）
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"

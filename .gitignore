@@ -40,3 +40,4 @@ __pycache__/
 .DS_Store
 Thumbs.db
 /factor_inventory/
+ml/logs/

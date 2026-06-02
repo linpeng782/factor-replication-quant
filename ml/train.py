@@ -37,24 +37,33 @@ def train_gbdt(
     params: dict | None = None,
     num_boost_round: int = NUM_BOOST_ROUND,
     early_stopping_rounds: int = EARLY_STOPPING_ROUNDS,
-    verbose_eval: int = 0,
+    tag: str = "train",
+    n_log_points: int = 15,
 ):
-    """训练单个 LightGBM 回归模型；valid 早停。返回 (booster, best_iteration, eval_hist)。"""
+    """训练单个 LightGBM 回归模型；valid 早停。返回 (booster, best_iteration, eval_hist)。
+
+    训练过程的 train/valid loss 下降曲线会写入日志（约 n_log_points 个采样点 + best）。
+    tag 用于区分不同阶段的训练（如 'select' / 'final'）。
+    """
     p = {**DEFAULT_PARAMS, **(params or {})}
     dtr = lgb.Dataset(X_train, label=y_train, free_raw_data=False)
     dva = lgb.Dataset(X_valid, label=y_valid, reference=dtr, free_raw_data=False)
     hist: dict = {}
-    callbacks = [
-        lgb.early_stopping(early_stopping_rounds, verbose=False),
-        lgb.record_evaluation(hist),
-    ]
-    if verbose_eval:
-        callbacks.append(lgb.log_evaluation(verbose_eval))
     booster = lgb.train(
         p, dtr, num_boost_round=num_boost_round,
         valid_sets=[dtr, dva], valid_names=["train", "valid"],
-        callbacks=callbacks,
+        callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False),
+                   lgb.record_evaluation(hist)],
     )
-    logger.info(f"[train] best_iteration={booster.best_iteration} "
-                f"valid_l2={hist['valid']['l2'][booster.best_iteration-1]:.6f}")
-    return booster, booster.best_iteration, hist
+    # 把 train/valid loss 下降曲线写进日志（record_evaluation 已逐轮捕获）
+    tr, va = hist["train"]["l2"], hist["valid"]["l2"]
+    n = len(va); best = booster.best_iteration
+    step = max(1, n // n_log_points)
+    logger.info(f"[{tag}] 训练损失曲线（共 {n} 轮，metric=l2）：")
+    rounds = sorted(set(list(range(0, n, step)) + [n - 1]))
+    for i in rounds:
+        mark = "  <- best" if (i + 1) == best else ""
+        logger.info(f"    round {i+1:>4}: train_l2={tr[i]:.6f}  valid_l2={va[i]:.6f}{mark}")
+    logger.info(f"[{tag}] best_iteration={best}  valid_l2={va[best-1]:.6f}  "
+                f"(早停于第 {n} 轮，valid 连续 {early_stopping_rounds} 轮无改善)")
+    return booster, best, hist

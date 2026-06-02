@@ -53,6 +53,14 @@ NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产
 # 数值分析产物——代码与数据分离，统一落数据根下（受 FACTOR_REPL_DATA_ROOT 控制）。
 INVENTORY_ROOT = _DATA_ROOT / "factor-inventory"
 
+# ==================== ML 训练流水线产物：ml/ ====================
+# LightGBM 因子合成（repo 顶层 ml/ 包产出）：模型 / 预测 / (可选)数据集。
+# 代码线(repo 的 ml/) 与 数据线(此处) 分离，与 factors/ factor-inventory/ 平级。
+ML_ROOT = _DATA_ROOT / "ml"
+ML_MODELS_DIR = ML_ROOT / "models"            # lgbm 模型 + 超参 + RobustZScore 尺子
+ML_PREDICTIONS_DIR = ML_ROOT / "predictions"  # ŷ 面板 + test 评估(IC/分层)
+ML_DATASETS_DIR = ML_ROOT / "datasets"        # (可选) train/valid/test 矩阵，便于复跑
+
 # 分钟级因子：后复权 per-stock 1m parquet 目录（stock-data-fetching/minute_ohlcv.py 产出）
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
 # 分钟→日频特征 中间缓存（可再生；market-data/factors/factor-inventory 的同级兄弟）

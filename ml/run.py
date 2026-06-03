@@ -8,7 +8,7 @@ CLI 入口：串起 dataset → select(Stage1) → train(Stage2) → evaluate �
 产物：
     FACTOR_REPL_DATA_ROOT/ml/models/<run_id>/       model.txt + selected_features.json
     FACTOR_REPL_DATA_ROOT/ml/predictions/<run_id>/  pred_panel + ic_series
-    <repo>/ml/logs/<run_id>/run.log                 训练全记录 + 入选因子重要性（方便查看）
+    <repo>/ml/logs/<run_id>_<时间戳>.log            训练全记录 + 入选因子重要性（方便查看）
 """
 from __future__ import annotations
 
@@ -36,11 +36,10 @@ def main() -> None:
     launch_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_id = args.run_id or launch_ts
 
-    # 日志：控制台 + 落盘 logs/<run_id>/run_<时间戳>.log
+    # 日志：控制台 + 直接落盘 logs/<run_id>_<时间戳>.log（扁平，无 run_id 子目录）
     # 文件名带启动时间戳 → 即使复用 run_id，每次训练也是独立文件，绝不覆盖/追加
-    log_dir = config.ML_LOGS_DIR / run_id
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"run_{launch_ts}.log"
+    config.ML_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = config.ML_LOGS_DIR / f"{run_id}_{launch_ts}.log"
     log_sink = logger.add(log_path, level="INFO",
                           format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}")
     logger.info(f"[run {run_id}] 启动 @ {launch_ts} | 日志: {log_path} | 参数: {vars(args)}")

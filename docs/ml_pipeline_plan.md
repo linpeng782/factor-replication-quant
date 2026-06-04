@@ -60,10 +60,12 @@ train : 2012-01 ~ 2019-11   (8 年, fit 尺子 + fit 模型梯度)
         └ embargo: 2019-12 整月丢弃 (≥20 交易日 horizon, 防标签泄露)
 valid : 2020-01 ~ 2021-11   (2 年, 只早停 + 选超参)
         └ embargo: 2021-12
-test  : 2022-01 ~ 2026-03   (样本外, 只最终评估一次)
+test  : 2022-01 ~ 2026-03   (样本外, 只最终评估一次; 末日=标签可兑现末日 2026-03-31)
 ```
 - 严格**按时间切，不 shuffle**；embargo = 1 个交易月（标签 horizon=20 日）。
 - 国金之十图表13：LightGBM **一次性训练**（IC 10.69%）优于滚动(8.14%)/扩展(8.42%)。
+- test 末日 **2026-03-31 = 标签可兑现末日**（20 日 forward 收益需未来 20 个交易日，受行情末日所限）；**评估口径固定于此，不随因子更新前移**。
+- **实盘推理**（`predict_live`）用同一把 train 段尺子，把 ŷ 补到所有入选因子**共同覆盖的最新交易日**（当前 2026-05-27，只过 pre_mask、不过 label，是评估面板的超集）；评估口径不受影响，两面板在共有格子上 ŷ 逐元素相等。
 
 ---
 
@@ -89,8 +91,8 @@ test  : 2022-01 ~ 2026-03   (样本外, 只最终评估一次)
 | 输入 | **仅 Stage 1 选出的 64 因子** | — |
 | objective | `regression`（MSE/L2） | 国金：改 IC loss 无显著提升 |
 | boosting | **GBDT（先跑通）** | 再上 DART |
-| 早停 | `early_stopping` on valid（patience≈80），回滚 best_iteration | — |
-| 随机种子 | **1 个（先跑通）** | 再扩 5 个取均值 |
+| 早停 | `early_stopping` on valid，**patience=200 / num_boost_round=1000**，回滚 best_iteration | patience=80 曾把 final 截到 **8 棵树**（valid 早期局部极小被过早锚定，第二次下降还没超过它就触发）→ ŷ 粗、tie 多、top-N 边界靠 tie-break 抖动；放宽到 200 后收敛到 ~200–230 棵，test IC **+0.110→+0.122**（见 §8） |
+| 随机种子 | 当前 **seed=42**（train.py 默认；曾用 1） | 种子是**噪声级**变量：seed 1↔42 入选因子 **56/64 重合**（仅尾部近义因子互换）、test IC 仅差 ±0.0014；多种子取均值仍待办 |
 | universe | **全 A 训练** | 再做成分股对比 |
 | 关键超参 | num_leaves / min_child_samples / learning_rate / feature_fraction / bagging_fraction / lambda | 在 valid 上调 |
 
@@ -117,14 +119,80 @@ ml/
   select.py      # Stage 1 因子筛选：GBDT feature_importance（→ 后续 SHAP）→ top-64
   train.py       # Stage 2 LightGBM(GBDT/MSE) + 早停
   evaluate.py    # 模型 IC（逐日截面 Spearman）
-  run.py         # CLI 入口，串起 dataset → select → train → evaluate
+  run.py         # CLI 入口，串起 dataset → select → train → evaluate；并物化 scaler_x（供实盘复用）
+  predict_live.py# 实盘推理支路：raw → train 段 scaler → 打分补到最新因子日（只过 pre_mask，不过 label）
+  export_signal.py# 导出回测可读信号：ŷ 面板 → 每日 YYYY-MM-DD.txt（默认 live 口径/daily 布局；可切 eval/merged）
 ```
 
 **数据产物（`FACTOR_REPL_DATA_ROOT/ml/`，与 factors/ 平级）**
 ```
 ml/
-  models/<run_id>/       # lgbm 模型 + 超参 + RobustZScore 尺子 + selected_features.json
-  predictions/<run_id>/  # ŷ 面板 + ic_series（逐日截面 IC）
+  models/<run_id>/       # model.txt + selected_features.json + scaler_x.parquet(median/scale, train 段) + 超参
+  predictions/<run_id>/  # pred_panel(评估口径,止于2026-03-31) + pred_panel_live(实盘口径,到最新因子日) + ic_series
+  signals/<run_id>/      # 回测信号：每日 YYYY-MM-DD.txt（top-N，行=「日期_代码」，行序即优先级）；可选 merged signal.txt
   datasets/<run_id>/     # (可选) train/valid/test 矩阵，便于复跑
 ```
-+ 训练日志落在 **repo 内 `ml/logs/<run_id>/run.log`**（含入选因子重要性，方便查看；.gitignore 排除）。
++ 训练日志落在 **repo 内 `ml/logs/<run_id>_<时间戳>.log`**（含入选因子重要性；带时间戳，复用 run_id 也不覆盖；.gitignore 排除）。
+
+> 全链路一条命令串起：`python -m ml.run --run-id X` → `python -m ml.predict_live --run-id X` → `python -m ml.export_signal --run-id X`。
+> run_id 驱动所有目录，便于并存多版模型对比（如 `full_gbdt_es200`、`full_gbdt_seed42`）。
+
+---
+
+## 8. 实测结论（2026-06）
+
+### 8.1 top_k 扫描：64 是边际效率拐点（非精度最优）
+
+固定同一份 gain 重要性降序，逐 k 取前 k 因子重训 → 样本外 test IC（口径同 §6）：
+
+| top_k | 8 | 16 | 24 | 32 | 48 | **64** | 96 | 128 | 160 | 203 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| test IC | .1024 | .1008 | .1024 | .1176 | .1202 | **.1217** | .1233 | .1239 | **.1244** | .1241 |
+| best_it | 5 | — | — | 316 | — | 231 | — | — | 峰值 | 回落 |
+
+三段形态：① **k≤24 塌陷**（因子太少，早停只长出 ~5 棵树，ŷ 粗）；② **24→32 相变**（树数从个位数跳到数百，IC 阶跃 +0.015）；③ **k≥32 平台**，边际增益 64→96→128 递减、**96~128 归零**，**160 见顶 .1244、203 回落 .1241**（过拟合起点）。
+→ **64 ≈ 峰值 98%**，是「3× 更轻的因子依赖 vs 噪声级 IC 代价」的工程甜点。（曲线见 `ml/topk_sweep.png` / `topk_sweep.csv`）
+
+> 易混点：表里**逐档边际增益 ΔIC**（台阶高度/斜率）≠ **IC 水平**（楼层）。IC 是累积量，故 160 楼层最高；但 ΔIC 在 64 之后趋平 → 64 是「效率」拐点而非「精度」最优。
+
+### 8.2 203 vs 64：为何不用 l2 更低的全因子模型
+
+203 因子 valid_l2=3.4328 < 64 因子 3.4375（低 0.14%），但**样本外 test IC 仅 +0.1243 vs +0.1217（Δ+0.0026，噪声级）**。
+valid_l2 更低 ≠ 选股更强：l2 是逐样本回归误差，IC 是逐日截面**排序**相关——口径不同。冗余因子降 l2 靠拟合标签噪声，未转化为跨日选股力。故取 64：**因子依赖轻 3 倍，IC 代价噪声级**。
+
+### 8.3 三个噪声级变量（不值得纠结）
+
+| 变量 | 实测 | 结论 |
+|---|---|---|
+| 早停 patience | 80 → final 仅 8 棵树（valid 早期局部极小被过早锚定）；200 → ~231 棵，test IC **+0.110→+0.122** | **唯一非噪声**：patience 必须够大，否则 ŷ 粗、tie 多 |
+| 随机种子 | seed 1↔42：入选因子 **56/64 重合**（8 个尾部近义因子互换 KLOW/MIN10/MIN20/STD5↔LOW0/MIN5/RSV60/SUMD5）；test IC ±0.0014、ICIR ±0.018 | 噪声级；多种子取均值待办 |
+| num_threads | 并行直方图浮点求和顺序不定 → IC ±0.002 抖动 | 噪声级；要严格复现需固定单线程 |
+
+---
+
+## 9. 实盘信号 → 回测对接
+
+### 9.1 链路
+
+```
+ml.run --run-id X                          # 训练 + 评估口径 pred_panel(止于 2026-03-31)
+  → ml.predict_live --run-id X             # 实盘口径 pred_panel_live(补到最新因子日)
+  → ml.export_signal --run-id X --source live --layout daily   # 每日 YYYY-MM-DD.txt
+  → 回测项目 signal_dir 指向 signals/<run_id>/                  # signal_file 留空=daily 模式
+```
+回测（daily-realtime-backtest-pipeline）只读**排序**不读分数，故导出无损；daily 模式由 `signal_file` 为空触发（正则 `^\d{4}-\d{2}-\d{2}\.txt`），逐日读 `{date}.txt`。
+
+### 9.2 「8 棵树假优势」回测实证（重要警示）
+
+把 8 棵树版（full_gbdt）与 231 棵版（es200）都转 daily、同区间（2022-01-05~2026-04-01, top_k=100, T+1, netting）对比：
+
+| | 8 棵树 | 231 棵 |
+|---|---|---|
+| 超额夏普 / IR | **1.19 / 1.19** | 1.09 / 1.09 |
+| 年化超额 | **23.79%** | 22.15% |
+| 超额最大回撤 | **31.72%** | 35.91% |
+| 换手 | 53.59 | 49.26 |
+
+**反直觉：树更少（IC 更低）的版本回测反而更稳、更均匀。** 机理：8 棵树 → ŷ 仅几个离散值 → 大量 tie → top-100 边界由 **tie-break（pandas 按股票代码字典序）** 决定 → 选出篮子被推向近随机/类指数 → 跟踪误差低、回撤小、年度收益均匀。
+这是**伪优势**（代码序偏置的被动分散），非真 alpha。
+→ 核心教训：**IC↑ ≠ top-100 等权回测↑**（评价口径 vs 组合口径的 gap）；ŷ 必须足够细（树够多）才能让排序真正反映模型观点，而非被 tie-break 接管。

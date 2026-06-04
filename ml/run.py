@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime
 
+import pandas as pd
 from loguru import logger
 
 from core import config
@@ -51,6 +52,10 @@ def main() -> None:
     selected, scores, _ = selector(sp.X_train, sp.y_train, sp.X_valid, sp.y_valid, top_k=args.top_k)
     model_dir = config.ML_MODELS_DIR / run_id
     save_selection(selected, scores, f"{args.select_method}_gain", model_dir)
+    # 存 RobustZScore 尺子(median/scale, train段拟合)：实盘推理(predict_live)复用同一把尺，口径一致
+    model_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({"median": sp.scaler_x.median_, "scale": sp.scaler_x.scale_}).to_parquet(
+        model_dir / "scaler_x.parquet")
     # 特征选择结果写入 run.log（入选 top-k + 重要性），不另产 csv
     logger.info(f"[select-{args.select_method}] 入选 top-{len(selected)}（按重要性降序）：")
     for i, f in enumerate(selected, 1):

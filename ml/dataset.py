@@ -117,7 +117,7 @@ def build_dataset(
     for j, name in enumerate(feat_names):
         df = pd.read_parquet(pathmap[name]); df.index = pd.to_datetime(df.index)
         df = df.reindex(index=all_dates, columns=all_stocks)
-        arr = df.to_numpy(dtype=np.float32)
+        arr = df.to_numpy(dtype=np.float32, copy=True)  # 强制可写副本：避免 pyarrow zero-copy 只读视图
         arr[~np.isfinite(arr)] = np.nan      # inf→NaN
         for seg in SPLIT:
             rp, cp = seg_idx[seg]

@@ -24,11 +24,11 @@ DEFAULT_PARAMS = dict(
     lambda_l1=0.0,
     lambda_l2=0.0,
     num_threads=64,
-    seed=1,                    # 先单种子
+    seed=42,                    # 先单种子
     verbose=-1,
 )
-NUM_BOOST_ROUND = 500
-EARLY_STOPPING_ROUNDS = 80
+NUM_BOOST_ROUND = 1000
+EARLY_STOPPING_ROUNDS = 200
 
 
 def _make_live_logger(tag: str, period: int):

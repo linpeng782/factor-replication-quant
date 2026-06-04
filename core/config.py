@@ -60,6 +60,7 @@ ML_ROOT = _DATA_ROOT / "ml"
 ML_MODELS_DIR = ML_ROOT / "models"            # lgbm 模型 + 超参 + RobustZScore 尺子
 ML_PREDICTIONS_DIR = ML_ROOT / "predictions"  # ŷ 面板 + test 评估(IC)
 ML_DATASETS_DIR = ML_ROOT / "datasets"        # (可选) train/valid/test 矩阵，便于复跑
+ML_SIGNALS_DIR = ML_ROOT / "signals"          # 回测可读信号：每日排序选股名单 txt（export_signal.py 产出）
 # 日志落在【repo 内 ml/logs/】（方便查看，受 .gitignore 排除），非数据根
 ML_LOGS_DIR = Path(__file__).parent.parent / "ml" / "logs"   # 每次 run 的训练日志
 

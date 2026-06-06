@@ -31,11 +31,14 @@ step "6/8 refresh_supersets（刷新所有 superset 到最新）"
 
 step "7/8 L3 因子重算（cache-hit superset；逐个，失败仅告警不中断）"
 cd "$REPO"
+# 因子面板结束日 = 最新 raw 交易日（动态；否则用死的 DEFAULT_END 会停在旧日期，新日进不了面板）
+END_DATE="${END_DATE:-$(ls "$FACTOR_REPL_DATA_ROOT"/market-data/minute/raw/[0-9]*.parquet 2>/dev/null | tail -1 | xargs -n1 basename | sed 's/\.parquet//; s/-//g')}"
+echo "  end-date=$END_DATE（最新 raw 交易日）"
 n_ok=0; n_fail=0
 for d in $FACTOR_GLOB/; do
   [ -f "$d/spec.yaml" ] || continue
   qp=$(echo "$d" | sed -E 's#^sources/([^/]+)/([^/]+)/specs/([^/]+)/?$#\1/\2/\3#')
-  if PYTHONPATH=. python run.py "$qp" >/dev/null 2>&1; then n_ok=$((n_ok+1)); else echo "  ⚠️ FAIL $qp"; n_fail=$((n_fail+1)); fi
+  if PYTHONPATH=. python run.py "$qp" --end-date "$END_DATE" >/dev/null 2>&1; then n_ok=$((n_ok+1)); else echo "  ⚠️ FAIL $qp"; n_fail=$((n_fail+1)); fi
 done
 echo "  因子完成: ok=$n_ok fail=$n_fail"
 

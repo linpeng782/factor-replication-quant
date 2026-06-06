@@ -70,7 +70,7 @@ def predict_live(run_id: str = "full_gbdt", start: str = "2022-01-01", end: str 
     mat = np.full((len(rr), len(sel)), np.nan, dtype=np.float32)
     for j, name in enumerate(sel):
         df = pd.read_parquet(pathmap[name]); df.index = pd.to_datetime(df.index)
-        arr = df.reindex(index=dates, columns=stocks).to_numpy(dtype=np.float32)
+        arr = df.reindex(index=dates, columns=stocks).to_numpy(dtype=np.float32, copy=True)  # 可写副本：避免 pyarrow 只读视图
         arr[~np.isfinite(arr)] = np.nan
         mat[:, j] = arr[rr, cc]
         if (j + 1) % 20 == 0:

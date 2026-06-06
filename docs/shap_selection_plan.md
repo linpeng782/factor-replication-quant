@@ -34,10 +34,10 @@
 | 绝对 forward_return 标签 (vwap) | ✅ 有 → ❌ **缺超额收益标签** |
 | 指数成分股 membership (300/500/1000) | ❌ 缺 |
 | RobustZScore 预处理 | ❌ 缺（现为 MAD+截面zscore，与十§一GBDT结论不符）|
-| ML 数据集构建器 (因子+标签→矩阵) | ❌ 缺 |
-| LightGBM/DART 训练 | ❌ 缺 |
-| SHAP 计算 | ❌ 缺 |
-| GRU / 组合优化器 | ❌ 缺（Phase 5）|
+| ML 数据集构建器 (因子+标签→矩阵) | ✅ 有 `ml/dataset.py`（203因子, 8+2+test, embargo） |
+| LightGBM 训练 + gain importance 选 64 | ✅ 有，已实跑（`full_gbdt_es200` test IC≈+0.122，top_k=64 为效率拐点）|
+| SHAP 计算 (`ml/select.py:select_by_shap`) | ⚠️ **代码已写好且接入 run.py，但 shap 未安装、从未实跑** |
+| DART / GRU / 组合优化器 | ❌ 缺（Phase 5）|
 
 ## 三、分阶段执行计划
 
@@ -57,24 +57,53 @@
 - 切分：**一次性 8年训 + 2年验 + 测试**(十§三)。
 - 产出：`(样本=日×股) × (221特征 + 超额标签)` 矩阵 + train/val/test 索引。
 
-### Phase 3 — LightGBM(DART) baseline + SHAP 筛选（核心）
-- **3a** 训练 LightGBM(`boosting='dart'`) 全 221 因子 → 超额收益(回归 MSE)，5 种子平均。
-- **3b** `shap.TreeExplainer` → 抽样 10⁵ 行 → `mean(|SHAP|)` → 221 因子重要性排序。
-- **3c** 选 **top-K**（扫 K=32/64/100）；**年度滚动**重选（十三§3.4）。
-- 产出：`shap_importance_<year>.csv`、`selected_factors_<year>.csv`。
+### Phase 3 — LightGBM baseline + SHAP 筛选（核心，框架已就位）
+- **3a** ✅ 已完成：LightGBM(GBDT) 全 203 因子 → gain importance → top-64（`full_gbdt_es200`）。
+- **3b** ⚠️ 待跑：`shap.TreeExplainer` → 抽样 10⁵ 行 → `mean(|SHAP|)` → 203 因子重要性排序。代码已在 `ml/select.py:select_by_shap`。
+- **3c** 先**一次性**筛选（与我们 one-shot 训练一致）；年度滚动(十三§3.4) 待对照跑通后再权衡（成本高）。
 
-### Phase 4 — 验证：SHAP 选择 vs 全量 vs 我们的统计选择
-- 用 top-K 重训 LightGBM(DART) → OOS：IC/ICIR/多头超额/多空。
-- **对照 3 组**：① 全 221 baseline；② SHAP top-K；③ 我们之前的相关性/ICIR 统计选择集。
-- 关键看点：**① SHAP 选的少因子能否 ≈ 全量？② cxl 基本面 / kysec 分钟因子 进没进 top-K？**（这是我们相对国金 Alpha158-only 的增量）
+### Phase 4 — SHAP vs gain 对照实验（可执行 · 本阶段重点）
+
+**前置**：`pip install shap`（≥0.44，对 LightGBM NaN 支持稳定）。先小样本冒烟确认 `shap_values` 维度/无报错。
+
+**命令**（与 gain 基线同口径，仅换 Stage 1 筛选方法）：
+```bash
+python -m ml.run --select-method shap --top-k 64 --date-sample 5 --max-features 60 --run-id shap_smoke  # 冒烟
+python -m ml.run --select-method shap --top-k 64 --run-id shap_top64                                    # 全量
+```
+
+**三个看点**（对照基线 `full_gbdt_es200`）：
+
+| # | 问题 | 判读标准 |
+|---|---|---|
+| Q1 | SHAP top-64 与 gain top-64 **重合度** | ≥56/64 → 与研报一致(gain 已够用)；列出仅 SHAP / 仅 gain 名单看是否仅尾部近义因子互换 |
+| Q2 | SHAP 选的 64 因子重训 **test IC** vs gain +0.122 | 预期 **\|ΔIC\|<0.002 噪声级**。十三§3 原文：纯 GBDT 下 gain 已具特征选择力，SHAP 主要为喂 NN |
+| Q3 | **★cxl 基本面 / kysec 分钟因子在 SHAP top-64 各占几席** | 直接回答「203 vs 国金 Alpha158-only 增量值不值」——本实验核心产出 |
+
+> 预期管理：**Q2 打平是符合研报的正常结果，不是失败**；SHAP 真正增益在 NN 分支(Phase 5)。本实验价值在 Q3(增量证据) + Q1(方法论交叉验证)。
+
+**可选增强 — MMR 去冗余**（比研报更有意义）：研报在 Alpha158 上称 MMR 效果有限，但 plan §8 实测我们 203 因子仅 ~34 个独立 alpha、高度冗余，纯 `mean(|SHAP|)` 会扎堆选近义因子。MMR(十三§3.2) 让 64 名额覆盖更多独立信息源：
+```
+MMR(Dᵢ) = mean(|SHAP|)(Dᵢ) × (1 − max_{Dⱼ∈已选} |Spearman(Dᵢ, Dⱼ)|)   # 贪心逐个入选
+```
+仅在上面对照跑通后再做，看 IC/ICIR 是否提升。
+
+**执行清单**：
+- [ ] `pip install shap` → 冒烟 `shap_smoke`
+- [ ] 全量 `shap_top64`
+- [ ] 填 Q1 重合度 + 仅 SHAP/仅 gain 名单
+- [ ] 填 Q2 IC 对照（gain +0.122 vs SHAP）
+- [ ] 填 Q3 cxl/kysec 占比（★核心）
+- [ ] （可选）MMR 组 `shap_mmr64`
+- [ ] 结论回写 `ml_pipeline_plan.md §6`
 
 ### Phase 5（扩展，可后做）
 - 加 **GRU**（SHAP 用 GradientExplainer）；**GBDT+NN 合成**；**因子+标签中性化**(neu, 十三§四)；
 - **马科维茨 TE≤5% 组合优化** → 指数增强策略；月频回测(手续费单边千二)。
 
-## 四、MVP 最小可行路径（建议先做）
-**Phase 1（超额标签 + 中证1000成分股）→ Phase 2（数据集）→ Phase 3（LightGBM+DART+SHAP）→ Phase 4（验证）**。
-先不碰 NN / 指增组合优化。一条链跑通即可回答："SHAP 在我们 221 因子上选出哪 top-K、cxl/kysec 占几席、少因子能否打平全量"。
+## 四、MVP 最小可行路径（当前进度）
+Phase 1（超额标签，等权 demean）→ Phase 2（数据集）→ Phase 3a（LightGBM + gain 选 64）**均已完成**，链路已跑通（test IC≈+0.122）。
+**当前唯一待做 = Phase 4 的 SHAP 对照实验**（装包 + 实跑 + 填三个看点表），即可回答："SHAP 在 203 因子上选哪 top-64、cxl/kysec 占几席、与 gain 是否打平"。NN / 指增组合优化仍留 Phase 5。
 
 ## 五、落点
 - 建议新建 modeling 仓 或 `factor-repilcation-quant/modeling/`。

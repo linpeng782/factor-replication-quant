@@ -198,53 +198,23 @@ class MinuteAggregateEngine:
         merged.to_parquet(tmp)
         os.replace(tmp, cache_path)
 
-    def refresh_cache(self, universe: List[str]) -> None:
-        """统一"处理时间窗口"引擎（设计 §6-L2 / §7）：全量/增量同一路径。
+    def _run_build_pass(
+        self,
+        need_obs: List[str],
+        start_idx: int,
+        raw_dates: List[pd.Timestamp],
+        last_per_stock: Dict,
+        warmup: int,
+        workers: int,
+        ctx_fork,
+        flush_chunks: int,
+    ) -> int:
+        """通用建库/增量循环（主增量 pass + 新股 pass 共用）。返回写入的股票数。
 
-        按交易日分块迭代，块首回看 `reducer.warmup` 交易日真实数据 warmup；
-        增量前沿 = max(cache_last)（⚠️ 非 min：退市股早 cache_last 会拖垮 min 误触发全量）；
-        无缓存新股增量模式跳过（避免残缺尾部）；每股只 append 严格大于其 cache_last 的新日。
+        last_per_stock[ob] is None  → 不加日期下界过滤（新股从头建）
+        last_per_stock[ob] = date   → 只 append 严格大于 date 的新行（增量 append）
         """
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        raw_dates = self._available_raw_dates()
-        if not raw_dates:
-            raise RuntimeError(f"minute/raw 为空: {MINUTE_RAW_DIR}")
-        raw_max = raw_dates[-1]
-
-        last_per_stock = {ob: self._cache_last_date(self.cache_dir / f"{ob}.parquet") for ob in universe}
-        cached = {ob: d for ob, d in last_per_stock.items() if d is not None}
-
-        if not cached:
-            need_obs = list(universe)
-            start_idx = 0
-        else:
-            frontier = max(cached.values())
-            start_idx = self._bisect_after(raw_dates, frontier)
-            need_obs = [ob for ob in cached if cached[ob] < raw_max]
-            new_obs = [ob for ob in last_per_stock if last_per_stock[ob] is None]
-            if new_obs:
-                logger.warning(
-                    f"[minute_engine] {len(new_obs)} 只无缓存(新股/未建) 增量模式跳过"
-                )
-
-        if not need_obs or start_idx >= len(raw_dates):
-            logger.info(f"[minute_engine] {self.reducer.cache_key} 缓存已最新，无需刷新")
-            return
-
-        warmup = self.reducer.warmup
-        workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))
-        ctx_fork = mp.get_context("fork")
-        logger.info(
-            f"[minute_engine] 刷新 {self.reducer.cache_key}: {len(need_obs)}/{len(universe)} 股 | "
-            f"目标日 {raw_dates[start_idx].date()}~{raw_max.date()} | "
-            f"warmup={warmup} 块={_CHUNK_DAYS} workers={workers}"
-        )
-
         global _WORKER_SUBTABLES, _WORKER_REDUCER
-        # B: 累积每股新行，每 _FLUSH_CHUNKS 块（含末尾）flush 一次 —— 避免每块 read-modify-write。
-        # 全量重建：每股写次数从 ~N_chunks(≈二次方累积) 降到 ~N_chunks/_FLUSH_CHUNKS；内存有界。
-        # 增量日更：块数 < _FLUSH_CHUNKS → 仅末尾一次 flush（与原行为一致，快）。
-        flush_chunks = max(1, int(os.environ.get("MINUTE_FLUSH_CHUNKS", "25")))
         pending: Dict[str, List[pd.DataFrame]] = {}
 
         def _flush() -> int:
@@ -261,7 +231,7 @@ class MinuteAggregateEngine:
         for ci in range(start_idx, len(raw_dates), _CHUNK_DAYS):
             tgt_lo = raw_dates[ci]
             tgt_hi = raw_dates[min(ci + _CHUNK_DAYS, len(raw_dates)) - 1]
-            load_lo = raw_dates[max(0, ci - warmup)]  # warmup overlap（真实数据，含嵌套 rolling）
+            load_lo = raw_dates[max(0, ci - warmup)]
             allm = load_adjusted_minute_window(load_lo, tgt_hi, stocks=need_obs)
             chunk_idx += 1
             if allm.empty:
@@ -286,4 +256,78 @@ class MinuteAggregateEngine:
             if chunk_idx % flush_chunks == 0:
                 n_written += _flush()
         n_written += _flush()
-        logger.info(f"[minute_engine] {self.reducer.cache_key} 刷新完成: flush {n_written} 股·次")
+        return n_written
+
+    def refresh_cache(self, universe: List[str]) -> None:
+        """统一"处理时间窗口"引擎（设计 §6-L2 / §7）：全量/增量 + 新股自动建库。
+
+        pass 1  主增量/全量
+          · 无缓存 → 全量 start_idx=0（首次建库）
+          · 有缓存 → 增量 start_idx = max(cache_last) 之后
+
+        pass 2  新股建库（仅增量模式触发）
+          · 检测 universe 中无缓存但有 raw 数据的新上市股
+          · 扫最近 NEW_STOCK_LOOKBACK_DAYS（默认 504 = 2 年）建短历史
+          · 建完后次日起走正常增量，无需人工干预
+        """
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        raw_dates = self._available_raw_dates()
+        if not raw_dates:
+            raise RuntimeError(f"minute/raw 为空: {MINUTE_RAW_DIR}")
+        raw_max = raw_dates[-1]
+
+        last_per_stock = {ob: self._cache_last_date(self.cache_dir / f"{ob}.parquet") for ob in universe}
+        cached = {ob: d for ob, d in last_per_stock.items() if d is not None}
+        new_obs = [ob for ob in last_per_stock if last_per_stock[ob] is None]
+
+        if not cached:
+            # 全量模式：universe 全部从头建，new_obs 已包含在内
+            need_obs = list(universe)
+            start_idx = 0
+            new_obs = []   # 全量已覆盖，pass 2 不再重复
+        else:
+            frontier = max(cached.values())
+            start_idx = self._bisect_after(raw_dates, frontier)
+            need_obs = [ob for ob in cached if cached[ob] < raw_max]
+
+        warmup = self.reducer.warmup
+        workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))
+        ctx_fork = mp.get_context("fork")
+        flush_chunks = max(1, int(os.environ.get("MINUTE_FLUSH_CHUNKS", "25")))
+
+        # ── pass 1：主增量 / 全量 ──────────────────────────────────────
+        if need_obs and start_idx < len(raw_dates):
+            logger.info(
+                f"[minute_engine] pass1 {self.reducer.cache_key}: {len(need_obs)}/{len(universe)} 股 | "
+                f"目标日 {raw_dates[start_idx].date()}~{raw_max.date()} | "
+                f"warmup={warmup} 块={_CHUNK_DAYS} workers={workers}"
+            )
+            n1 = self._run_build_pass(
+                need_obs, start_idx, raw_dates, last_per_stock,
+                warmup, workers, ctx_fork, flush_chunks,
+            )
+            logger.info(f"[minute_engine] pass1 完成: {n1} 股写入")
+        else:
+            logger.info(f"[minute_engine] {self.reducer.cache_key} 主缓存已最新，pass1 跳过")
+
+        # ── pass 2：新股建库 ───────────────────────────────────────────
+        # 对 universe 中无缓存的股票，扫最近 N 日 raw 数据自动建短历史。
+        # 触发条件：增量模式下发现 new_obs（全量模式 new_obs 已清空）。
+        # 代价：仅读 NEW_STOCK_LOOKBACK_DAYS 个日文件 × new_obs 过滤，新股少时很快。
+        if new_obs:
+            lookback = int(os.environ.get("NEW_STOCK_LOOKBACK_DAYS", "504"))  # 默认 2 年
+            ns_start = max(0, len(raw_dates) - lookback)
+            logger.info(
+                f"[minute_engine] pass2 新股建库: {len(new_obs)} 只无缓存股 | "
+                f"扫 {raw_dates[ns_start].date()}~{raw_max.date()} 共 {len(raw_dates)-ns_start} 日"
+            )
+            n2 = self._run_build_pass(
+                new_obs, ns_start, raw_dates, last_per_stock,
+                warmup, workers, ctx_fork, flush_chunks,
+            )
+            if n2:
+                logger.info(f"[minute_engine] pass2 完成: {n2} 只新股入库 ✅")
+            else:
+                logger.info(
+                    f"[minute_engine] pass2: {len(new_obs)} 只股在近 {lookback} 日内无 raw 数据，跳过"
+                )

@@ -1,0 +1,27 @@
+# 论文：开源证券 市场微观结构系列③ 聪明钱因子模型的2.0版本
+# 论文(全A,2013-2019,β=0.1): RankIC≈-8.5%, 多空IR≈3.67
+factor:
+  name: smart_money_q
+  name_cn: 聪明钱因子Q
+  category: 微观结构
+  direction: -1
+  column: smart_money_q
+  description: 过去10日分钟池化，按聪明度 S=|R|/V^0.1 降序取成交量累计前20%为聪明钱交易，
+    Q=VWAP_smart/VWAP_all。Q 高=聪明钱相对全体买在更高价→未来反转，direction=-1。开源微观③。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频 聪明钱/全体 VWAP（10日池化）
+    action: minute_smartmoney
+    cache_key: sm_v1
+    beta: 0.1
+    cutoff: 0.20
+    features:
+      - smart_vwap
+      - all_vwap
+    output_dataframe: data
+  - name: 聪明钱因子 Q = VWAP_smart / VWAP_all
+    action: compute
+    formula: smart_vwap / all_vwap
+    source_columns: [smart_vwap, all_vwap]
+    output_column: smart_money_q

@@ -25,7 +25,7 @@ from loguru import logger
 warnings.filterwarnings("ignore")
 
 from core.config import RAW_FACTOR_BASE
-from core.spec_resolver import resolve_namespace_safe
+from core.spec_resolver import factor_name_from_arg, resolve_namespace_safe
 from core.spec_schema import validate_spec
 
 from .operators import Context, OpRegistry
@@ -345,7 +345,8 @@ class YoloEngine:
 
         out_dir = RAW_FACTOR_BASE / resolve_namespace_safe(factor_name)
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"{factor_name}.parquet"
+        # 文件名用裸名叶子（限定路径 'pub/group/factor' → 'factor'），避免 namespace 叠加
+        out_path = out_dir / f"{factor_name_from_arg(factor_name)}.parquet"
         wide.to_parquet(out_path)
         logger.info(
             f"[engine] ✅ 写入 {out_path}, shape={wide.shape}, "

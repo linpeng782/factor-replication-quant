@@ -155,10 +155,15 @@ def evaluate_single_factor(
             from core.spec_resolver import resolve_namespace_safe
             namespace = resolve_namespace_safe(factor_name)
 
+        # 落盘文件名/叶子目录一律用裸名（限定路径 'pub/group/factor' → 'factor'），
+        # 避免与 namespace 叠加成 '.../pub/group/pub/group/factor'（限定路径调用时的 bug）。
+        from core.spec_resolver import factor_name_from_arg
+        leaf = factor_name_from_arg(factor_name)
+
         if output_dir is not None:
             report_dir = Path(output_dir)
         elif namespace not in (None, "_misc/_misc"):
-            report_dir = config.OUTPUT_DIR / namespace / factor_name
+            report_dir = config.OUTPUT_DIR / namespace / leaf
         else:
             from core.spec_resolver import resolve_output_dir
 
@@ -206,7 +211,7 @@ def evaluate_single_factor(
             )
 
             # 保存清洗后因子到外部目录（完整时间范围）
-            cleaned_path = cleaned_dir / f"{factor_name}.parquet"
+            cleaned_path = cleaned_dir / f"{leaf}.parquet"
             factor_clean.to_parquet(cleaned_path)
             logger.info(
                 f"  -> 清洗后因子已保存: {cleaned_path} "
@@ -221,7 +226,7 @@ def evaluate_single_factor(
         size = pd.read_parquet(config.MARKET_CAP_PANEL_PATH)
         size.index = pd.to_datetime(size.index)
         factor_neu = neutralize(factor_clean, industry, size, restandardize=True)
-        neu_path = neu_dir / f"{factor_name}.parquet"
+        neu_path = neu_dir / f"{leaf}.parquet"
         factor_neu.to_parquet(neu_path)
         logger.info(f"  -> 中性化因子已保存: {neu_path} (shape={factor_neu.shape})")
 

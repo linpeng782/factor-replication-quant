@@ -42,12 +42,12 @@ from core.config import (
 )
 from core.evaluation import evaluate_single_factor
 from core.spec_generator import load_spec_yaml
-from core.spec_resolver import resolve_namespace_safe
+from core.spec_resolver import factor_name_from_arg, resolve_namespace_safe
 from core.yolo_engine import run_factor
 
 
 def _load_existing_raw(factor_name: str) -> pd.DataFrame:
-    path = RAW_FACTOR_BASE / resolve_namespace_safe(factor_name) / f"{factor_name}.parquet"
+    path = RAW_FACTOR_BASE / resolve_namespace_safe(factor_name) / f"{factor_name_from_arg(factor_name)}.parquet"
     if not path.exists():
         raise FileNotFoundError(
             f"raw 因子不存在: {path}（先 'python run.py {factor_name} --yolo-only' 生成）"

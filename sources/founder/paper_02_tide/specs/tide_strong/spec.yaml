@@ -1,0 +1,14 @@
+# 方正微观结构② 强势半潮汐因子。论文: RankIC -4.88%, ICIR -4.40, 多空年化 21.01%, IR 3.38
+factor:
+  name: tide_strong
+  name_cn: 强势半潮汐
+  category: 微观结构
+  direction: -1
+  column: tide_strong
+  description: 过去20日"强势半潮汐"价格变动速率均值。以顶峰为界拆涨潮/退潮,按Vm<Vn定强弱,
+    强势半段=成交量跨度更大、推动力更强的一段;速率快→过度反应→反转,direction=-1。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频强势半潮汐速率, action: minute_tide, cache_key: tide_v1, features: [strong_halftide_rate], output_dataframe: data}
+  - {name: 过去20日均值, action: rolling, source_column: strong_halftide_rate, output_column: tide_strong, window: 20, agg: mean, group_by: order_book_id}

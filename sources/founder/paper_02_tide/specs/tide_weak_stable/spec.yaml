@@ -1,0 +1,13 @@
+# 方正微观结构② 稳定弱势半潮汐因子。论文: RankIC -6.97%, ICIR -3.14, 多空年化 19.28%, IR 1.82
+factor:
+  name: tide_weak_stable
+  name_cn: 稳定弱势半潮汐
+  category: 微观结构
+  direction: -1
+  column: tide_weak_stable
+  description: 过去20日"弱势半潮汐"价格变动速率的标准差(稳定=取波动);弱势半段每日越不稳定→反转,direction=-1。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频弱势半潮汐速率, action: minute_tide, cache_key: tide_v1, features: [weak_halftide_rate], output_dataframe: data}
+  - {name: 过去20日标准差, action: rolling, source_column: weak_halftide_rate, output_column: tide_weak_stable, window: 20, min_periods: 15, agg: std, group_by: order_book_id}

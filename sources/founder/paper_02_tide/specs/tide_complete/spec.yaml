@@ -1,0 +1,18 @@
+# 方正微观结构② 完整潮汐因子=等权合成(强势半潮汐+稳定弱势半潮汐)。论文: RankIC -7.90%, ICIR -4.13, 多空 27.09%
+# 工程选择:"等权合成"用截面 pct-rank 均值(对量级稳健);两分量同向(reversal),direction=-1。
+factor:
+  name: tide_complete
+  name_cn: 完整潮汐
+  category: 微观结构
+  direction: -1
+  column: tide_complete
+  description: 等权合成 强势半潮汐(mean20) 与 稳定弱势半潮汐(std20);各取截面 pct-rank 后平均。方正微观②§3.4。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频强/弱势速率, action: minute_tide, cache_key: tide_v1, features: [strong_halftide_rate, weak_halftide_rate], output_dataframe: data}
+  - {name: 强势半潮汐(mean20), action: rolling, source_column: strong_halftide_rate, output_column: strong_f, window: 20, agg: mean, group_by: order_book_id}
+  - {name: 稳定弱势半潮汐(std20), action: rolling, source_column: weak_halftide_rate, output_column: weak_stable_f, window: 20, min_periods: 15, agg: std, group_by: order_book_id}
+  - {name: 强势截面rank, action: rank, source_column: strong_f, output_column: strong_rank, group_by: [date], pct: true}
+  - {name: 稳定弱势截面rank, action: rank, source_column: weak_stable_f, output_column: weak_rank, group_by: [date], pct: true}
+  - {name: 等权合成, action: compute, formula: (strong_rank + weak_rank) / 2, source_columns: [strong_rank, weak_rank], output_column: tide_complete}

@@ -313,21 +313,39 @@ class MinuteAggregateEngine:
         # ── pass 2：新股建库 ───────────────────────────────────────────
         # 对 universe 中无缓存的股票，扫最近 N 日 raw 数据自动建短历史。
         # 触发条件：增量模式下发现 new_obs（全量模式 new_obs 已清空）。
-        # 代价：仅读 NEW_STOCK_LOOKBACK_DAYS 个日文件 × new_obs 过滤，新股少时很快。
+        #
+        # ⚠️ 僵尸股过滤（必须）：all_instruments(CS) 含 ~46 只 2005 前退市股，永无分钟数据，
+        #   但 last_per_stock[ob]=None → 永远落在 new_obs → 若不过滤，每日日更空扫 504 天全量文件。
+        #   修法：先读最近 CHECK_DAYS（默认10）个 raw 文件的 order_book_id 列（几秒，单列），
+        #   只保留「近期确实出现过」的股 → active_new_obs。
+        #   · 真·新股（近期 IPO）：出现在近期 raw → 保留 → pass2 建库 ✅
+        #   · 僵尸股（远古退市）：不出现在近期 raw → 过滤掉 → pass2 跳过，日更零额外代价 ✅
         if new_obs:
-            lookback = int(os.environ.get("NEW_STOCK_LOOKBACK_DAYS", "504"))  # 默认 2 年
-            ns_start = max(0, len(raw_dates) - lookback)
-            logger.info(
-                f"[minute_engine] pass2 新股建库: {len(new_obs)} 只无缓存股 | "
-                f"扫 {raw_dates[ns_start].date()}~{raw_max.date()} 共 {len(raw_dates)-ns_start} 日"
-            )
-            n2 = self._run_build_pass(
-                new_obs, ns_start, raw_dates, last_per_stock,
-                warmup, workers, ctx_fork, flush_chunks,
-            )
-            if n2:
-                logger.info(f"[minute_engine] pass2 完成: {n2} 只新股入库 ✅")
-            else:
+            check_days = int(os.environ.get("NEW_STOCK_CHECK_DAYS", "10"))
+            recent_obs: set = set()
+            for d in raw_dates[-check_days:]:
+                p = MINUTE_RAW_DIR / f"{d.date()}.parquet"
+                if p.exists():
+                    recent_obs.update(
+                        pd.read_parquet(p, columns=["order_book_id"])["order_book_id"].tolist()
+                    )
+            active_new_obs = [ob for ob in new_obs if ob in recent_obs]
+
+            if not active_new_obs:
                 logger.info(
-                    f"[minute_engine] pass2: {len(new_obs)} 只股在近 {lookback} 日内无 raw 数据，跳过"
+                    f"[minute_engine] pass2 跳过: {len(new_obs)} 只无缓存股"
+                    f"（含僵尸标的）近 {check_days} 日内均无 raw 数据"
                 )
+            else:
+                lookback = int(os.environ.get("NEW_STOCK_LOOKBACK_DAYS", "504"))  # 默认 2 年
+                ns_start = max(0, len(raw_dates) - lookback)
+                logger.info(
+                    f"[minute_engine] pass2 新股建库: {len(active_new_obs)} 只"
+                    f"（new_obs={len(new_obs)}，过滤僵尸后剩 {len(active_new_obs)}）| "
+                    f"扫 {raw_dates[ns_start].date()}~{raw_max.date()} 共 {len(raw_dates)-ns_start} 日"
+                )
+                n2 = self._run_build_pass(
+                    active_new_obs, ns_start, raw_dates, last_per_stock,
+                    warmup, workers, ctx_fork, flush_chunks,
+                )
+                logger.info(f"[minute_engine] pass2 完成: {n2} 只新股入库 ✅")

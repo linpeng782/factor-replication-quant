@@ -27,7 +27,7 @@ step "5/8 market_cap";   (cd "$FETCH" && python market_cap.py)   || die "market_
 
 # ── 因子线 ──
 step "6/8 refresh_supersets（刷新所有 superset 到最新）"
-(cd "$REPO" && PYTHONPATH=. python scripts/refresh_supersets.py) || die "refresh_supersets"
+(cd "$REPO" && PYTHONPATH=. python pipeline/refresh_supersets.py) || die "refresh_supersets"
 
 step "7/8 L3 因子重算（cache-hit superset；逐个，失败仅告警不中断）"
 cd "$REPO"

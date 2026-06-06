@@ -51,7 +51,7 @@ python market_cap.py        # 5. 总市值面板增量(中性化用)
 
 ### 因子线（cd factor-repilcation-quant）
 ```bash
-python scripts/refresh_supersets.py            # 6. 刷新所有 superset 缓存   [待建,见§4①]
+python pipeline/refresh_supersets.py            # 6. 刷新所有 superset 缓存   [已建]
 for f in <所有 minute factor spec>; do python run.py "$f"; done   # 7. L3 因子重算+评估
 python ml/labels.py                            # 8. labels 回填(末N+1天)    [增量回填待确认]
 ```
@@ -68,22 +68,22 @@ python ml/labels.py                            # 8. labels 回填(末N+1天)    
 | 数据线 1–5 | ✅ 全是增量 CLI，可直接跑 |
 | L2 superset 增量（懒触发） | ✅ 引擎已实现 + bit 验证（append-only / 前沿=max / warmup overlap） |
 | L3 因子 | ✅ `run.py <因子>` 可跑（cache-hit superset；**全量重算非增量**，但便宜） |
-| **① 独立刷 superset 入口** | ❌ `scripts/refresh_supersets.py` 待建（扫 spec→去重 (action,cache_key,params)→各 refresh） |
-| **② 编排器** | ❌ `scripts/daily_update.sh`（fail-fast 串 1–8）待建 |
-| **③ 新股建库分支** | ❌ 见坑② —— **日更正确性必需** |
+| **① 独立刷 superset 入口** | ✅ 已建 `pipeline/refresh_supersets.py`（扫 spec→去重 (action,cache_key,params)→各 refresh；`--dry-run` 可列出在用 superset） |
+| **② 编排器** | ✅ 已建 `pipeline/daily_update.sh`（fail-fast 串 1–8；`FETCH=$REPO/data_fetching`） |
+| **③ 新股建库分支** | ❌ 见坑② —— **日更正确性必需**（唯一未建件） |
 | labels 增量回填 | ⚠️ `ml/labels.py` 有构建函数，"末 N+1 天回填"待确认/补 |
 
 ---
 
-## 4. 待建的 3 个件（规格）
+## 4. 三个件（①② 已建，③ 待建）
 
-**① `scripts/refresh_supersets.py`**：扫 `sources/*/*/specs/*/spec.yaml` 找 action∈REDUCER_BY_ACTION 的步 →
+**① `pipeline/refresh_supersets.py`** ✅：扫 `sources/*/*/specs/*/spec.yaml` 找 action∈REDUCER_BY_ACTION 的步 →
 去重 unique `(action, cache_key, params)` → 每个 `REDUCER_BY_ACTION[action].from_step(step)` +
 `MinuteAggregateEngine(reducer).refresh_cache(all_instruments(CS))`。**spec = 在用 superset 的唯一真相源。**
 
-**② `scripts/daily_update.sh`**：`set -e` 串起 §2 全部步骤（跨两仓，cd 切换），逐步打印 + 失败即停。
+**② `pipeline/daily_update.sh`** ✅：`set -e` 串起 §2 全部步骤（数据线在 data_fetching/、因子线本仓，cd 切换），逐步打印 + 失败即停。因子循环用限定路径 `<pub>/<group>/<factor>`（存盘叠加 bug 已修）。
 
-**③ 新股建库分支**（坑②）：`refresh_cache` 当前对无缓存新股**跳过**；需检测"有 raw 数据但无缓存"的新股，
+**③ 新股建库分支**（坑②，**唯一待建**）：`refresh_cache` 当前对无缓存新股**跳过**；需检测"有 raw 数据但无缓存"的新股，
 按其 `listed_date` 起单独全史（短）build。临时缓解：周期性删某 superset 目录后全量重建（覆盖新股）。
 
 ---

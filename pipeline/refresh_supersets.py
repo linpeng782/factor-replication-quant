@@ -7,8 +7,8 @@ spec = "哪些 superset 在用" 的唯一真相源：
   → 每个 MinuteAggregateEngine(reducer).refresh_cache(universe)（append-only 增量）。
 
 用法:
-  python scripts/refresh_supersets.py --dry-run   # 只列出在用 superset，不刷新
-  python scripts/refresh_supersets.py             # 刷新所有 superset 到 raw 最新日
+  python pipeline/refresh_supersets.py --dry-run   # 只列出在用 superset，不刷新
+  python pipeline/refresh_supersets.py             # 刷新所有 superset 到 raw 最新日
 """
 from __future__ import annotations
 

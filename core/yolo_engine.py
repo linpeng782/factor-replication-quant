@@ -24,7 +24,7 @@ from loguru import logger
 
 warnings.filterwarnings("ignore")
 
-from core.config import MINUTE_DATA_DIR, RAW_FACTOR_BASE
+from core.config import RAW_FACTOR_BASE
 from core.spec_resolver import resolve_namespace_safe
 from core.spec_schema import validate_spec
 
@@ -253,26 +253,23 @@ class DataFetcher:
 def build_universe(universe_cfg: dict, trade_date: str, fetcher: DataFetcher) -> List[str]:
     primary = universe_cfg.get("primary_index", "000906.XSHG")
     if primary == "MINUTE_DIR":
-        return _scan_minute_dir(MINUTE_DATA_DIR)
+        return _minute_universe(fetcher)
     if primary == "ALL":
         return fetcher.all_instruments(type_="CS")["order_book_id"].tolist()
     return fetcher.get_index_components(primary, trade_date)
 
 
-def _scan_minute_dir(minute_dir: Path) -> List[str]:
-    """扫 stock_data_1m_post/ 取股票池：保留形如 000001.XSHE / 600000.XSHG 的 parquet。
-    跳过下划线开头的辅助文件（_adjfactor_daily.parquet 等）。
+def _minute_universe(fetcher: DataFetcher) -> List[str]:
+    """分钟因子股票池 = 全部 CS（含退市）作候选；无 minute/raw 数据的股票由算子自动跳过。
+
+    旧版扫 per-stock 目录 `stock_data_1m_post/`（已删，迁移到按日分片 minute/raw/）。
+    raw 是按日分片，逐日 union order_book_id 取全史股票池要读 5201 文件(~26min) 太慢；
+    `all_instruments(CS)` 是完整超集（实测 5551 ⊇ 缓存 5505），一次 API 拿到，最简最稳。
     """
-    if not minute_dir.is_dir():
-        raise FileNotFoundError(f"分钟数据目录不存在: {minute_dir}")
-    universe = sorted(
-        p.stem
-        for p in minute_dir.glob("[0-9]*.parquet")
-        if p.stem.endswith((".XSHE", ".XSHG"))
-    )
+    universe = sorted(fetcher.all_instruments(type_="CS")["order_book_id"].tolist())
     if not universe:
-        raise RuntimeError(f"分钟数据目录扫不到任何 [0-9]*.XSH[EG].parquet: {minute_dir}")
-    logger.info(f"[universe] MINUTE_DIR 扫到 {len(universe)} 只股票（{minute_dir}）")
+        raise RuntimeError("all_instruments(CS) 返回空，无法构建分钟股票池")
+    logger.info(f"[universe] MINUTE_DIR → all_instruments(CS) {len(universe)} 只")
     return universe
 
 

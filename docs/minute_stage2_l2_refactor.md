@@ -118,3 +118,27 @@ pooling 窗口会落进"标签未 warmup"的 overlap 区。**首版按 std_windo
 ### 待办（阶段3）
 - V2.3 L3 端到端（`run.py peak_minute_count`）：全 universe×全史，建议服务器跑。
 - spec 引擎增量 + `daily_update` 编排（design §9）。
+
+---
+
+## 8. V2.3 L3 端到端 + 两处增量 bug（2026-06-06）
+
+数据全量下载完成（5201/5201 交易日，2005-01-04~2026-06-05，0 缺失）后跑通 L3：
+
+- **universe 迁移**（`core/yolo_engine.py`）：`MINUTE_DIR` 旧版扫已删的 per-stock 目录 → 改用
+  `all_instruments(CS)`（5551 ⊇ golden 5505 完整超集；无 raw 数据股由算子 groupby 自然跳过）。
+- **`run.py peak_minute_count --yolo-only`**：仅增量追加 2026-06-02~06-05（4 天，5208 活跃股），
+  → rolling mean20 → 面板 **(3979 日 × 5468 股)**，非空 13.88M。
+- **评估**：neu RankIC20d=+0.061 ICIR=0.82、分层单调 +0.957、多空年化 +20.7% Sharpe 3.41
+  （研报 RankIC 10.6%/多空 31.6% 同方向，量级合理）。
+
+### 增量 bug #2：前沿必须用 max(cache_last) 不是 min
+退市股 golden 缓存 `cache_last` 停在其退市年（实测抽样 ~6% 在 2005~2024）。首版增量起点用
+`min(cache_last)` → 被退市股拖到 2005 → **误触发全 universe 全量重建**（5551 股从 2005）。
+修：前沿 = **`max(cache_last)`**（append-only 已处理到的最新 raw 日）；退市股在新日无数据、load
+不产出，无害。无缓存新股（46 只）增量模式跳过（避免写残缺尾部缓存），需全史另行全量重建。
+> 局限（阶段3 reconcile 再处理）：若历史某次增量部分失败致缓存不一致（活跃股 cache_last 落后于
+> frontier），max 起点会漏补其缺口；当前 append-only 假设每次运行对全活跃股同步推进。
+
+### 阶段2 收口
+L2 全链路（源切换 / 分块 fork-COW 引擎 / append-only 缓存 / 增量前沿 / L3 端到端）验证通过。

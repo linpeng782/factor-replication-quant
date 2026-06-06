@@ -234,17 +234,30 @@ def _refresh_superset_cache(
         raise RuntimeError(f"minute/raw 为空: {MINUTE_RAW_DIR}")
     raw_max = raw_dates[-1]
 
-    # 每股需要的起算日 = 其缓存 last 的次日；全 universe 取最小 → 本次需覆盖的目标起点
     last_per_stock = {ob: _cache_last_date(cache_dir / f"{ob}.parquet") for ob in universe}
-    need_obs = [ob for ob in universe if last_per_stock[ob] is None or last_per_stock[ob] < raw_max]
-    if not need_obs:
+    cached = {ob: d for ob, d in last_per_stock.items() if d is not None}
+
+    if not cached:
+        # 全新构建：全 universe 从 raw 起点 full build
+        need_obs = list(universe)
+        start_idx = 0
+    else:
+        # 增量 append-only：前沿 = 已处理到的最新 raw 日 = max(cache_last)。
+        # ⚠️ 必须用 max 不是 min——退市股 cache_last 停在其退市年(实测~6%股在2005~2024)，
+        # 用 min 会被拖到 2005 误触发全量重建；退市股在新日无数据，load 自然不产出，无害。
+        frontier = max(cached.values())
+        start_idx = _bisect_after(raw_dates, frontier)
+        need_obs = [ob for ob in cached if cached[ob] < raw_max]
+        # 无缓存新股：增量模式不建（避免只写尾部的残缺缓存）；要全史须删空缓存后全量重建。
+        new_obs = [ob for ob in last_per_stock if last_per_stock[ob] is None]
+        if new_obs:
+            logger.warning(
+                f"[minute_intraday_aggregate] {len(new_obs)} 只无缓存(新股/未建) 增量模式跳过"
+            )
+
+    if not need_obs or start_idx >= len(raw_dates):
         logger.info("[minute_intraday_aggregate] 缓存已最新，无需刷新")
         return
-    global_last = min(
-        (last_per_stock[ob] for ob in need_obs if last_per_stock[ob] is not None),
-        default=None,
-    )
-    start_idx = 0 if global_last is None else _bisect_after(raw_dates, global_last)
 
     workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))
     ctx_fork = mp.get_context("fork")  # COW 共享子表的前提（Mac 默认 spawn 不行）

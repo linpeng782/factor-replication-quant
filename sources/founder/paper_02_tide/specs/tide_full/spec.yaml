@@ -1,0 +1,27 @@
+# 论文：方正证券 市场微观结构系列② 个股成交量的潮汐变化及"潮汐"因子构建
+# 论文目标(全A,市值行业正交,2013-04~2022-02): RankIC -7.09%, RankICIR -3.73, 多空年化 27.11%, IR 2.94
+factor:
+  name: tide_full
+  name_cn: 全潮汐
+  category: 微观结构
+  direction: -1
+  column: tide_full
+  description: 过去 20 日"潮汐"价格变动速率的均值。日内按邻域成交量(±4分钟)定顶峰 t、
+    涨潮 m=argmin邻域量[5,t-1]、退潮 n=argmin邻域量[t+1,233]；日速率=(Cn-Cm)/Cm/(n-m)，
+    度量投资者买卖意愿强烈程度。速率快(过度反应)→未来反转，故 direction=-1。方正微观结构②。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频 潮汐价格变动速率
+    action: minute_tide
+    cache_key: tide_v1
+    features:
+      - full_tide_rate
+    output_dataframe: data
+  - name: 过去 20 日均值
+    action: rolling
+    source_column: full_tide_rate
+    output_column: tide_full
+    window: 20
+    agg: mean
+    group_by: order_book_id

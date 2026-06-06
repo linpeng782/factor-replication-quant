@@ -19,7 +19,7 @@ _DATA_ROOT = Path(
 )
 
 # ==================== 输入数据：market-data/ ====================
-# 按「角色」组织（非项目名）：所有评估输入数据归于 market-data/，由 stock-data-fetching 维护。
+# 按「角色」组织（非项目名）：所有评估输入数据归于 market-data/，由 data_fetching/ 维护。
 _MKT = _DATA_ROOT / "market-data"
 
 COMBO_MASK_PATH = _MKT / "masks/combo_mask_long.parquet"
@@ -31,7 +31,7 @@ VWAP_PANEL_PATH = _MKT / "prices/vwap_panel.parquet"
 # 预算的 forward_return_{N}d.parquet；评估直读，缺失 horizon 回退 vwap_panel 现算
 LABELS_DIR = _MKT / "labels"
 
-# 行业 + 市值面板（中性化用，stock-data-fetching 产出）
+# 行业 + 市值面板（中性化用，data_fetching/ 产出）
 INDUSTRY_PANEL_ZX_PATH = _MKT / "industry/industry_panel_zx.parquet"
 MARKET_CAP_PANEL_PATH = _MKT / "market_cap/market_cap_panel.parquet"
 
@@ -74,7 +74,7 @@ INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "intermediate-cache"
 
 # ==================== 逐股原始日频行情（alpha158 生产原料 + 复权因子） ====================
 # 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权在读时实时算（core.producers.alpha158.loader）。
-# 由 stock-data-fetching 仓产出/日更。daily/ 与 minute/ 对称。
+# 由 data_fetching/产出/日更。daily/ 与 minute/ 对称。
 _RAW_OHLCV_ROOT = _MKT / "daily"
 RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv"          # 逐股原始日频 OHLCV
 EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"    # 逐股稀疏复权因子（日频/分钟共用）

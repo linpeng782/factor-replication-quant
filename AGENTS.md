@@ -30,7 +30,7 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 | `RAW_FACTOR_BASE` / `CLEANED_FACTOR_BASE` / `NEU_FACTOR_BASE` | `<DATA_ROOT>/factors/{raw,cleaned,neu}/<source>/<group>/` | 因子三阶段；namespace=`<source>/<group>` 由 spec 路径推导（cxl/cross_section_regress/...） |
 | `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` | `<DATA_ROOT>/market-data/masks/` | 交易状态 mask，评估**零 API 调用** |
 | `VWAP_PANEL_PATH` / `VWAP_POST_PATH` / `LABELS_DIR` | `<DATA_ROOT>/market-data/{prices,labels}/` | PIT vwap + 远期收益 labels |
-| `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/market-data/{industry,market_cap}/` | 中信行业 + 总市值面板（stock-data-fetching 产出，中性化用） |
+| `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/market-data/{industry,market_cap}/` | 中信行业 + 总市值面板（data_fetching/ 产出，中性化用） |
 | `OUTPUT_DIR` | `factor-repilcation-quant/output/<source>/<group>/<factor>/` | 评估产物（两张 PNG） |
 
 `<DATA_ROOT>` 默认 `/nfs/ofs-prediction/peterzhenglinpeng`；预计算数据已更新到 2026-05-15。

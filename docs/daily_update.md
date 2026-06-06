@@ -37,9 +37,9 @@ factors/{raw,cleaned,neu}/<source>/<group>/<因子>.parquet   L3 因子三阶段
 
 ## 2. 完整流程（7 步，依赖序，任一失败即停）
 
-> 数据线在 **stock-data-fetching 仓**；因子线在 **factor-repilcation-quant 仓**。全部默认**增量**。
+> 数据线在 **data_fetching/**；因子线在 **factor-repilcation-quant 仓**。全部默认**增量**。
 
-### 数据线（cd stock-data-fetching；需 rqdatac 账号）
+### 数据线（cd data_fetching/；需 rqdatac 账号）
 ```bash
 python ex_factors.py        # 1. 复权因子增量(查近30天)
 python raw_ohlcv.py         # 2. 日频OHLCV增量(disk_max+1→今)

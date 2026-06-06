@@ -8,8 +8,8 @@ export FACTOR_REPL_DATA_ROOT="${FACTOR_REPL_DATA_ROOT:-/Users/didi/DATA}"
 export MINUTE_WORKERS="${MINUTE_WORKERS:-6}"
 export MINUTE_CHUNK_DAYS="${MINUTE_CHUNK_DAYS:-30}"     # 服务器内存大可设 250
 VENV="${VENV:-/Users/didi/kdj/peterdidi/bin/activate}"
-FETCH="${FETCH:-/Users/didi/kdj/stock-data-fetching}"
 REPO="${REPO:-/Users/didi/kdj/factor-repilcation-quant}"
+FETCH="${FETCH:-$REPO/data_fetching}"      # 数据线已并入本仓 data_fetching/（原独立 stock-data-fetching）
 # 因子线只跑哪些 spec（glob，相对 REPO）；默认全部。HF 专跑可改为 'sources/kysec/paper_27_microstructure/specs/*'
 FACTOR_GLOB="${FACTOR_GLOB:-sources/*/*/specs/*}"
 

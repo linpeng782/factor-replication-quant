@@ -64,8 +64,11 @@ ML_SIGNALS_DIR = ML_ROOT / "signals"          # 回测可读信号：每日排�
 # 日志落在【repo 内 ml/logs/】（方便查看，受 .gitignore 排除），非数据根
 ML_LOGS_DIR = Path(__file__).parent.parent / "ml" / "logs"   # 每次 run 的训练日志
 
-# 分钟级因子：后复权 per-stock 1m parquet 目录（stock-data-fetching/minute_ohlcv.py 产出）
+# 分钟级因子：后复权 per-stock 1m parquet 目录（旧版，烤死复权；迁移期保留作对齐基准）
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
+# 分钟原始（不复权）按日分片目录（新版：minute/raw/<YYYY-MM-DD>.parquet，全股一日一文件）
+# 复权在读时实时算（core.minute_data.load_adjusted_minute_window）。见 docs/minute_incremental_design.md
+MINUTE_RAW_DIR = _MKT / "minute" / "raw"
 # 分钟→日频特征 中间缓存（可再生；market-data/factors/factor-inventory 的同级兄弟）
 INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "intermediate-cache"
 

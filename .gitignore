@@ -41,3 +41,4 @@ __pycache__/
 Thumbs.db
 /factor_inventory/
 ml/logs/
+docs/minute_fetch.*

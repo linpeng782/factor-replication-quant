@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import multiprocessing as mp
 import os
 import warnings
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -34,9 +34,13 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core.config import INTERMEDIATE_CACHE_DIR, MINUTE_DATA_DIR
+from core.config import INTERMEDIATE_CACHE_DIR, MINUTE_RAW_DIR
+from core.minute_data import load_adjusted_minute_window
 
 from . import Context, OpRegistry
+
+# 全量重算时按交易日分块的块大小（#交易日）；内存紧可调小。
+_CHUNK_DAYS = int(os.environ.get("MINUTE_CHUNK_DAYS", "250"))
 
 
 # Bump 此版本 → params_hash 变 → 全量缓存失效（用于 superset 列变更）
@@ -112,43 +116,17 @@ def op_minute_intraday_aggregate(ctx: Context, step: Dict, fetcher: Any) -> None
         f"std_window={std_window} std_threshold={std_threshold}"
     )
 
-    workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))
-    n_hits = 0
-    n_miss = 0
-    n_skip = 0
+    # ① 增量刷新 per-stock superset 缓存（读 minute/raw 日文件窗口 + 读时复权 + append-only）
+    _refresh_superset_cache(cache_dir, list(ctx.universe), std_window, std_threshold)
+
+    # ② 消费：读各股缓存 → slice ctx 日期 → 投影 features
     parts: List[pd.DataFrame] = []
-
-    # 用进程池而非线程池：pandas 的 pivot/groupby/rolling 是 GIL-bound 的 Python 工作，
-    # 64 线程只能跑出 ~3 核效率。进程池真并行（每个 worker 自己的 GIL）。
-    # 每个 worker 返回该股的 ~0.5MB DataFrame；5455 股累计 ~2.7GB IPC 在 800GB 机器上无压力。
-    with ProcessPoolExecutor(max_workers=workers) as ex:
-        futures = {
-            ex.submit(_process_stock, ob, std_window, std_threshold, cache_dir): ob
-            for ob in ctx.universe
-        }
-        for fut in as_completed(futures):
-            ob = futures[fut]
-            try:
-                df_stock, status = fut.result()
-            except Exception as e:
-                logger.warning(f"[minute_intraday_aggregate] {ob} 失败: {e}")
-                n_skip += 1
-                continue
-            if df_stock is None or df_stock.empty:
-                n_skip += 1
-                continue
-            parts.append(df_stock)
-            if status == "hit":
-                n_hits += 1
-            else:
-                n_miss += 1
-
-    logger.info(
-        f"[minute_intraday_aggregate] 完成: cache hit={n_hits} miss={n_miss} skip={n_skip}"
-    )
-
+    for ob in ctx.universe:
+        p = cache_dir / f"{ob}.parquet"
+        if p.exists():
+            parts.append(pd.read_parquet(p))
     if not parts:
-        raise RuntimeError("minute_intraday_aggregate: 所有股票都失败/为空，拒绝产出空主表")
+        raise RuntimeError("minute_intraday_aggregate: 所有股票都无缓存/为空，拒绝产出空主表")
 
     full = pd.concat(parts, ignore_index=True)
 
@@ -182,40 +160,157 @@ def _resolve_cache_dir(cache_key: str, std_window: int, std_threshold: float) ->
     return INTERMEDIATE_CACHE_DIR / f"{cache_key}__h{params_hash}"
 
 
-def _process_stock(
-    ob: str,
-    std_window: int,
-    std_threshold: float,
-    cache_dir: Path,
-) -> Tuple[pd.DataFrame, str]:
-    """单只股票的 cache check + 计算 + cache write。返回 (long_df, 'hit'|'miss')。"""
-    src_path = MINUTE_DATA_DIR / f"{ob}.parquet"
-    cache_path = cache_dir / f"{ob}.parquet"
+def _available_raw_dates() -> List[pd.Timestamp]:
+    """minute/raw 下现存的全部交易日（升序）。它本身就是数据可用的"交易日历"。"""
+    ds = []
+    for p in MINUTE_RAW_DIR.glob("*.parquet"):
+        try:
+            ds.append(pd.Timestamp(p.stem))
+        except ValueError:
+            continue
+    return sorted(ds)
 
-    if not src_path.exists():
-        return pd.DataFrame(), "miss"  # 缺源数据 → 跳过
 
-    if cache_path.exists() and cache_path.stat().st_mtime >= src_path.stat().st_mtime:
-        df = pd.read_parquet(cache_path)
-        return df, "hit"
+def _cache_last_date(cache_path: Path) -> pd.Timestamp | None:
+    if not cache_path.exists():
+        return None
+    d = pd.read_parquet(cache_path, columns=["date"])
+    return pd.Timestamp(d["date"].max()) if len(d) else None
 
-    df = _compute_one_stock(ob, src_path, std_window, std_threshold)
-    if df.empty:
-        return df, "miss"
 
-    tmp_path = cache_path.with_suffix(".parquet.tmp")
-    df.to_parquet(tmp_path)
-    os.replace(tmp_path, cache_path)
-    return df, "miss"
+# ── fork COW：大表按股切成子表挂模块全局，worker 按引用取（不 pickle 大表）──
+_WORKER_SUBTABLES: Dict[str, pd.DataFrame] = {}
+_WORKER_PARAMS: Tuple[int, float] = (20, 1.0)
+
+
+def _worker_compute(ob: str):
+    """worker 任务：从全局子表取该股（已复权）→ 算 superset。返回 (ob, df|None)。"""
+    sub = _WORKER_SUBTABLES.get(ob)
+    if sub is None or sub.empty:
+        return ob, pd.DataFrame()
+    try:
+        return ob, _compute_one_stock(ob, sub, *_WORKER_PARAMS)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[minute_intraday_aggregate] {ob} compute 失败: {e}")
+        return ob, None
+
+
+def _write_cache_append(cache_path: Path, new_df: pd.DataFrame) -> None:
+    """append-only 写：与现有缓存合并 → dedup(date, keep last) → tmp + os.replace。"""
+    if new_df.empty:
+        return
+    if cache_path.exists():
+        old = pd.read_parquet(cache_path)
+        merged = pd.concat([old, new_df], ignore_index=True)
+    else:
+        merged = new_df
+    merged = (
+        merged.drop_duplicates(subset=["date"], keep="last")
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+    tmp = cache_path.with_suffix(".parquet.tmp")
+    merged.to_parquet(tmp)
+    os.replace(tmp, cache_path)
+
+
+def _refresh_superset_cache(
+    cache_dir: Path, universe: List[str], std_window: int, std_threshold: float
+) -> None:
+    """统一"处理时间窗口"引擎（design §6-L2）：
+
+    全量/增量同一路径——只是窗口不同。按交易日分块迭代，块 k 读
+    [块首 - W1 交易日, 块末] 日文件，warmup overlap 用真实数据；每股只保留
+    (该股缓存 last, raw_max] 的新日 append（幂等 + 内存有界）。
+
+    **W1 = 2×std_window（关键）**：本算子最深列 peakridge_minute_corr_pooled 是嵌套两层
+    rolling——某日 corr 依赖前 std_window 天的峰/岭标签，而每天标签又各需 std_window 天
+    σ warmup。故块首目标日要正确，须回看 2×std_window 天真实数据（验证 V2.1 实测发现，
+    比 design §5 笼统的 W1=std_window 多一层）。
+    """
+    warmup = 2 * std_window
+    raw_dates = _available_raw_dates()
+    if not raw_dates:
+        raise RuntimeError(f"minute/raw 为空: {MINUTE_RAW_DIR}")
+    raw_max = raw_dates[-1]
+
+    # 每股需要的起算日 = 其缓存 last 的次日；全 universe 取最小 → 本次需覆盖的目标起点
+    last_per_stock = {ob: _cache_last_date(cache_dir / f"{ob}.parquet") for ob in universe}
+    need_obs = [ob for ob in universe if last_per_stock[ob] is None or last_per_stock[ob] < raw_max]
+    if not need_obs:
+        logger.info("[minute_intraday_aggregate] 缓存已最新，无需刷新")
+        return
+    global_last = min(
+        (last_per_stock[ob] for ob in need_obs if last_per_stock[ob] is not None),
+        default=None,
+    )
+    start_idx = 0 if global_last is None else _bisect_after(raw_dates, global_last)
+
+    workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))
+    ctx_fork = mp.get_context("fork")  # COW 共享子表的前提（Mac 默认 spawn 不行）
+    logger.info(
+        f"[minute_intraday_aggregate] 刷新缓存: {len(need_obs)}/{len(universe)} 股需更新 | "
+        f"目标日 {raw_dates[start_idx].date()}~{raw_max.date()} | "
+        f"块={_CHUNK_DAYS}交易日 workers={workers}"
+    )
+
+    n_written = 0
+    for ci in range(start_idx, len(raw_dates), _CHUNK_DAYS):
+        tgt_lo = raw_dates[ci]
+        tgt_hi = raw_dates[min(ci + _CHUNK_DAYS, len(raw_dates)) - 1]
+        load_lo = raw_dates[max(0, ci - warmup)]  # warmup overlap（真实数据，含嵌套 rolling）
+        allm = load_adjusted_minute_window(load_lo, tgt_hi, stocks=need_obs)
+        if allm.empty:
+            continue
+        # 按股切子表 → 挂全局（fork 前），worker COW 取用
+        global _WORKER_SUBTABLES, _WORKER_PARAMS
+        _WORKER_SUBTABLES = {ob: g for ob, g in allm.groupby("order_book_id", sort=False)}
+        _WORKER_PARAMS = (std_window, std_threshold)
+        del allm
+        obs_here = list(_WORKER_SUBTABLES.keys())
+        with ctx_fork.Pool(processes=workers) as pool:
+            for ob, df in pool.imap_unordered(_worker_compute, obs_here, chunksize=8):
+                if df is None or df.empty:
+                    continue
+                # 只保留本块目标日 + 严格大于该股缓存 last 的新日（幂等）
+                keep = (df["date"] >= tgt_lo) & (df["date"] <= tgt_hi)
+                lst = last_per_stock.get(ob)
+                if lst is not None:
+                    keep &= df["date"] > lst
+                df = df[keep]
+                if not df.empty:
+                    _write_cache_append(cache_dir / f"{ob}.parquet", df)
+                    n_written += 1
+        _WORKER_SUBTABLES = {}
+        logger.info(f"  块 {tgt_lo.date()}~{tgt_hi.date()} 完成（累计写 {n_written} 股·块）")
+    logger.info(f"[minute_intraday_aggregate] 刷新完成: 写入 {n_written} 股·块")
+
+
+def _bisect_after(sorted_dates: List[pd.Timestamp], d: pd.Timestamp) -> int:
+    """返回第一个 > d 的下标（即从 d 之后开始算新日）。"""
+    lo, hi = 0, len(sorted_dates)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if sorted_dates[mid] <= d:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
 
 
 def _compute_one_stock(
     ob: str,
-    src_path: Path,
+    raw: pd.DataFrame,
     std_window: int,
     std_threshold: float,
 ) -> pd.DataFrame:
-    raw = pd.read_parquet(src_path)
+    """单股 superset 计算。
+
+    入参 raw：**已读时复权**的单股长表（列含 datetime + OHLCV，close 为后复权）。
+    数据来源已从"旧 per-stock post 文件"上移到调用方（读 minute/raw 日文件窗口 →
+    core.minute_data 复权 → 按股切表），本函数只做 superset 数学（与 v4 旧缓存逐值一致）。
+    """
+    raw = raw.copy()
 
     if "datetime" not in raw.columns:
         raise ValueError(f"{ob}: parquet 缺少 datetime 列；现有 {list(raw.columns)}")

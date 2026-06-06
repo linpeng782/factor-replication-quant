@@ -1,0 +1,20 @@
+# 方正微观结构① 月耀眼波动率=等权合成(月均+月稳耀眼波动率)。论文: RankIC -7.63%, ICIR -4.76
+# 等权合成口径：两分量各取截面 pct-rank 后平均（同 tide_complete，对量级稳健）。
+factor:
+  name: dazzle_vol_combo
+  name_cn: 月耀眼波动率
+  category: 微观结构
+  direction: -1
+  column: dazzle_vol_combo
+  description: 等权合成 月均耀眼波动率(mean20) 与 月稳耀眼波动率(std20)；各取截面 pct-rank 后平均。方正微观①§3.2。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频耀眼波动率, action: minute_dazzle, cache_key: dazzle_v1, features: [dazzle_vol], output_dataframe: data}
+  - {name: 截面去均值, action: transform, method: cs_demean, source_column: dazzle_vol, output_column: vol_dm, group_by: date}
+  - {name: 取绝对值(适度日耀眼波动率), action: transform, method: abs, source_column: vol_dm, output_column: moderate_vol}
+  - {name: 月均(mean20), action: rolling, source_column: moderate_vol, output_column: vol_mean_f, window: 20, agg: mean, group_by: order_book_id}
+  - {name: 月稳(std20), action: rolling, source_column: moderate_vol, output_column: vol_std_f, window: 20, min_periods: 15, agg: std, group_by: order_book_id}
+  - {name: 月均截面rank, action: rank, source_column: vol_mean_f, output_column: vm_rank, group_by: [date], pct: true}
+  - {name: 月稳截面rank, action: rank, source_column: vol_std_f, output_column: vs_rank, group_by: [date], pct: true}
+  - {name: 等权合成, action: compute, formula: (vm_rank + vs_rank) / 2, source_columns: [vm_rank, vs_rank], output_column: dazzle_vol_combo}

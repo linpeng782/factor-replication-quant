@@ -102,7 +102,7 @@ def validate_spec(spec_yaml: dict) -> None:
             _validate_fetch(step, sym, loc)
         elif action == "merge":
             _validate_merge(step, sym, loc)
-        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate", "minute_tide", "minute_smartmoney"):
+        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate", "minute_tide", "minute_smartmoney", "minute_dazzle"):
             # 分钟级聚合算子契约：cache_key + features（std_window/threshold 可选）。
             # TODO(1000规模): 此枚举 + yolo_engine 导入清单应改为按 REDUCER_BY_ACTION 自动发现。
             _validate_minute_intraday_aggregate(step, sym, loc)

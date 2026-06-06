@@ -25,6 +25,8 @@ from loguru import logger
 from core.config import INTERMEDIATE_CACHE_DIR, MINUTE_RAW_DIR
 from core.minute_data import load_adjusted_minute_window
 
+from . import Context, OpRegistry
+
 _CHUNK_DAYS = int(os.environ.get("MINUTE_CHUNK_DAYS", "250"))
 
 
@@ -32,18 +34,24 @@ _CHUNK_DAYS = int(os.environ.get("MINUTE_CHUNK_DAYS", "250"))
 
 
 class MinuteReducer(ABC):
-    """一种 minute→日频归约口径。子类声明属性 + 实现 reduce()。"""
+    """一种 minute→日频归约口径。子类声明属性 + 实现 reduce() + from_step()。"""
 
-    cache_key: str = ""           # 该归约口径 / superset 的命名（= 研报家族）
-    version: str = "v1"           # 归约逻辑/列 变更 → bump → 强制重算
+    action: str = ""             # spec 的 action 名（= 该 reducer 的入口；通用 op 据此路由）
+    cache_key: str = ""          # 该归约口径 / superset 的命名（= 研报家族）
+    version: str = "v1"          # 归约逻辑/列 变更 → bump → 强制重算
     superset_columns: List[str] = []   # 产出的日频特征列（factor 的 features 须 ⊆ 它）
-    warmup: int = 0               # 跨日回看（交易日）；嵌套 rolling 要算够（见设计 §7.3）
-    granularity: str = "minute"   # half_day | hourly | minute（引擎按需读，预留）
-    params: Dict = {}             # 影响归约结果的参数（进 cache hash）
+    warmup: int = 0              # 跨日回看（交易日）；嵌套 rolling 要算够（见设计 §7.3）
+    granularity: str = "minute"  # half_day | hourly | minute（引擎按需读，预留）
+    params: Dict = {}            # 影响归约结果的参数（进 cache hash）
 
     @abstractmethod
     def reduce(self, ob: str, raw: pd.DataFrame) -> pd.DataFrame:
         """单股【已复权】分钟长表 → 日频行（order_book_id, date + superset_columns）。"""
+
+    @classmethod
+    def from_step(cls, step: Dict) -> "MinuteReducer":
+        """从 spec step 构建 reducer 实例。子类覆写以解析自己的参数。"""
+        return cls(cache_key=step["cache_key"])
 
     def cache_dir(self) -> Path:
         # ⚠️ 哈希口径保持与旧 _resolve_cache_dir 一致（{**params, version}），以复用既有 golden 缓存。
@@ -52,14 +60,68 @@ class MinuteReducer(ABC):
         return INTERMEDIATE_CACHE_DIR / f"{self.cache_key}__h{h}"
 
 
-# 中央注册表：cache_key → reducer 工厂（防撞车；日更编排遍历它刷新所有 superset）
-REDUCER_REGISTRY: Dict[str, type] = {}
+# 中央注册表：action 名 → reducer 类。register_reducer 同时把【唯一的通用 op】挂到该 action，
+# 于是新研报只写 reducer（声明 action+from_step），spec 用该 action，无需任何薄壳 op。
+REDUCER_BY_ACTION: Dict[str, type] = {}
 
 
-def register_reducer(cls: type) -> type:
-    """装饰器：注册 Reducer 子类（按类名）。撞 key 由 cache_dir 内容寻址兜底。"""
-    REDUCER_REGISTRY[cls.__name__] = cls
-    return cls
+def register_reducer(action: str):
+    """装饰器：@register_reducer("minute_xxx") —— 注册 reducer 到该 action，并把通用 op 挂上。"""
+
+    def deco(cls: type) -> type:
+        if action in REDUCER_BY_ACTION:
+            raise ValueError(f"action 撞车: {action!r} 已被 {REDUCER_BY_ACTION[action].__name__} 占用")
+        cls.action = action
+        REDUCER_BY_ACTION[action] = cls
+        OpRegistry.register(action)(op_minute_aggregate)   # 同一个通用 op 挂到此 action
+        return cls
+
+    return deco
+
+
+def op_minute_aggregate(ctx: Context, step: Dict, fetcher) -> None:
+    """唯一的分钟聚合算子（所有 reducer 共用）：按 action 路由 reducer → 引擎刷新 → 投影 features。"""
+    target_df = step.get("output_dataframe", "data")
+    if ctx.has_df(target_df):
+        raise ValueError(
+            f"minute_aggregate: DataFrame {target_df!r} 已存在；本算子负责创建主表"
+        )
+    action = step["action"]
+    if action not in REDUCER_BY_ACTION:
+        raise ValueError(f"minute_aggregate: 未知 action {action!r}; 已注册 {sorted(REDUCER_BY_ACTION)}")
+    if not ctx.universe:
+        raise ValueError("minute_aggregate: ctx.universe 为空（先确定股票池）")
+
+    reducer = REDUCER_BY_ACTION[action].from_step(step)
+    features = list(step["features"])
+    invalid = sorted(set(features) - set(reducer.superset_columns))
+    if invalid:
+        raise ValueError(
+            f"minute_aggregate({action}): 未知 feature {invalid}; 可用 superset={reducer.superset_columns}"
+        )
+
+    engine = MinuteAggregateEngine(reducer)
+    logger.info(
+        f"[minute_aggregate] action={action} cache_dir={engine.cache_dir.name} | "
+        f"universe={len(ctx.universe)} 只 | warmup={reducer.warmup}"
+    )
+    engine.refresh_cache(list(ctx.universe))           # ① 增量刷新 superset 缓存
+
+    parts: List[pd.DataFrame] = []                     # ② 消费：读缓存→slice→投影
+    for ob in ctx.universe:
+        p = engine.cache_dir / f"{ob}.parquet"
+        if p.exists():
+            parts.append(pd.read_parquet(p))
+    if not parts:
+        raise RuntimeError(f"minute_aggregate({action}): 所有股票都无缓存/为空，拒绝产出空主表")
+
+    full = pd.concat(parts, ignore_index=True)
+    if ctx.start_date and ctx.end_date:
+        start, end = pd.to_datetime(ctx.start_date), pd.to_datetime(ctx.end_date)
+        full = full[(full["date"] >= start) & (full["date"] <= end)].copy()
+    keep_cols = ["order_book_id", "date"] + features
+    full = full.loc[:, keep_cols].sort_values(["order_book_id", "date"]).reset_index(drop=True)
+    ctx.set_df(target_df, full)
 
 
 # ─────────────────────── fork-COW 进程池 worker ───────────────────────

@@ -23,15 +23,12 @@ minute_intraday_aggregate 算子
 from __future__ import annotations
 
 import warnings
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from loguru import logger
 
-from core.operators.minute_engine import MinuteAggregateEngine, MinuteReducer, register_reducer
-
-from . import Context, OpRegistry
+from core.operators.minute_engine import MinuteReducer, register_reducer
 
 
 # Bump 此版本 → params_hash 变 → 全量缓存失效（用于 superset 列变更）
@@ -79,12 +76,13 @@ _SUPERSET_COLUMNS: List[str] = [
 # ─────────────────────────── Reducer ───────────────────────────
 
 
-@register_reducer
+@register_reducer("minute_intraday_aggregate")
 class PeakRidgeValleyReducer(MinuteReducer):
     """峰岭谷归约（开源微观结构系列；prv_v3 superset 36 列）。
 
     同时点 σ(std_window 日) 定喷发 → 峰/岭/谷分类 → 日频 36 列。
     warmup=2×std_window：peakridge_minute_corr_pooled 嵌套两层 rolling（见设计 §7.3）。
+    spec 入口沿用 action `minute_intraday_aggregate`（paper_27 的 23 个 spec 零改动）。
     """
 
     version = _FEATURES_SUPERSET_VERSION
@@ -97,54 +95,16 @@ class PeakRidgeValleyReducer(MinuteReducer):
         self.params = {"std_window": std_window, "std_threshold": std_threshold}
         self.warmup = 2 * std_window
 
+    @classmethod
+    def from_step(cls, step: Dict) -> "PeakRidgeValleyReducer":
+        return cls(
+            step["cache_key"],
+            int(step.get("std_window", 20)),
+            float(step.get("std_threshold", 1.0)),
+        )
+
     def reduce(self, ob: str, raw: pd.DataFrame) -> pd.DataFrame:
         return _compute_one_stock(ob, raw, self.std_window, self.std_threshold)
-
-
-@OpRegistry.register("minute_intraday_aggregate")
-def op_minute_intraday_aggregate(ctx: Context, step: Dict, fetcher: Any) -> None:
-    target_df = step.get("output_dataframe", "data")
-    if ctx.has_df(target_df):
-        raise ValueError(
-            f"minute_intraday_aggregate: DataFrame {target_df!r} 已存在；"
-            "本算子负责创建主表，不要在它之前 fetch 同名 DataFrame"
-        )
-    cache_key = step["cache_key"]
-    std_window = int(step.get("std_window", 20))
-    std_threshold = float(step.get("std_threshold", 1.0))
-    features = list(step["features"])
-
-    invalid = sorted(set(features) - set(_SUPERSET_COLUMNS))
-    if invalid:
-        raise ValueError(
-            f"minute_intraday_aggregate: 未知 feature {invalid}; 可用 superset={_SUPERSET_COLUMNS}"
-        )
-    if not ctx.universe:
-        raise ValueError("minute_intraday_aggregate: ctx.universe 为空（先确定股票池）")
-
-    reducer = PeakRidgeValleyReducer(cache_key, std_window, std_threshold)
-    engine = MinuteAggregateEngine(reducer)
-    logger.info(
-        f"[minute_intraday_aggregate] cache_dir={engine.cache_dir} | universe={len(ctx.universe)} 只 "
-        f"| std_window={std_window} std_threshold={std_threshold}"
-    )
-    engine.refresh_cache(list(ctx.universe))            # ① 增量刷新 superset 缓存
-
-    parts: List[pd.DataFrame] = []                      # ② 消费：读缓存→slice→投影
-    for ob in ctx.universe:
-        p = engine.cache_dir / f"{ob}.parquet"
-        if p.exists():
-            parts.append(pd.read_parquet(p))
-    if not parts:
-        raise RuntimeError("minute_intraday_aggregate: 所有股票都无缓存/为空，拒绝产出空主表")
-
-    full = pd.concat(parts, ignore_index=True)
-    if ctx.start_date and ctx.end_date:
-        start, end = pd.to_datetime(ctx.start_date), pd.to_datetime(ctx.end_date)
-        full = full[(full["date"] >= start) & (full["date"] <= end)].copy()
-    keep_cols = ["order_book_id", "date"] + features
-    full = full.loc[:, keep_cols].sort_values(["order_book_id", "date"]).reset_index(drop=True)
-    ctx.set_df(target_df, full)
 
 
 # ─────────────────────────── 归约数学（搬自原 _compute_one_stock，逐行不变） ───────────────────────────

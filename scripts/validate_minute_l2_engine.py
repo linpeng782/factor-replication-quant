@@ -1,16 +1,16 @@
 """
-阶段2 V2.1(引擎版)：通过真实算子引擎 _refresh_superset_cache 跑全量 → 对账旧 v4 缓存。
-测试 chunking + fork COW 池 + append-only 缓存 + 跨块 warmup-overlap 正确性。
-写入【独立临时目录】，绝不碰 golden 缓存。
+阶段2/工厂 引擎回归：通过【新 Engine+Reducer】全量重建 superset → bit 对账旧 v4 golden。
+测试 抽出的 MinuteAggregateEngine + PeakRidgeValleyReducer + chunking + fork池 + 缓存 + warmup。
+写入【独立临时 cache_key】，绝不碰 golden。
 """
 import argparse, shutil
 import pandas as pd
 from core import config
-from core.operators.minute_intraday_aggregate import _refresh_superset_cache, _SUPERSET_COLUMNS
+from core.operators.minute_intraday_aggregate import PeakRidgeValleyReducer, _SUPERSET_COLUMNS
+from core.operators.minute_engine import MinuteAggregateEngine
 from scripts.validate_minute_l2 import _cmp_col, _col_pass, EXACT_COLS
 
 GOLDEN = config.INTERMEDIATE_CACHE_DIR / "prv_v3__hc09d46528f"
-TMP = config.INTERMEDIATE_CACHE_DIR / "_valtest_l2_engine"
 
 
 def main():
@@ -18,14 +18,16 @@ def main():
     ap.add_argument("--stocks", default="000001.XSHE,600000.XSHG,000651.XSHE")
     a = ap.parse_args()
     stocks = a.stocks.split(",")
+
+    reducer = PeakRidgeValleyReducer("VALTEST_engine", 20, 1.0)   # 临时 cache_key → 独立目录
+    engine = MinuteAggregateEngine(reducer)
+    TMP = engine.cache_dir
     if TMP.exists():
         shutil.rmtree(TMP)
-    TMP.mkdir(parents=True)
-    print(f"引擎全量刷新 {len(stocks)} 股 → {TMP}")
-    _refresh_superset_cache(TMP, stocks, 20, 1.0)
+    print(f"新引擎全量重建 {len(stocks)} 股 → {TMP}")
+    engine.refresh_cache(stocks)
 
-    n_ok = 0
-    worst = {}
+    n_ok, worst = 0, {}
     for ob in stocks:
         tp, gp = TMP / f"{ob}.parquet", GOLDEN / f"{ob}.parquet"
         if not tp.exists() or not gp.exists():
@@ -46,9 +48,9 @@ def main():
             n_ok += 1
     print("\n=== 逐列汇总 ===")
     for c in _SUPERSET_COLUMNS:
-        mr, ma, nm = worst[c]
-        print(f"  {'✅' if _col_pass(c,mr,ma,nm) else '❌'} {c:32s}max_rel={mr:.2e} max_abs={ma:.2e} 不等={nm}")
-    print(f"\n结果: {n_ok}/{len(stocks)} 股 bit 级通过 (引擎全链路)")
+        mr, ma, nm = worst.get(c, (0, 0, 0))
+        print(f"  {'✅' if _col_pass(c,mr,ma,nm) else '❌'} {c:30s}max_rel={mr:.2e} max_abs={ma:.2e} 不等={nm}")
+    print(f"\n结果: {n_ok}/{len(stocks)} 股 bit 级通过 (Engine+Reducer 全链路)")
     shutil.rmtree(TMP)
 
 

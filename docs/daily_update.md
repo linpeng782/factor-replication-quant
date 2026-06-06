@@ -83,8 +83,10 @@ python ml/labels.py                            # 8. labels 回填(末N+1天)    
 
 **② `pipeline/daily_update.sh`** ✅：`set -e` 串起 §2 全部步骤（数据线在 data_fetching/、因子线本仓，cd 切换），逐步打印 + 失败即停。因子循环用限定路径 `<pub>/<group>/<factor>`（存盘叠加 bug 已修）。
 
-**③ 新股建库分支**（坑②，**唯一待建**）：`refresh_cache` 当前对无缓存新股**跳过**；需检测"有 raw 数据但无缓存"的新股，
-按其 `listed_date` 起单独全史（短）build。临时缓解：周期性删某 superset 目录后全量重建（覆盖新股）。
+**③ 新股建库分支** ✅ 已建：`refresh_cache` 在主增量（pass1）后自动执行 pass2。
+pass2 先读近 10 日 raw 的 order_book_id 列过滤掉僵尸标的（永无数据的远古退市股），
+对「近期确实出现」的无缓存股扫最近 2 年（504 交易日）raw 建短历史，次日起走正常增量。
+⚠️ 已知限制：缓存被部分清除的老股，pass2 只能补近 2 年历史；完整修复用 `--rebuild`。
 
 ---
 

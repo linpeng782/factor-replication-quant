@@ -9,11 +9,9 @@
 ```bash
 # 远端 SSH 机器（高频因子产线，65 GB 分钟数据所在）
 source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate   # Python 3.11
-pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared     # 共享原语库（首次配置）
 
 # 本机 macOS（基本面因子复现；高频因子留远端，详见 LOCAL_SETUP.md）
 source /Users/didi/kdj/peterdidi/bin/activate                        # Python 3.11.9 venv（本机唯一 venv，勿再找）
-pip install -e /Users/didi/kdj/alpha-shared                          # 共享原语库（editable，首次配置）
 export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根重定向
 
 # 本机路径速记（避免反复探测）：
@@ -55,13 +53,11 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 本机 22 因子可直接 `python run.py <factor> --evaluate-only`（零 API 调用）。
 跑脚本前置：`source /Users/didi/kdj/peterdidi/bin/activate` 且在仓库根执行（`core` 包在 cwd）。
 
-**alpha-shared 共享库**：IC / 分层回测 / 清洗 / mask 加载等**数值算法**全部在
-`/nfs/volume-1593-1/peterzhenglinpeng/alpha-shared/`（本机 `/Users/didi/kdj/alpha-shared`，
-独立 git 仓）。本仓**不再镜像其目录结构、无 thin wrapper**——`core/evaluation.py`
-直接 `from alpha_shared.{evaluation,cleaning}...` 取算法，mask 路径在调用点注入 config。
-改算法去 alpha-shared 改一份；改完务必跑 `scripts/regression_baseline_replication.py`
-+ `regression_compare.py` 验两边数值零漂移。本仓评估代码只剩两个本地文件：
-`core/evaluation.py`（编排 evaluate_single_factor）+ `core/eval_plots.py`（可视化，本地审美保留）。
+**alpha_shared 工具包**（已内嵌，`alpha_shared/` 在仓库根）：IC / 分层回测 / 清洗 / mask 加载等
+数值算法。`core/evaluation.py` 直接 `from alpha_shared.{evaluation,cleaning}...` 取算法，
+mask 路径在调用点注入 config。改算法直接改 `alpha_shared/`，改完务必跑
+`scripts/regression_baseline_replication.py` + `scripts/regression_compare.py` 验数值零漂移。
+评估编排：`core/evaluation.py`；可视化：`core/eval_plots.py`。
 
 ---
 

@@ -39,10 +39,10 @@ ls /nfs/ofs-prediction/peterzhenglinpeng/market-data/minute/raw/ | tail -3
 PYTHONPATH=. python pipeline/refresh_supersets.py --dry-run
 ```
 
-### 1b. 安装依赖（如 alpha-shared 未装）
+### 1b. 安装依赖
 
 ```bash
-pip install -e /nfs/volume-1593-1/peterzhenglinpeng/alpha-shared
+# alpha_shared 已内嵌仓库根，无需单独安装（PYTHONPATH=. 即可 import）
 ```
 
 ### 1c. 建 sm_v1（首次必做，本地 Mac 内存不够没建）

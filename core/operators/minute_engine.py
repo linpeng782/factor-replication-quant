@@ -241,12 +241,29 @@ class MinuteAggregateEngine:
         )
 
         global _WORKER_SUBTABLES, _WORKER_REDUCER
+        # B: 累积每股新行，每 _FLUSH_CHUNKS 块（含末尾）flush 一次 —— 避免每块 read-modify-write。
+        # 全量重建：每股写次数从 ~N_chunks(≈二次方累积) 降到 ~N_chunks/_FLUSH_CHUNKS；内存有界。
+        # 增量日更：块数 < _FLUSH_CHUNKS → 仅末尾一次 flush（与原行为一致，快）。
+        flush_chunks = max(1, int(os.environ.get("MINUTE_FLUSH_CHUNKS", "25")))
+        pending: Dict[str, List[pd.DataFrame]] = {}
+
+        def _flush() -> int:
+            for ob, dfs in pending.items():
+                self._write_cache_append(
+                    self.cache_dir / f"{ob}.parquet", pd.concat(dfs, ignore_index=True)
+                )
+            cnt = len(pending)
+            pending.clear()
+            return cnt
+
         n_written = 0
+        chunk_idx = 0
         for ci in range(start_idx, len(raw_dates), _CHUNK_DAYS):
             tgt_lo = raw_dates[ci]
             tgt_hi = raw_dates[min(ci + _CHUNK_DAYS, len(raw_dates)) - 1]
             load_lo = raw_dates[max(0, ci - warmup)]  # warmup overlap（真实数据，含嵌套 rolling）
             allm = load_adjusted_minute_window(load_lo, tgt_hi, stocks=need_obs)
+            chunk_idx += 1
             if allm.empty:
                 continue
             _WORKER_SUBTABLES = {ob: g for ob, g in allm.groupby("order_book_id", sort=False)}
@@ -263,8 +280,10 @@ class MinuteAggregateEngine:
                         keep &= df["date"] > lst
                     df = df[keep]
                     if not df.empty:
-                        self._write_cache_append(self.cache_dir / f"{ob}.parquet", df)
-                        n_written += 1
+                        pending.setdefault(ob, []).append(df)
             _WORKER_SUBTABLES = {}
-            logger.info(f"  块 {tgt_lo.date()}~{tgt_hi.date()} 完成（累计写 {n_written} 股·块）")
-        logger.info(f"[minute_engine] {self.reducer.cache_key} 刷新完成: 写入 {n_written} 股·块")
+            logger.info(f"  块 {tgt_lo.date()}~{tgt_hi.date()} 完成（待 flush {len(pending)} 股）")
+            if chunk_idx % flush_chunks == 0:
+                n_written += _flush()
+        n_written += _flush()
+        logger.info(f"[minute_engine] {self.reducer.cache_key} 刷新完成: flush {n_written} 股·次")

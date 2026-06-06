@@ -169,10 +169,16 @@ calculation_steps:
 ```
 两组列长度必须相等；任一侧含 NaN → 整行结果为 NaN；常数序列 → NaN（var=0 不可除）。
 
-### `minute_intraday_aggregate`
-**仅用于分钟级研报**（开源_微观_27、方正《适度冒险》/《完整潮汐》/《飞蛾扑火》等）。
-逐股票从 `MINUTE_DATA_DIR` 流式 load 分钟数据 → 同时点 σ → 喷发标签 → 峰/岭/谷分类
-→ 日频 reduce → 缓存到 per-stock parquet。spec 自动产出**日频 long 表**（同 fetch get_factor），
+### 分钟级聚合（Engine + Reducer 架构）
+> ⚠️ **架构已升级**（见 `docs/hf_factor_factory_design.md`）：分钟因子 = 通用引擎 + 可插拔 **Reducer**。
+> 每个 `action`（如 `minute_intraday_aggregate`=峰岭谷、`minute_tide`=潮汐）对应**一个已实现的 reducer**，
+> 它把分钟 reduce 成日频 superset；spec 只需在该 superset 上选列 + 跑 L3（rolling/compute/...）。
+> **若新研报需要一种现有 reducer 没有的归约口径 → 要先写新 reducer（命令式代码 + 7 条规约，非 LLM 填 yaml）**；
+> 此时在 thinking 里**明确指出"需新建 reducer XXX，产出哪些日频列"**，spec 暂按该列名假设写，留待人工实现 reducer。
+
+### `minute_intraday_aggregate`（= 峰岭谷 Reducer，cache_key 家族 prv_*）
+**用于峰岭谷类分钟研报**（开源_微观_27 等）。引擎读 `minute/raw` 日文件 + 读时复权 → 同时点 σ → 喷发标签
+→ 峰/岭/谷分类 → 日频 reduce → per-stock 缓存。spec 自动产出**日频 long 表**（同 fetch get_factor），
 下游照常用 rolling/compute/rank。
 
 ```yaml

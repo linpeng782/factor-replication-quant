@@ -78,6 +78,24 @@ class Reducer:
 - **一份 superset 服务一族因子**（cache_key 即"研报家族"）：胖（峰岭谷 36 列共享 23 因子）或瘦（聪明钱 2 列）皆可。
 - 变体（β/cutoff/std_window…）= params → 不同 hash → 各自缓存；append-only，历史冻结。
 
+### 4.4 reducer↔superset 身份模型（多对多在实例级坍缩为 1:1）
+- Reducer=**配方**（代码+声明）；superset=**成品**（落盘缓存）。绑定钥匙 = `cache_key + sha1({**params, version})`。
+- Reducer**类** ↔ superset = **1:N**（同代码不同 params → 不同缓存）；Reducer**实例**(代码+params+版本) ↔ superset = **1:1**；superset ↔ factor = **1:N**（一族因子共享）。
+- 研报 = `{0~N 个 reducer} + {一组 factor spec} + {可能的新 L3 算子}`，**不是 1:1**（一个 reducer 可跨多篇/喂多因子；一篇可需多 reducer；纯日频篇 0 reducer）。
+- 鲁棒来源：**内容寻址身份 + 中央注册表(REDUCER_BY_ACTION) + fail-fast 边界校验(features⊆columns) + mode 物理隔离 + bit/增量验证兜底**。
+
+### 4.5 Reducer 作者须知（写新 reducer 必读 —— 7 条规约）
+> 经验来源：2 个 reducer 实现 + 12 篇分析；每条都对应踩过/可踩的坑。reducer 是**每篇研报唯一的新代码**，承载全部研究逻辑与正确性，故立此清单。
+1. **warmup 正确声明**（头号 bug 源）：= reduce 里最深的跨日回看，**数清嵌套 rolling**（PRV 同时点σ20日 ∘ pooled-corr20日 ⇒ 2×std_window=40；Tide 纯日内=0）。错 → 分块边界**静默算错**。
+2. **reduce 必须 per-stock 纯函数**：不碰别股、无全局态、幂等。跨股逻辑 → L2b/面板算子（reduce 物理上只拿一只股）。
+3. **NaN/边界守门**：除零 / 空切片 / 极值贴边 / 当日分钟不足 → 该日 NaN（别崩、别出脏值）。
+4. **复权口径意识**：日内比值（速率/收益）复权抵消→稳健；跨日价格水平需后复权（loader 已做）。
+5. **位序 vs minute_of_day**：涉及"第几分钟/相邻"用**位序**，别用带午休 gap 的 minute_of_day（Tide 踩过：先剔除开盘/收盘再算邻域）。
+6. **列声明=实际输出；version 反映任何影响结果的改动**（→ 缓存身份变，不串）。
+7. **每个 reducer 必过验证三件套**：① 独立手算 / bit 对账 golden（若有）② 增量==全量 ③ IC 方向+量级对论文。**规约降错率，验证兜底，两者都要。**
+
+> ⚠️ 成熟度：以上基于 2 个"per-stock 日内型"reducer。**reducer 内跨日池化（聪明钱）/ L2b 指数（APM）/ 跨股面板（水中行舟）尚未实现**，会长出新规约——故本清单**待这 3 种各做一篇后再固化为完整作者指南 + 改写 research_to_yaml.md**（勿过早冻结）。
+
 ---
 
 ## 5. L2b：截面/市场参照 Reducer（新）

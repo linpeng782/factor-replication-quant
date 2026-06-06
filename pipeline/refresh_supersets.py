@@ -8,7 +8,7 @@ spec = "哪些 superset 在用" 的唯一真相源：
 
 用法:
   python pipeline/refresh_supersets.py                       # 增量刷新所有在用 superset
-  python pipeline/refresh_supersets.py --dry-run             # 只列出，不刷新（别名 --list）
+  python pipeline/refresh_supersets.py --dry-run             # 只列出，不刷新
   python pipeline/refresh_supersets.py --cache-key sm_v1     # 只刷指定 cache_key（可逗号分隔多个）
   python pipeline/refresh_supersets.py --cache-key sm_v1 --rebuild  # 删缓存后强制全量重建
 """
@@ -68,9 +68,9 @@ def main():
         epilog=__doc__,
     )
     ap.add_argument(
-        "--dry-run", "--list",
+        "--dry-run",
         dest="dry_run", action="store_true",
-        help="只列出在用 superset 及构建状态，不刷新（--list 是别名）",
+        help="只列出在用 superset 及构建状态，不刷新",
     )
     ap.add_argument(
         "--cache-key", dest="cache_key", default=None,

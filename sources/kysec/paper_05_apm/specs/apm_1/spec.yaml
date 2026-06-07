@@ -1,0 +1,36 @@
+# APM_1 = 隔夜 vs 下午尾盘（14:00-15:00）变体（开源系列5 §L370-372）
+# 论文中 2019 年表现最佳的两个变体之一（与APM_new并列）
+# direction=+1（隔夜正向预测）
+factor:
+  name: apm_1
+  name_cn: APM隔夜尾盘
+  category: 微观结构
+  direction: 1
+  column: apm_1
+  description: APM变体：隔夜vs下午尾盘(14-15点)。2019年与APM_new并列最优变体。开源系列5§APM_1。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频段收益
+    action: minute_apm_segments
+    cache_key: apm_v1
+    features: [ret_overnight, ret_pm_late]
+    output_dataframe: data
+  - name: 加载Ret20（去动量用）
+    action: load_panel
+    panel_config: RET20_PANEL_PATH
+    output_column: ret20
+  - name: 滚动20日OLS→stat（隔夜vs尾盘）
+    action: rolling_ts_regress
+    source_column_seg1: ret_overnight
+    source_column_seg2: ret_pm_late
+    index_col_seg1: ret_overnight_idx
+    index_col_seg2: ret_pm_late_idx
+    window: 20
+    output_column: apm_stat
+    group_by: order_book_id
+  - name: 截面去Ret20动量→纯净APM
+    action: cross_section_regress
+    source_column_y: apm_stat
+    source_columns_x: [ret20]
+    output_column: apm_1

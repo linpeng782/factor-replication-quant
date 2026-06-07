@@ -35,6 +35,11 @@ LABELS_DIR = _MKT / "labels"
 INDUSTRY_PANEL_ZX_PATH = _MKT / "industry/industry_panel_zx.parquet"
 MARKET_CAP_PANEL_PATH = _MKT / "market_cap/market_cap_panel.parquet"
 
+# 指数分段收益（APM 回归的市场参照序列，data_fetching/index_segments.py 产出）
+INDEX_DIR = _MKT / "index"
+# 000985 中证全指日频四段收益：ret_overnight_idx/ret_am_idx/ret_pm_idx/ret_pm_late_idx
+INDEX_SEGMENTS_PATH = INDEX_DIR / "000985_segments.parquet"
+
 # ==================== 项目内输出目录 ====================
 # 报告、图片等评估输出（项目代码相对路径，不受 _DATA_ROOT 影响）
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
@@ -47,6 +52,10 @@ _FACTORS = _DATA_ROOT / "factors"
 RAW_FACTOR_BASE = _FACTORS / "raw"           # 原始因子（spec 引擎/批量库产出）
 CLEANED_FACTOR_BASE = _FACTORS / "cleaned"   # 清洗后（MAD+zscore+mask）
 NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产用版本）
+
+# 辅助面板（跨因子共享；不属于三阶段产物，存 helpers/ 下）
+# Ret20：20日后复权收益面板（宽表），APM 截面回归去动量用（scripts/build_ret20_panel.py 产出）
+RET20_PANEL_PATH = _FACTORS / "helpers" / "ret20_panel.parquet"
 
 # ==================== 因子分析产物：factor-inventory/ ====================
 # 总账(inventory) / IC序列矩阵(ic_series) / 相关性(correlation) / 对比(comparison) 等

@@ -1,0 +1,39 @@
+# OVP（Overnight-vs-PM）= 近20日累计隔夜收益 − 近20日累计下午收益
+# 开源微观结构系列5 §"W式切割" L384-441
+# 论文绩效（2013.5-2019.12, 全A, 市值行业正交）: 年化 18.04%, ICIR 4.17, 回撤 2.21%, 月胜率 86.25%
+# 隔夜收益正向预测 + 下午收益负向预测（论文L218）→ OVP=RO-RP 正相关，direction=+1
+factor:
+  name: ovp
+  name_cn: 隔夜下午累计差
+  category: 微观结构
+  direction: 1
+  column: ovp
+  description: 近20日累计隔夜收益 − 近20日累计下午收益。隔夜收益对未来正向预测、下午负向预测，
+    故 OVP 越大未来收益越高（direction=+1）。无需指数回归，直接累积差。开源微观结构5§OVP。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频四段收益
+    action: minute_apm_segments
+    cache_key: apm_v1
+    features: [ret_overnight, ret_pm]
+    output_dataframe: data
+  - name: 20日累计隔夜收益
+    action: rolling
+    source_column: ret_overnight
+    output_column: ro_sum
+    window: 20
+    agg: sum
+    group_by: order_book_id
+  - name: 20日累计下午收益
+    action: rolling
+    source_column: ret_pm
+    output_column: rp_sum
+    window: 20
+    agg: sum
+    group_by: order_book_id
+  - name: OVP = RO - RP
+    action: compute
+    formula: ro_sum - rp_sum
+    source_columns: [ro_sum, rp_sum]
+    output_column: ovp

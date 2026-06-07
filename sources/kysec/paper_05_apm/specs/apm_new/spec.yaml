@@ -1,0 +1,38 @@
+# APM_new = APM 进阶版（开源系列5 §L258）
+# 隔夜 vs 下午：用 ret_overnight 替代 ret_am，其余步骤完全不变
+# 论文（2013.5-2019.12）: 年化 12.81%, ICIR 3.17, 月胜率 81.25%, 回撤 2.32%
+# direction=+1：隔夜正向预测且稳定（ICIR全样本0.75），改进版比原始更强、更稳
+factor:
+  name: apm_new
+  name_cn: APM进阶
+  category: 微观结构
+  direction: 1
+  column: apm_new
+  description: APM进阶版（开源系列5）。近20日隔夜vs下午OLS残差差stat，截面去Ret20动量。
+    用隔夜替代上午，消除2019年上午不稳定问题。ICIR 3.17。开源微观结构5§APM_new。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频段收益
+    action: minute_apm_segments
+    cache_key: apm_v1
+    features: [ret_overnight, ret_pm]
+    output_dataframe: data
+  - name: 加载Ret20（去动量用）
+    action: load_panel
+    panel_config: RET20_PANEL_PATH
+    output_column: ret20
+  - name: 滚动20日OLS→stat（隔夜vs下午）
+    action: rolling_ts_regress
+    source_column_seg1: ret_overnight
+    source_column_seg2: ret_pm
+    index_col_seg1: ret_overnight_idx
+    index_col_seg2: ret_pm_idx
+    window: 20
+    output_column: apm_stat
+    group_by: order_book_id
+  - name: 截面去Ret20动量→纯净APM
+    action: cross_section_regress
+    source_column_y: apm_stat
+    source_columns_x: [ret20]
+    output_column: apm_new

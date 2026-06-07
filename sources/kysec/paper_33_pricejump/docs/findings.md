@@ -147,3 +147,30 @@ p_jump_corr   0.298   0.261   0.388   0.191   0.488   0.921   0.108   0.405   0.
 4. **不留** `pj_valley_weighted_quantile`、`pj_jump_turnover_corr`（与 paper_27 同名 ρ > 0.92，几乎同因子）
 
 → paper_27 + paper_33 合并因子库实际独立因子数 ~9-10，不是 12。
+
+---
+
+## 8. 引擎重构后迁移为 MinuteReducer + 全 18 因子复现（2026-06-07）
+
+**背景**：`minute_pricejump_aggregate` 原是"独立引擎 op"（自带 ProcessPool + 读旧 `MINUTE_DATA_DIR`
+per-stock 后复权文件）。引擎 reducer 化重构后旧目录已删 → 本因子族**一度搁浅无法生产**。
+
+**修复**：迁移为 `JumpReducer(MinuteReducer)`，与 tide/dazzle/intraday/smartmoney 同走
+`MinuteAggregateEngine`（读 minute/raw 窗口 → 读时复权 → 按股切表 → reduce → append-only 缓存）。
+**归约数学逐行不变**（_compute_one_stock 仅入参 src_path→raw），spec 入口 action/cache_key 零改动，
+18 个 spec 静态校验全通过。warmup=2×std_window=40（peakridge_minute_corr_pooled 嵌套两层 rolling）。
+
+**复现结果**（月频 RankIC，2014-2019，neu 生产版；带论文目标的 11 个**方向 11/11 全对齐**）：
+| 因子 | 我RankIC | 论文 | | 因子 | 我RankIC | 论文 |
+|---|---|---|---|---|---|---|
+| pj_valley_relative_vwap | +6.35% | 6.53% ✓ | | pj_ridge_minute_return | -9.67% | -8.51% ✓ |
+| pj_jump_followup_ratio | -9.61% | -8.92% ✓ | | pj_ridge_minute_count | -8.59% | -7.65% ✓ |
+| pj_ridge_interval_kurt | -8.63% | -7.46% ✓ | | pj_ridge_interval_skew | -8.73% | -7.62% ✓ |
+| pj_peak_minute_count | +4.36% | 6.38% ✓ | | pj_jump_turnover_sensitivity | -6.22% | -6.82% ✓ |
+| pj_jump_turnover_corr | -6.77% | -10.23% ✓ | | pj_peak_interval_std | -2.03% | -3.96% ✓ |
+
+方向 100% 一致，量级多数贴合（valley_relative_vwap 近乎命中）；少数高阶矩/分位因子偏弱但符号正确。
+
+**非平凡洞察**：pricejump（系列㉝）与成交量峰岭谷（系列㉗）是**同一 reducer 模板的孪生**——
+把"喷发=量>σ"换成"跳跃=振幅>σ"、把"量加权"换成价格跳跃口径，superset 列结构几乎一致。
+两者 warmup 同为 40。这验证了"峰岭谷方法论"在工厂里高度可复用：换一个 σ 判定口径即得一篇新研报。

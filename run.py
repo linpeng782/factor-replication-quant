@@ -80,7 +80,14 @@ def run_one(
     logger.info(f"   eval : {eval_start} ~ {eval_end}")
     logger.info("=" * 60)
 
-    spec_yaml = load_spec_yaml(factor_name)
+    # evaluate-only 允许无 spec（如 alpha158 批量因子，raw 已存在但无 spec.yaml）
+    if mode == "evaluate-only":
+        try:
+            spec_yaml = load_spec_yaml(factor_name)
+        except Exception:
+            spec_yaml = None
+    else:
+        spec_yaml = load_spec_yaml(factor_name)
 
     if mode == "evaluate-only":
         factor_df = _load_existing_raw(factor_name)

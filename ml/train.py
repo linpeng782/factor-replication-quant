@@ -24,7 +24,9 @@ DEFAULT_PARAMS = dict(
     lambda_l1=0.0,
     lambda_l2=0.0,
     num_threads=64,
-    seed=42,                    # 先单种子
+    seed=42,
+    deterministic=True,        # 多线程浮点累加顺序固定 → 同 seed 同数据 bit 级复现
+    force_row_wise=True,       # deterministic 要求显式指定 row/col wise
     verbose=-1,
 )
 NUM_BOOST_ROUND = 1000

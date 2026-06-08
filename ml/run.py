@@ -2,9 +2,11 @@
 CLI 入口：串起 dataset → select(Stage1) → train(Stage2) → evaluate 全流程
 ============================================================
 用法：
-    python -m ml.run                          # 全203因子 → GBDT重要性选64 → 重训 → test模型IC
+    python -m ml.run                          # 全因子 → GBDT重要性选64 → 重训 → test模型IC
     python -m ml.run --top-k 64 --run-id exp001
     python -m ml.run --date-sample 5 --max-features 60   # 冒烟
+    python -m ml.run --num-threads 32         # 并行跑多个实验时降低线程数（默认64）
+                                              # 经验值：单机128核，N个并行 → --num-threads 128//N
 产物：
     FACTOR_REPL_DATA_ROOT/ml/models/<run_id>/       model.txt + selected_features.json
     FACTOR_REPL_DATA_ROOT/ml/predictions/<run_id>/  pred_panel + ic_series
@@ -33,6 +35,12 @@ def main() -> None:
     ap.add_argument("--date-sample", type=int, default=None)
     ap.add_argument("--max-features", type=int, default=None)
     ap.add_argument("--run-id", default=None)
+    ap.add_argument("--num-threads", type=int, default=None,
+                    help="LightGBM 线程数（默认用 train.py 的 DEFAULT_PARAMS=64）。"
+                         "并行跑 N 个实验时建议传 128//N，避免 CPU 超额订阅。")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="随机种子（默认用 train.py 的 DEFAULT_PARAMS=42）。"
+                         "多种子实验时传不同值，如 1/42/123/2024/7。")
     args = ap.parse_args()
     launch_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_id = args.run_id or launch_ts
@@ -43,13 +51,23 @@ def main() -> None:
     log_path = config.ML_LOGS_DIR / f"{run_id}_{launch_ts}.log"
     log_sink = logger.add(log_path, level="INFO",
                           format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}")
+    # num_threads / seed 覆盖：只在显式传参时生效，否则沿用 DEFAULT_PARAMS
+    thread_params = {}
+    if args.num_threads:
+        thread_params["num_threads"] = args.num_threads
+    if args.seed is not None:
+        thread_params["seed"] = args.seed
+    if thread_params:
+        logger.info(f"[run {run_id}] 参数覆盖: {thread_params}")
+
     logger.info(f"[run {run_id}] 启动 @ {launch_ts} | 日志: {log_path} | 参数: {vars(args)}")
 
     sp = build_dataset(args.sources, date_sample=args.date_sample, max_features=args.max_features)
 
     # Stage 1: 筛选（只用 train+valid）
     selector = select_by_shap if args.select_method == "shap" else select_by_gbdt_importance
-    selected, scores, _ = selector(sp.X_train, sp.y_train, sp.X_valid, sp.y_valid, top_k=args.top_k)
+    selected, scores, _ = selector(sp.X_train, sp.y_train, sp.X_valid, sp.y_valid,
+                                   top_k=args.top_k, params=thread_params or None)
     model_dir = config.ML_MODELS_DIR / run_id
     save_selection(selected, scores, f"{args.select_method}_gain", model_dir)
     # 存 RobustZScore 尺子(median/scale, train段拟合)：实盘推理(predict_live)复用同一把尺，口径一致
@@ -62,7 +80,8 @@ def main() -> None:
         logger.info(f"    {i:>3}. {f:<40} importance={scores[f]:.2f}")
 
     # Stage 2: 仅用选出的因子重训
-    model, best_it, _ = train_gbdt(sp.X_train[selected], sp.y_train, sp.X_valid[selected], sp.y_valid, tag="final")
+    model, best_it, _ = train_gbdt(sp.X_train[selected], sp.y_train, sp.X_valid[selected], sp.y_valid,
+                                   params=thread_params or None, tag="final")
     model.save_model(str(model_dir / "model.txt"), num_iteration=best_it)
 
     # 评估：样本外模型 IC

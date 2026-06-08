@@ -246,6 +246,106 @@ def _evaluate(panel: pd.DataFrame, factor: str, eval_start: str, eval_end: str):
     return res
 
 
+# ════════════════ reg_pe_fy1（久期调整预期 PE）════════════════
+
+def fy1_np_panel(comp: pd.DataFrame) -> pd.DataFrame:
+    """fy1 一致预期净利润（当前日历年 Y 的一致预期，不做 forward 滚动）= 宽表 date×stock。"""
+    d = comp.dropna(subset=["report_year_t"]).copy()
+    d["report_year_t"] = d["report_year_t"].astype(int)
+    Y = d["date"].dt.year.values
+    off = Y - d["report_year_t"].values
+    out = np.full(len(d), np.nan)
+    for k, col in _T_COLS.items():
+        m = off == k
+        out[m] = d[col].values[m]
+    d["fy1_np"] = out
+    d = d[d["fy1_np"] > 0]
+    return d.pivot(index="date", columns="order_book_id", values="fy1_np")
+
+
+def build_duration_panels(fiscal_years, lookback_days: int = 180):
+    """久期面板 + fy1 报告数面板（月末快照 + ffill）。
+
+    久期 = (n_fy1·1 + n_fy2·2 + n_fy3·3) / (n_fy1+n_fy2+n_fy3)，n_fyk = 可回溯区间内对
+    第 k 预测年（net_profit_t/t1/t2 非空）做过预测的首序分析师数。衡量分析师"看多远"。
+    """
+    from data_fetching.consensus import CONSENSUS_DIR
+    grid = _trading_grid()
+    dur_cols, n1_cols = {}, {}
+    for Y in fiscal_years:
+        cache = CONSENSUS_DIR / f"reports_fy{Y}_rice_create_tm.parquet"
+        if not cache.exists():
+            continue
+        c = clean_reports(pd.read_parquet(cache))
+        vstart, vend = pd.Timestamp(f"{Y}-05-01"), pd.Timestamp(f"{Y+1}-04-30")
+        valid_grid = grid[(grid >= vstart) & (grid <= vend)]
+        snap_pts = pd.DatetimeIndex(
+            pd.Series(valid_grid, index=valid_grid).groupby([valid_grid.year, valid_grid.month]).last().values)
+        for oid, g in c.groupby("order_book_id", sort=False):
+            dts = g["date"].values
+            t0 = g["net_profit_t"].notna().values
+            t1 = g["net_profit_t1"].notna().values
+            t2 = g["net_profit_t2"].notna().values
+            leads = g["lead"].values
+            dvals, n1vals = [], []
+            for D in snap_pts:
+                lo = np.datetime64(D - pd.Timedelta(days=lookback_days))
+                m = (dts > lo) & (dts <= np.datetime64(D))
+                if not m.any():
+                    dvals.append(np.nan); n1vals.append(np.nan); continue
+                n1 = len(set(leads[m & t0])); n2 = len(set(leads[m & t1])); n3 = len(set(leads[m & t2]))
+                tot = n1 + n2 + n3
+                dvals.append((n1 + 2*n2 + 3*n3)/tot if tot > 0 else np.nan)
+                n1vals.append(n1)
+            sd = pd.Series(dvals, index=snap_pts).reindex(valid_grid, method="ffill")
+            sn = pd.Series(n1vals, index=snap_pts).reindex(valid_grid, method="ffill")
+            dur_cols.setdefault(oid, []).append(sd.dropna())
+            n1_cols.setdefault(oid, []).append(sn.dropna())
+    dur = pd.DataFrame({o: pd.concat(p).sort_index() for o, p in dur_cols.items()})
+    n1 = pd.DataFrame({o: pd.concat(p).sort_index() for o, p in n1_cols.items()})
+    return dur, n1
+
+
+def _xsec_residual(y: pd.DataFrame, x: pd.DataFrame) -> pd.DataFrame:
+    """逐日截面 OLS y ~ a + b·x，返回残差面板（对齐 y 的网格）。"""
+    x = x.reindex_like(y)
+    res = pd.DataFrame(index=y.index, columns=y.columns, dtype=float)
+    for dt in y.index:
+        yi = y.loc[dt].values.astype(float)
+        xi = x.loc[dt].values.astype(float)
+        m = np.isfinite(yi) & np.isfinite(xi)
+        if m.sum() < 30:
+            continue
+        xa = np.column_stack([np.ones(m.sum()), xi[m]])
+        beta, *_ = np.linalg.lstsq(xa, yi[m], rcond=None)
+        r = yi[m] - xa @ beta
+        res.loc[dt, np.array(y.columns)[m]] = r
+    return res
+
+
+def build_reg_pe_fy1(comp, fiscal_years, lookback_days: int = 180, diff_periods: int = 60):
+    """reg_pe_fy1：log(pe_fy1) 与 log(久期) 各取 60 日 diff 后，截面回归 Δlogpe ~ Δlogdur 的残差。"""
+    fy1np = fy1_np_panel(comp)
+    mcap = _mcap_panel_yuan()
+    cols = fy1np.columns.intersection(mcap.columns)
+    pe = (mcap.reindex(index=fy1np.index, columns=cols) / fy1np.reindex(columns=cols))
+    dur, n1 = build_duration_panels(fiscal_years, lookback_days=lookback_days)
+    # 对齐网格
+    idx = pe.index.intersection(dur.index)
+    cols2 = pe.columns.intersection(dur.columns)
+    pe = pe.reindex(index=idx, columns=cols2)
+    dur = dur.reindex(index=idx, columns=cols2)
+    n1 = n1.reindex(index=idx, columns=cols2)
+    # 连续报告数<3 或 pe<=0 置 nan
+    pe = pe.where((n1 >= 3) & (pe > 0))
+    dur = dur.where(dur > 0)
+    log_pe = np.log(pe)
+    log_dur = np.log(dur)
+    d_pe = log_pe.diff(diff_periods)
+    d_dur = log_dur.diff(diff_periods)
+    return _xsec_residual(d_pe, d_dur)
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -270,6 +370,11 @@ if __name__ == "__main__":
     elif a.factor == "cnts_ana_rpt90":
         lo, hi = (int(x) for x in a.fy.split("-"))
         panel = build_count_panel(list(range(lo, hi + 1)), window_days=90)
+    elif a.factor == "reg_pe_fy1":
+        from data_fetching.consensus import load_or_fetch_comp_indicators
+        lo, hi = (int(x) for x in a.fy.split("-"))
+        panel = build_reg_pe_fy1(load_or_fetch_comp_indicators(),
+                                 list(range(lo, hi + 1)), lookback_days=a.lookback)
     else:
         raise SystemExit(f"未实现: {a.factor}")
     _evaluate(panel, a.factor, a.eval_start, a.eval_end)

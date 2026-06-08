@@ -1,0 +1,21 @@
+# 国信证券 2024-01「个股与行业的共振——联合动量因子」
+# 论文(行业市值中性化口径) RankIC/ICIR 见 sources/guosen/co_momentum/docs/co_momentum.md
+factor:
+  name: VICM
+  name_cn: 量价齐升行业联合动量
+  category: 量价
+  direction: 1
+  column: vicm
+  description: 个股过去20日(涨幅×成交量)最大5日对应所属行业指数收益，半衰期加权。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 量价齐升行业联合动量（个股过去20日按涨幅×成交量排序取若干日，加权所属行业收益）
+    action: industry_co_momentum
+    sub_factor: VICM
+    signal_source: industry
+    window: 20
+    n_mom: 5
+    n_rev: 15
+    output_column: vicm
+    output_dataframe: data

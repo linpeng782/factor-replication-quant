@@ -102,10 +102,14 @@ def validate_spec(spec_yaml: dict) -> None:
             _validate_fetch(step, sym, loc)
         elif action == "merge":
             _validate_merge(step, sym, loc)
-        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate", "minute_tide", "minute_smartmoney"):
+        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate", "minute_tide", "minute_smartmoney", "minute_dazzle", "minute_apm_segments"):
             # 分钟级聚合算子契约：cache_key + features（std_window/threshold 可选）。
             # TODO(1000规模): 此枚举 + yolo_engine 导入清单应改为按 REDUCER_BY_ACTION 自动发现。
             _validate_minute_intraday_aggregate(step, sym, loc)
+        elif action == "rolling_ts_regress":
+            _validate_rolling_ts_regress(step, sym, loc)
+        elif action == "load_panel":
+            _validate_load_panel(step, sym, loc)
         elif action == "industry_co_momentum":
             # 行业/市场联合动量：创建主表的特殊聚合算子，注册 output_column 到主表。
             target = step.get("output_dataframe", "data")
@@ -280,3 +284,36 @@ def _collect_source_columns(step: dict, loc: str) -> List[str]:
             f"source_column_<role> / source_columns_<role>"
         )
     return found
+
+
+def _validate_rolling_ts_regress(step: dict, sym: _SymbolTable, loc: str) -> None:
+    """rolling_ts_regress：两个 source_column_seg* 必须存在，output_column 新增。"""
+    target_df = step.get("output_dataframe", "data")
+    if not sym.has_df(target_df):
+        raise SpecError(f"{loc}: DataFrame {target_df!r} 未被定义")
+    for role in ("seg1", "seg2"):
+        key = f"source_column_{role}"
+        col = step.get(key)
+        if not col:
+            raise SpecError(f"{loc}: {key} 必填")
+        sym.require(target_df, col, loc, role=key)
+    for key in ("index_col_seg1", "index_col_seg2"):
+        if not step.get(key):
+            raise SpecError(f"{loc}: {key} 必填（指数段收益列名）")
+    out = step.get("output_column")
+    if not out:
+        raise SpecError(f"{loc}: output_column 必填")
+    sym.add(target_df, out, loc)
+
+
+def _validate_load_panel(step: dict, sym: _SymbolTable, loc: str) -> None:
+    """load_panel：无 source_columns（读外部文件），只需 panel_config + output_column。"""
+    target_df = step.get("output_dataframe", "data")
+    if not sym.has_df(target_df):
+        raise SpecError(f"{loc}: DataFrame {target_df!r} 未被定义")
+    if not step.get("panel_config"):
+        raise SpecError(f"{loc}: panel_config 必填（config 属性名或绝对路径）")
+    out = step.get("output_column")
+    if not out:
+        raise SpecError(f"{loc}: output_column 必填")
+    sym.add(target_df, out, loc)

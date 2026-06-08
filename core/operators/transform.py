@@ -93,6 +93,20 @@ def _method_zscore(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
     return (df[src] - df[src].mean()) / df[src].std()
 
 
+def _method_cs_demean(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
+    """截面去均值：按 group_by（默认 'date'）减去组内均值。
+    用于"适度"类因子（x − 当日截面均值），与 winsorize 同走按日截面分组。"""
+    group_by = step.get("group_by", "date")
+    if group_by:
+        return df.groupby(group_by)[src].transform(lambda x: x - x.mean())
+    return df[src] - df[src].mean()
+
+
+def _method_abs(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
+    """逐元素取绝对值（无分组）。"""
+    return df[src].abs()
+
+
 def _method_ffill(df: pd.DataFrame, src: str, step: Dict) -> pd.Series:
     group_by = step.get("group_by", "order_book_id")
     if group_by:
@@ -139,6 +153,8 @@ _METHOD_DISPATCH = {
     "yoy": _method_yoy,
     "qoq": _method_qoq,
     "zscore": _method_zscore,
+    "cs_demean": _method_cs_demean,
+    "abs": _method_abs,
     "ffill": _method_ffill,
     "bfill": _method_bfill,
     "diff_quarterly": _method_diff_quarterly,

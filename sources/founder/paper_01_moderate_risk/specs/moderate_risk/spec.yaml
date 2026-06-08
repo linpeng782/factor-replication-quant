@@ -1,0 +1,34 @@
+# 方正微观结构① 适度冒险因子=等权合成(月耀眼波动率+月耀眼收益率)。
+# 论文: RankIC -8.89%, ICIR -4.84, 多空年化 37.46%, IR 4.10, 月胜率 87.74%（全表最强）。
+# 合成口径：每条 combo = 截面pct-rank(月均,月稳)平均；两条 combo 已同尺度(rank∈[0,1])→直接平均。
+factor:
+  name: moderate_risk
+  name_cn: 适度冒险
+  category: 微观结构
+  direction: -1
+  column: moderate_risk
+  description: 综合反映投资者对成交量激增"反应不足/反应过度"的程度。等权合成 月耀眼波动率 与 月耀眼收益率
+    （二者分别由 适度日耀眼波动率/收益率 的 mean20+std20 截面rank平均而来）。过度反应→反转，direction=-1。方正微观①§3.4。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频耀眼波动率/收益率, action: minute_dazzle, cache_key: dazzle_v1, features: [dazzle_vol, dazzle_ret], output_dataframe: data}
+  # ── 适度日耀眼波动率 / 收益率（|日值−截面均值|）──
+  - {name: vol截面去均值, action: transform, method: cs_demean, source_column: dazzle_vol, output_column: vol_dm, group_by: date}
+  - {name: 适度日耀眼波动率, action: transform, method: abs, source_column: vol_dm, output_column: moderate_vol}
+  - {name: ret截面去均值, action: transform, method: cs_demean, source_column: dazzle_ret, output_column: ret_dm, group_by: date}
+  - {name: 适度日耀眼收益率, action: transform, method: abs, source_column: ret_dm, output_column: moderate_ret}
+  # ── 月均/月稳 ──
+  - {name: vol月均, action: rolling, source_column: moderate_vol, output_column: vol_mean_f, window: 20, agg: mean, group_by: order_book_id}
+  - {name: vol月稳, action: rolling, source_column: moderate_vol, output_column: vol_std_f, window: 20, min_periods: 15, agg: std, group_by: order_book_id}
+  - {name: ret月均, action: rolling, source_column: moderate_ret, output_column: ret_mean_f, window: 20, agg: mean, group_by: order_book_id}
+  - {name: ret月稳, action: rolling, source_column: moderate_ret, output_column: ret_std_f, window: 20, min_periods: 15, agg: std, group_by: order_book_id}
+  # ── 截面 pct-rank ──
+  - {name: vol月均rank, action: rank, source_column: vol_mean_f, output_column: vm_rank, group_by: [date], pct: true}
+  - {name: vol月稳rank, action: rank, source_column: vol_std_f, output_column: vs_rank, group_by: [date], pct: true}
+  - {name: ret月均rank, action: rank, source_column: ret_mean_f, output_column: rm_rank, group_by: [date], pct: true}
+  - {name: ret月稳rank, action: rank, source_column: ret_std_f, output_column: rs_rank, group_by: [date], pct: true}
+  # ── 两级等权合成 ──
+  - {name: 月耀眼波动率, action: compute, formula: (vm_rank + vs_rank) / 2, source_columns: [vm_rank, vs_rank], output_column: vol_combo}
+  - {name: 月耀眼收益率, action: compute, formula: (rm_rank + rs_rank) / 2, source_columns: [rm_rank, rs_rank], output_column: ret_combo}
+  - {name: 适度冒险, action: compute, formula: (vol_combo + ret_combo) / 2, source_columns: [vol_combo, ret_combo], output_column: moderate_risk}

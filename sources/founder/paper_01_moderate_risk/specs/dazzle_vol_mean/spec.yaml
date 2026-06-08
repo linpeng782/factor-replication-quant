@@ -1,0 +1,16 @@
+# 方正微观结构① 月均耀眼波动率。论文: RankIC -6.60%, ICIR -4.70, 多空年化 31.05%
+factor:
+  name: dazzle_vol_mean
+  name_cn: 月均耀眼波动率
+  category: 微观结构
+  direction: -1
+  column: dazzle_vol_mean
+  description: 近20日"适度日耀眼波动率"的均值。日耀眼波动率=激增时刻(ΔV>mean+std)耀眼5分钟内
+    分钟收益率std的当日均值；适度=|日值−当日截面均值|。波动适度→未来反转，direction=-1。方正微观①§3.2。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频耀眼波动率, action: minute_dazzle, cache_key: dazzle_v1, features: [dazzle_vol], output_dataframe: data}
+  - {name: 截面去均值, action: transform, method: cs_demean, source_column: dazzle_vol, output_column: vol_dm, group_by: date}
+  - {name: 取绝对值(适度日耀眼波动率), action: transform, method: abs, source_column: vol_dm, output_column: moderate_vol}
+  - {name: 月均(mean20), action: rolling, source_column: moderate_vol, output_column: dazzle_vol_mean, window: 20, agg: mean, group_by: order_book_id}

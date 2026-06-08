@@ -1,0 +1,39 @@
+# AVP（AM-vs-PM）= 近20日累计上午收益 − 近20日累计下午收益
+# 开源微观结构系列5 §"W式切割" L384-441（对照因子，弱）
+# 论文绩效: ICIR 0.15, 年化 3.00%（弱，因2019年上午段预测性失稳）
+# direction=+1（理论同向 OVP，但上午段不稳→信号弱，作对照）
+factor:
+  name: avp
+  name_cn: 上午下午累计差
+  category: 微观结构
+  direction: 1
+  column: avp
+  description: 近20日累计上午收益 − 近20日累计下午收益。上午>下午累积表明日内知情交易，但2019年后不稳。
+    开源微观结构5§AVP（对照因子）。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频四段收益
+    action: minute_apm_segments
+    cache_key: apm_v1
+    features: [ret_am, ret_pm]
+    output_dataframe: data
+  - name: 20日累计上午收益
+    action: rolling
+    source_column: ret_am
+    output_column: ra_sum
+    window: 20
+    agg: sum
+    group_by: order_book_id
+  - name: 20日累计下午收益
+    action: rolling
+    source_column: ret_pm
+    output_column: rp_sum
+    window: 20
+    agg: sum
+    group_by: order_book_id
+  - name: AVP = RA - RP
+    action: compute
+    formula: ra_sum - rp_sum
+    source_columns: [ra_sum, rp_sum]
+    output_column: avp

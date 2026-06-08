@@ -1,0 +1,39 @@
+# APM_raw = 原始 APM（凤鸣朝阳 §L86-168）
+# 上午 vs 下午：40点OLS取残差→δ→stat；截面回归去Ret20→纯净APM
+# 论文（2013.5-2019.12，全A）: 年化 10.99%, ICIR 2.07, 月胜率 70%
+# direction=+1：因子值越大，知情交易者越倾向做多，次月收益越高（凤鸣朝阳L44/L250 实证正相关）
+# 注：上午段预测性 2019 后失稳（论文核心论点），故本因子在 2019+ 样本走弱
+factor:
+  name: apm_raw
+  name_cn: APM原始
+  category: 微观结构
+  direction: 1
+  column: apm_raw
+  description: 原始APM因子（凤鸣朝阳）。近20日上午vs下午OLS残差差stat，截面去Ret20动量后的纯净值。
+    因子值大=知情者偏多→次月收益高（正相关）。上午段2019后失稳。方正凤鸣朝阳§APM。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频段收益
+    action: minute_apm_segments
+    cache_key: apm_v1
+    features: [ret_am, ret_pm]
+    output_dataframe: data
+  - name: 加载Ret20（去动量用）
+    action: load_panel
+    panel_config: RET20_PANEL_PATH
+    output_column: ret20
+  - name: 滚动20日OLS→stat（上午vs下午）
+    action: rolling_ts_regress
+    source_column_seg1: ret_am
+    source_column_seg2: ret_pm
+    index_col_seg1: ret_am_idx
+    index_col_seg2: ret_pm_idx
+    window: 20
+    output_column: apm_stat
+    group_by: order_book_id
+  - name: 截面去Ret20动量→纯净APM
+    action: cross_section_regress
+    source_column_y: apm_stat
+    source_columns_x: [ret20]
+    output_column: apm_raw

@@ -1,0 +1,16 @@
+# 方正微观结构① 月稳耀眼收益率。论文: RankIC -8.00%, ICIR -4.50, 多空年化 30.46%
+factor:
+  name: dazzle_ret_std
+  name_cn: 月稳耀眼收益率
+  category: 微观结构
+  direction: -1
+  column: dazzle_ret_std
+  description: 近20日"适度日耀眼收益率"的标准差(稳定=取波动)。日耀眼收益率见 dazzle_ret_mean。
+    适度=|日值−当日截面均值|。收益越不稳定→反转，direction=-1。方正微观①§3.3。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频耀眼收益率, action: minute_dazzle, cache_key: dazzle_v1, features: [dazzle_ret], output_dataframe: data}
+  - {name: 截面去均值, action: transform, method: cs_demean, source_column: dazzle_ret, output_column: ret_dm, group_by: date}
+  - {name: 取绝对值(适度日耀眼收益率), action: transform, method: abs, source_column: ret_dm, output_column: moderate_ret}
+  - {name: 月稳(std20), action: rolling, source_column: moderate_ret, output_column: dazzle_ret_std, window: 20, min_periods: 15, agg: std, group_by: order_book_id}

@@ -1,0 +1,28 @@
+# Variant of smart_money_q; 改了 β=0.5（原始 |R|/√V）; 动机：复现 2016 原始版，对照 2.0 的 β=0.1
+# 方正2016原始版: S=|R|/√V, 多空 IR 2.70, RankIC≈-4%（2013-2016）。2.0 论文证明 β=0.5 远未最优。
+# 与 smart_money_q（β=0.1）并列，原 spec/parquet 一字不动。
+factor:
+  name: smart_money_q__beta05
+  name_cn: 聪明钱因子Q(β=0.5原始)
+  category: 微观结构
+  direction: -1
+  column: smart_money_q__beta05
+  description: Variant of smart_money_q；β=0.5（原始 |R|/√V，方正2016）；对照 2.0 的 β=0.1。
+    过去10日池化，按 S=|R|/V^0.5 降序取量累计前20%为聪明钱，Q=VWAP_smart/VWAP_all。direction=-1。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 分钟→日频 聪明钱/全体 VWAP（10日池化，β=0.5）
+    action: minute_smartmoney
+    cache_key: sm_v1_b05
+    beta: 0.5
+    cutoff: 0.20
+    features:
+      - smart_vwap
+      - all_vwap
+    output_dataframe: data
+  - name: 聪明钱因子 Q = VWAP_smart / VWAP_all
+    action: compute
+    formula: smart_vwap / all_vwap
+    source_columns: [smart_vwap, all_vwap]
+    output_column: smart_money_q__beta05

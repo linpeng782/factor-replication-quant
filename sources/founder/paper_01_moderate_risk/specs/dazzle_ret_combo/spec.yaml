@@ -1,0 +1,20 @@
+# 方正微观结构① 月耀眼收益率=等权合成(月均+月稳耀眼收益率)。论文: RankIC -8.53%, ICIR -4.35
+# 等权合成口径：两分量各取截面 pct-rank 后平均（同 tide_complete）。
+factor:
+  name: dazzle_ret_combo
+  name_cn: 月耀眼收益率
+  category: 微观结构
+  direction: -1
+  column: dazzle_ret_combo
+  description: 等权合成 月均耀眼收益率(mean20) 与 月稳耀眼收益率(std20)；各取截面 pct-rank 后平均。方正微观①§3.3。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - {name: 分钟→日频耀眼收益率, action: minute_dazzle, cache_key: dazzle_v1, features: [dazzle_ret], output_dataframe: data}
+  - {name: 截面去均值, action: transform, method: cs_demean, source_column: dazzle_ret, output_column: ret_dm, group_by: date}
+  - {name: 取绝对值(适度日耀眼收益率), action: transform, method: abs, source_column: ret_dm, output_column: moderate_ret}
+  - {name: 月均(mean20), action: rolling, source_column: moderate_ret, output_column: ret_mean_f, window: 20, agg: mean, group_by: order_book_id}
+  - {name: 月稳(std20), action: rolling, source_column: moderate_ret, output_column: ret_std_f, window: 20, min_periods: 15, agg: std, group_by: order_book_id}
+  - {name: 月均截面rank, action: rank, source_column: ret_mean_f, output_column: rm_rank, group_by: [date], pct: true}
+  - {name: 月稳截面rank, action: rank, source_column: ret_std_f, output_column: rs_rank, group_by: [date], pct: true}
+  - {name: 等权合成, action: compute, formula: (rm_rank + rs_rank) / 2, source_columns: [rm_rank, rs_rank], output_column: dazzle_ret_combo}

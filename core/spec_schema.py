@@ -106,6 +106,15 @@ def validate_spec(spec_yaml: dict) -> None:
             # 分钟级聚合算子契约：cache_key + features（std_window/threshold 可选）。
             # TODO(1000规模): 此枚举 + yolo_engine 导入清单应改为按 REDUCER_BY_ACTION 自动发现。
             _validate_minute_intraday_aggregate(step, sym, loc)
+        elif action == "industry_co_momentum":
+            # 行业/市场联合动量：创建主表的特殊聚合算子，注册 output_column 到主表。
+            target = step.get("output_dataframe", "data")
+            sym.create(target)
+            if "output_column" not in step:
+                raise SpecError(f"{loc}: industry_co_momentum 必须指定 output_column")
+            if "sub_factor" not in step or "signal_source" not in step:
+                raise SpecError(f"{loc}: industry_co_momentum 必须指定 sub_factor + signal_source")
+            sym.add(target, step["output_column"], loc)
         elif action in COLUMN_ADDING_ACTIONS:
             _validate_column_adding(step, sym, loc)
         elif action in NO_OUTPUT_ACTIONS:

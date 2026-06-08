@@ -46,6 +46,7 @@ from .operators import minute_intraday_aggregate  # noqa: F401
 from .operators import minute_pricejump_aggregate  # noqa: F401
 from .operators import minute_tide  # noqa: F401
 from .operators import minute_smartmoney  # noqa: F401
+from .operators import industry_co_momentum  # noqa: F401
 
 
 # ── 多线程 get_factor 工人函数 ─────────────────────────────

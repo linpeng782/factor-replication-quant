@@ -37,53 +37,23 @@ START, END = "2010-01-01", "2023-12-31"
 LEGACY_NOTE = "行业归属面板含3个旧名(电力设备/电子元器件/餐饮旅游)，已在行业指数面板加别名列消化"
 
 
-# ─────────────────────────── 核心算法 ───────────────────────────
+# ─────────────────── 核心算法（唯一真相源 = 算子）───────────────────
+# 算法本体在 core/operators/industry_co_momentum.py（生产经此入库）。本脚本只做验证：
+#   ① weighted_rank_sum：算例用的单股最小实现，独立于算子 compute_factor，对论文图20交叉对照；
+#   ② build_cmc_panel / 回测：直接调算子的 build_ind_ret_panel + compute_factor，不再自带实现。
+from core.operators.industry_co_momentum import build_ind_ret_panel, compute_factor  # noqa: E402
+
+
 def weighted_rank_sum(sort_key: np.ndarray, ind_ret: np.ndarray, n: int, largest: bool) -> float:
-    """单股：按 sort_key 排序取 top/bottom n 日，对应 ind_ret 半衰期加权求和。"""
+    """单股算例验证用最小实现（独立实现，与算子 compute_factor 交叉对照论文图20）。"""
     order = np.argsort(sort_key, kind="stable")
-    sel = order[-n:][::-1] if largest else order[:n]      # 排名 1..n 的窗口下标
-    w = 2.0 ** (-np.arange(n) / (n - 1))                  # w[0]=1, w[n-1]=0.5
+    sel = order[-n:][::-1] if largest else order[:n]
+    w = 2.0 ** (-np.arange(n) / (n - 1))
     return float(np.sum(w * ind_ret[sel]))
 
 
-_W_MOM = (2.0 ** (-np.arange(N_MOM) / (N_MOM - 1)))[:, None]
-_W_REV = (2.0 ** (-np.arange(N_REV) / (N_REV - 1)))[:, None]
-
-
-def cmc_at(t: int, ret_np, vol_np, ind_np) -> np.ndarray:
-    """下标 t：全市场每股 CMC = VICM(top5) − VICR(bottom15)，向量化。返回 (N,)。"""
-    sl = slice(t - WINDOW + 1, t + 1)
-    score = ret_np[sl] * vol_np[sl]                       # (20,N) 涨幅×成交量
-    ir = ind_np[sl]
-    valid = ~(np.isnan(score).any(0) | np.isnan(ir).any(0))
-    order = np.argsort(np.where(np.isnan(score), -np.inf, score), axis=0, kind="stable")
-    vicm = (np.take_along_axis(ir, order[-N_MOM:][::-1], 0) * _W_MOM).sum(0)
-    vicr = (np.take_along_axis(ir, order[:N_REV], 0) * _W_REV).sum(0)
-    cmc = vicm - vicr
-    cmc[~valid] = np.nan
-    return cmc
-
-
-def build_ind_ret_panel(ret_index, stocks) -> pd.DataFrame:
-    """每股每日所属行业的指数收益面板 (T×N)，向量化 broadcast。"""
-    ind_idx = pd.read_parquet(config.INDUSTRY_INDEX_RETURN_PATH)
-    ind_idx.index = pd.to_datetime(ind_idx.index)
-    panel = pd.read_parquet(config.INDUSTRY_PANEL_ZX_PATH)
-    panel.index = pd.to_datetime(panel.index)
-    panel = panel.reindex(index=ret_index, columns=stocks)
-    ind_idx = ind_idx.reindex(ret_index)
-    out = pd.DataFrame(np.nan, index=ret_index, columns=stocks)
-    for name in ind_idx.columns:
-        mask = (panel == name)
-        if not mask.values.any():
-            continue
-        bc = np.broadcast_to(ind_idx[name].values[:, None], mask.shape)
-        out = out.mask(mask, pd.DataFrame(bc, index=ret_index, columns=stocks))
-    return out
-
-
 def build_cmc_panel(start=START, end=END):
-    """全市场逐日 CMC 因子面板 (T×N) + close 面板（回测算月度收益用）。"""
+    """全市场逐日 CMC 面板 (T×N) + close（回测算月度收益用）。算法调算子 compute_factor。"""
     from core.producers.alpha158.adjusted_panels import load_adjusted_panels
     logger.info(f"加载后复权面板 {start}~{end} …")
     p = load_adjusted_panels(start=start, end=end, fields=("close", "volume"))
@@ -95,7 +65,7 @@ def build_cmc_panel(start=START, end=END):
     ret_np, vol_np, ind_np = ret.values, volume.values, ind_ret.values
     cmc = np.full((len(ret.index), len(stocks)), np.nan)
     for t in range(WINDOW - 1, len(ret.index)):
-        cmc[t] = cmc_at(t, ret_np, vol_np, ind_np)
+        cmc[t] = compute_factor(ret_np, vol_np, ind_np, t, WINDOW, N_MOM, N_REV, "CMC")
     return pd.DataFrame(cmc, index=ret.index, columns=stocks), close
 
 

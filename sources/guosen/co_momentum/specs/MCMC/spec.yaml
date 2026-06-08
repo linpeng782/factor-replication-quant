@@ -1,0 +1,21 @@
+# 国信证券 2024-01「个股与行业的共振——联合动量因子」
+# 论文(行业市值中性化口径) RankIC/ICIR 见 sources/guosen/co_momentum/docs/co_momentum.md
+factor:
+  name: MCMC
+  name_cn: 市场联合动量复合
+  category: 量价
+  direction: 1
+  column: mcmc
+  description: MCMC=VICM-VICR(signal换中证全指)；个股与市场共振，衡量顺市场势而涨。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 市场联合动量复合（个股过去20日按涨幅×成交量排序取若干日，加权所属中证全指收益）
+    action: industry_co_momentum
+    sub_factor: CMC
+    signal_source: market
+    window: 20
+    n_mom: 5
+    n_rev: 15
+    output_column: mcmc
+    output_dataframe: data

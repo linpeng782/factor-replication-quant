@@ -346,6 +346,84 @@ def build_reg_pe_fy1(comp, fiscal_years, lookback_days: int = 180, diff_periods:
     return _xsec_residual(d_pe, d_dur)
 
 
+# （CLI 入口在文件末尾，确保所有 build_* 函数已定义）
+
+
+# ════════════════ cyq_earningest / cnts_cyq_rpt（业绩超预期）════════════════
+
+def _load_clean_reports_by_stock_fy(fiscal_years):
+    """{(order_book_id, fy): DataFrame[date, lead, net_profit_t]}（已剔非个股+首序）。"""
+    from data_fetching.consensus import CONSENSUS_DIR
+    reps = {}
+    for Y in fiscal_years:
+        cache = CONSENSUS_DIR / f"reports_fy{Y}_rice_create_tm.parquet"
+        if not cache.exists():
+            continue
+        c = clean_reports(pd.read_parquet(cache))
+        c = c[["order_book_id", "date", "lead", "net_profit_t"]].dropna(subset=["net_profit_t"])
+        for oid, g in c.groupby("order_book_id", sort=False):
+            reps[(oid, Y)] = g.sort_values("date")
+    return reps
+
+
+def build_cyq(fiscal_years, report_window: int = 90, min_n: int = 3):
+    """cyq_earningest（业绩超预期）+ cnts_cyq_rpt（报告数）。
+
+    在每个财报首披时点 T（最新报告期 Qk）：
+      actual_q = 单季实现净利润 = 当年累计(cum_k) − 同年上一季累计(prev_cum)；r = 5−k
+      分析师预测：[T−90, T) 内对当年(fy=year)做预测的首序分析师，每人最新 net_profit_t（全年预测）
+      单季预测 q_pred_i = (forecast_i − prev_cum)/r
+      cyq_earningest = (max_i q_pred_i − actual_q)/actual_q   （要求 actual_q>0、报告数≥3）
+      cnts_cyq_rpt   = 报告数（首序分析师数）
+    事件值在 T 落地，ffill 到交易日。
+    """
+    from data_fetching.consensus import load_or_fetch_pit_first_netprofit
+    pit = load_or_fetch_pit_first_netprofit()
+    pit = pit[pit["quarter"].str[:4].astype(int).isin(fiscal_years)].copy()
+    pit["year"] = pit["quarter"].str[:4].astype(int)
+    pit["qnum"] = pit["quarter"].str[-1].astype(int)
+    pit["info_date"] = pd.to_datetime(pit["info_date"])
+    reps = _load_clean_reports_by_stock_fy(fiscal_years)
+    grid = _trading_grid()
+    cyq_cols, cnt_cols = {}, {}
+    win = pd.Timedelta(days=report_window)
+    for oid, pg in pit.groupby("order_book_id", sort=False):
+        ev_cyq, ev_cnt = [], []
+        for year, yg in pg.groupby("year"):
+            yg = yg.sort_values("qnum")
+            cum_by_q = dict(zip(yg["qnum"], yg["net_profit"]))
+            g = reps.get((oid, int(year)))
+            for row in yg.itertuples():
+                k, T, cum = row.qnum, row.info_date, row.net_profit
+                prev_cum = max([c for q, c in cum_by_q.items() if q < k], default=0.0)
+                actual_q = cum - prev_cum
+                r = 5 - k
+                cnt = 0; cyq = np.nan
+                if g is not None and r > 0:
+                    gg = g[(g["date"] >= T - win) & (g["date"] < T)]
+                    if not gg.empty:
+                        f = gg.groupby("lead")["net_profit_t"].last().values
+                        cnt = len(f)
+                        if cnt >= min_n and actual_q > 0:
+                            q_pred = (f - prev_cum) / r
+                            cyq = (np.max(q_pred) - actual_q) / actual_q
+                if cnt > 0:
+                    ev_cnt.append((T, cnt))
+                if not np.isnan(cyq):
+                    ev_cyq.append((T, cyq))
+        for ev, store in [(ev_cyq, cyq_cols), (ev_cnt, cnt_cols)]:
+            if not ev:
+                continue
+            s = pd.Series(dict(ev)).sort_index()
+            s = s[~s.index.duplicated(keep="last")]
+            s = s.reindex(grid, method="ffill").dropna()
+            if not s.empty:
+                store[oid] = s
+    cyq = pd.DataFrame({o: s for o, s in cyq_cols.items()})
+    cnt = pd.DataFrame({o: s for o, s in cnt_cols.items()})
+    return cyq, cnt
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -375,6 +453,10 @@ if __name__ == "__main__":
         lo, hi = (int(x) for x in a.fy.split("-"))
         panel = build_reg_pe_fy1(load_or_fetch_comp_indicators(),
                                  list(range(lo, hi + 1)), lookback_days=a.lookback)
+    elif a.factor in ("cyq_earningest", "cnts_cyq_rpt"):
+        lo, hi = (int(x) for x in a.fy.split("-"))
+        cyq, cnt = build_cyq(list(range(lo, hi + 1)), min_n=a.min_analysts)
+        panel = cyq if a.factor == "cyq_earningest" else cnt
     else:
         raise SystemExit(f"未实现: {a.factor}")
     _evaluate(panel, a.factor, a.eval_start, a.eval_end)

@@ -207,3 +207,41 @@ if __name__ == "__main__":
         df = load_or_fetch_consensus_reports(fys, refresh=a.refresh)
     print(df.shape)
     print(df.head())
+
+
+# ───────────────────────── PIT 首次披露净利润（cyq 用）─────────────────────────
+
+def load_or_fetch_pit_first_netprofit(
+    start_quarter: str = "2014q1",
+    end_quarter: str = "2026q1",
+    batch_size: int = 1000,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """全市场 PIT 累计净利润「首次披露」版（statements='all' 取每 quarter info_date 最早）。
+
+    首次披露 info_date 无追溯调整前视（latest 版的 info_date 是修正版日期，有前视）；
+    首披日往往即业绩快报日，天然覆盖"利润表+快报"拼接。返回 long:
+    [order_book_id, quarter, info_date, net_profit]（net_profit=年初至该季累计）。
+    """
+    CONSENSUS_DIR.mkdir(parents=True, exist_ok=True)
+    cache = CONSENSUS_DIR / f"pit_first_netprofit_{start_quarter}_{end_quarter}.parquet"
+    if cache.exists() and not refresh:
+        logger.info(f"📂 PIT 首披净利润缓存命中: {cache}")
+        return pd.read_parquet(cache)
+    rq = _init_rq()
+    ids = all_cs_ids(rq)
+    frames = []
+    for i in range(0, len(ids), batch_size):
+        batch = ids[i:i + batch_size]
+        df = rq.get_pit_financials_ex(batch, ["net_profit"], start_quarter, end_quarter,
+                                      statements="all")
+        if df is not None and len(df):
+            frames.append(df.reset_index()[["order_book_id", "quarter", "info_date", "net_profit"]])
+        logger.info(f"[pit] batch {i//batch_size+1}/{(len(ids)+batch_size-1)//batch_size}")
+    raw = pd.concat(frames, ignore_index=True)
+    raw["info_date"] = pd.to_datetime(raw["info_date"])
+    first = (raw.sort_values("info_date")
+                .groupby(["order_book_id", "quarter"], as_index=False).first())
+    first.to_parquet(cache)
+    logger.info(f"💾 PIT 首披净利润 {cache} shape={first.shape}")
+    return first

@@ -92,6 +92,13 @@ EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"    # 逐股稀疏复权因
 INSTRUMENTS_INFO_PATH = _RAW_OHLCV_ROOT / "instruments_info.parquet"   # 股票基本信息（待补）
 TRADING_CALENDAR_PATH = _RAW_OHLCV_ROOT / "trading_calendar.parquet"   # 交易日历（待补）
 
+# ==================== 基本面 PIT 基础数据（cxl 生产原料） ====================
+# get_factor 点位字段（mrq/ttm/估值）的每日快照，按字段 WIDE（date×stock）。
+# 每日 append 当天快照、历史永不改写 = as-first-reported 冻结 PIT（防漂移/前视）。
+# 由 data_fetching/fundamentals.py 产出/日更；fetch 算子 api=get_factor 改读此处。
+# 见 docs/cxl_fundamental_incremental_design.md
+FUNDAMENTALS_DIR = _MKT / "fundamentals"                 # market-data/fundamentals/<field>.parquet
+
 # 复权时价格字段 ×cum_factor、成交量字段 ÷cum_factor
 PRICE_FIELDS = ["open", "high", "low", "close", "limit_up", "limit_down"]
 VOLUME_FIELDS = ["volume"]

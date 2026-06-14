@@ -64,10 +64,14 @@ bash pipeline/daily_update.sh
 | 7c | **alpha158**（`scripts/alpha158_daily_update.py`）| ⚠️ alpha158 **无 spec、glob 扫不到**，必须独立这步；否则下游信号被 alpha158 旧日期卡死。读本地 raw_ohlcv、零 API |
 | 8 | ml/labels.py | 标签回填（失败不阻塞）|
 
-> **范围 = 生产模型 `cxl_a158_p27_raw_shap_v2` 用到的源**：alpha158 + cxl + kysec/paper_27（共 45 spec + alpha158）。
-> **不更新** founder / guosen / 其它 kysec paper（脚本默认已收窄；要全跑：`FACTOR_GLOB='sources/*/*/specs/*' SUPERSET_KEY= bash pipeline/daily_update.sh`）。
+> **范围 = 生产模型 `cxl_a158_p27_raw_shap_v2` 用到的源**：alpha158 + cxl(22) + kysec/paper_27(23)。
+> **不更新** founder / guosen / 其它 kysec paper。要更全：把 `MINUTE_FACTOR_GLOB`（superset 因子，走 7a 批量）
+> 与 `RUNPY_FACTOR_GLOB`（非 superset 因子，走 7b run.py）改宽，并置 `SUPERSET_KEY=`（刷全部 superset）。例：
+> `MINUTE_FACTOR_GLOB='sources/*/*/specs/*' RUNPY_FACTOR_GLOB='sources/cxl/*/specs/*' SUPERSET_KEY= bash pipeline/daily_update.sh`
 
-**耗时参考**（128核/800G）：数据线分钟段几分钟；refresh_supersets 视落后天数（1天约每 superset <1min）；因子循环约几十分钟（step 7 含评估）。
+**耗时参考**（128核/800G，单个新交易日）：数据线 ~5–10min；refresh prv_v3 ~5min；
+7a 批量 paper_27 ~3–4min；7b cxl 并行 ~3–5min；7c alpha158（158 面板写盘）~3–8min；labels ~1–3min。
+→ **A 段合计 ≈ 20–35min**（B 掩码 + C 信号 + D 回测 另 ~10min）。落后多天则数据线/superset 按天数增加。
 
 **验收 A**：
 ```bash

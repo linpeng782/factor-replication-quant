@@ -16,6 +16,7 @@ import json
 import multiprocessing as mp
 import os
 from abc import ABC, abstractmethod
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Dict, List
 
@@ -28,6 +29,74 @@ from core.minute_data import load_adjusted_minute_window
 from . import Context, OpRegistry
 
 _CHUNK_DAYS = int(os.environ.get("MINUTE_CHUNK_DAYS", "250"))
+
+
+# ── 首次出现映射（持久化，纯 raw 派生；设计 §13.2 pass2 简化）──────────────
+# "每只股在 minute/raw 首次出现的交易日"。pass2 用它替代两个魔法数：
+#   · 僵尸股（all_instruments(CS) 里永无 raw 的远古退市标的）不在映射 → 天然过滤（替代旧"近10日"启发式）
+#   · 新股/补洞从【真实首现日】回填，无 504 上限 → 深坑老股自愈（旧 504 版留 [IPO, T-504] 永久洞）
+# 一次性全量建（首个增量日触发，并行扫 ~数十秒），之后每天只增量扫新日（O(1)）。可随时删文件重建。
+_FIRST_APPEARANCE_PATH = MINUTE_RAW_DIR.parent / "minute_first_appearance.parquet"
+_SCANNED_SENTINEL = "__SCANNED_THROUGH__"
+
+
+def _scan_day_obs(path_str: str) -> list:
+    """读单个 raw 日文件的 order_book_id 列（单列，便宜）→ 去重列表。ProcessPool worker。"""
+    return pd.read_parquet(path_str, columns=["order_book_id"])["order_book_id"].unique().tolist()
+
+
+def first_appearance_map(raw_dates: List[pd.Timestamp]) -> Dict[str, pd.Timestamp]:
+    """加载 / 增量更新 持久化首现映射，返回 {order_book_id: first_raw_date}。
+
+    首建（无映射文件）→ 并行全扫 raw；之后只扫 scanned_through 之后的新日（通常 1~数日，串行）。
+    哨兵行 _SCANNED_SENTINEL 记录"已扫到哪天"，区分"扫过但当天无新股"与"还没扫"。
+    """
+    m: Dict[str, pd.Timestamp] = {}
+    scanned: pd.Timestamp | None = None
+    if _FIRST_APPEARANCE_PATH.exists():
+        df = pd.read_parquet(_FIRST_APPEARANCE_PATH)
+        if _SCANNED_SENTINEL in df.index:
+            scanned = pd.Timestamp(df.loc[_SCANNED_SENTINEL, "first_date"])
+            df = df.drop(index=_SCANNED_SENTINEL)
+        m = {ob: pd.Timestamp(d) for ob, d in df["first_date"].items()}
+
+    to_scan = [d for d in raw_dates if scanned is None or d > scanned]
+    if not to_scan:
+        return m
+
+    first_build = scanned is None
+    if first_build:
+        workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))
+        logger.info(
+            f"[minute_engine] 首次建立 raw 首现映射（一次性，{len(to_scan)} 日，{workers} 进程并行扫）…"
+        )
+        paths = [str(MINUTE_RAW_DIR / f"{d.date()}.parquet") for d in to_scan]
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            per_day = list(ex.map(_scan_day_obs, paths))   # 保序
+    else:
+        per_day = [
+            _scan_day_obs(str(MINUTE_RAW_DIR / f"{d.date()}.parquet"))
+            if (MINUTE_RAW_DIR / f"{d.date()}.parquet").exists() else []
+            for d in to_scan
+        ]
+    for d, obs in zip(to_scan, per_day):           # 按日期升序 → 记录最早首现
+        for ob in obs:
+            if ob not in m:
+                m[ob] = d
+
+    rows = dict(m)
+    rows[_SCANNED_SENTINEL] = raw_dates[-1]
+    out = pd.DataFrame({"first_date": pd.Series(rows)})
+    out.index.name = "order_book_id"
+    _FIRST_APPEARANCE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = _FIRST_APPEARANCE_PATH.with_suffix(".parquet.tmp")
+    out.to_parquet(tmp)
+    os.replace(tmp, _FIRST_APPEARANCE_PATH)         # 原子写
+    logger.info(
+        f"[minute_engine] 首现映射已更新: {len(m)} 只股, 扫描至 {raw_dates[-1].date()}"
+        + ("（一次性全量建完）" if first_build else f"（增量 +{len(to_scan)} 日）")
+    )
+    return m
 
 
 # ─────────────────────────── Reducer 接口 ───────────────────────────
@@ -265,10 +334,10 @@ class MinuteAggregateEngine:
           · 无缓存 → 全量 start_idx=0（首次建库）
           · 有缓存 → 增量 start_idx = max(cache_last) 之后
 
-        pass 2  新股建库（仅增量模式触发）
-          · 检测 universe 中无缓存但有 raw 数据的新上市股
-          · 扫最近 NEW_STOCK_LOOKBACK_DAYS（默认 504 = 2 年）建短历史
-          · 建完后次日起走正常增量，无需人工干预
+        pass 2  新股 / 补洞建库（仅增量模式触发，§13.2 简化）
+          · 用持久化"首现映射"识别 universe 中无缓存但有 raw 数据的股
+          · 从【真实首现日】回填（无 504 上限）→ 深坑老股自愈
+          · 僵尸股（永无 raw）不在映射 → 天然过滤；建完后次日起走正常增量
         """
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         raw_dates = self._available_raw_dates()
@@ -310,42 +379,30 @@ class MinuteAggregateEngine:
         else:
             logger.info(f"[minute_engine] {self.reducer.cache_key} 主缓存已最新，pass1 跳过")
 
-        # ── pass 2：新股建库 ───────────────────────────────────────────
-        # 对 universe 中无缓存的股票，扫最近 N 日 raw 数据自动建短历史。
-        # 触发条件：增量模式下发现 new_obs（全量模式 new_obs 已清空）。
-        #
-        # ⚠️ 僵尸股过滤（必须）：all_instruments(CS) 含 ~46 只 2005 前退市股，永无分钟数据，
-        #   但 last_per_stock[ob]=None → 永远落在 new_obs → 若不过滤，每日日更空扫 504 天全量文件。
-        #   修法：先读最近 CHECK_DAYS（默认10）个 raw 文件的 order_book_id 列（几秒，单列），
-        #   只保留「近期确实出现过」的股 → active_new_obs。
-        #   · 真·新股（近期 IPO）：出现在近期 raw → 保留 → pass2 建库 ✅
-        #   · 僵尸股（远古退市）：不出现在近期 raw → 过滤掉 → pass2 跳过，日更零额外代价 ✅
+        # ── pass 2：新股 / 补洞建库（§13.2 简化：持久化首现映射，去 504/10日 两魔法数）─────
+        # · 僵尸股（all_instruments(CS) 里永无 raw 的远古退市标的）不在映射 → 天然过滤
+        # · active（真 IPO / 缓存被清的老股 / 退市但有过数据的股）从【真实首现日】回填，
+        #   无 504 上限 → 深坑老股完全自愈（旧 504 版会留 [IPO, T-504] 永久洞）。
+        # · ns_start 取所有 active 的最早首现日 → 与全量建库对该股的结果逐值一致（warmup 同源）。
         if new_obs:
-            check_days = int(os.environ.get("NEW_STOCK_CHECK_DAYS", "10"))
-            recent_obs: set = set()
-            for d in raw_dates[-check_days:]:
-                p = MINUTE_RAW_DIR / f"{d.date()}.parquet"
-                if p.exists():
-                    recent_obs.update(
-                        pd.read_parquet(p, columns=["order_book_id"])["order_book_id"].tolist()
-                    )
-            active_new_obs = [ob for ob in new_obs if ob in recent_obs]
-
-            if not active_new_obs:
+            fa = first_appearance_map(raw_dates)
+            active = {ob: fa[ob] for ob in new_obs if ob in fa}
+            n_zombie = len(new_obs) - len(active)
+            if not active:
                 logger.info(
-                    f"[minute_engine] pass2 跳过: {len(new_obs)} 只无缓存股"
-                    f"（含僵尸标的）近 {check_days} 日内均无 raw 数据"
+                    f"[minute_engine] pass2 跳过: {len(new_obs)} 只无缓存股均无 raw 数据（僵尸）"
                 )
             else:
-                lookback = int(os.environ.get("NEW_STOCK_LOOKBACK_DAYS", "504"))  # 默认 2 年
-                ns_start = max(0, len(raw_dates) - lookback)
+                earliest = min(active.values())
+                ns_start = max(0, self._bisect_after(raw_dates, earliest) - 1)  # 含首现日本身
                 logger.info(
-                    f"[minute_engine] pass2 新股建库: {len(active_new_obs)} 只"
-                    f"（new_obs={len(new_obs)}，过滤僵尸后剩 {len(active_new_obs)}）| "
+                    f"[minute_engine] pass2 新股/补洞建库: {len(active)} 只"
+                    f"（new_obs={len(new_obs)}，僵尸过滤 {n_zombie}）| 最早首现 {earliest.date()} → "
                     f"扫 {raw_dates[ns_start].date()}~{raw_max.date()} 共 {len(raw_dates)-ns_start} 日"
+                    f"（从首现回填，无 504 上限）"
                 )
                 n2 = self._run_build_pass(
-                    active_new_obs, ns_start, raw_dates, last_per_stock,
+                    list(active), ns_start, raw_dates, last_per_stock,
                     warmup, workers, ctx_fork, flush_chunks,
                 )
-                logger.info(f"[minute_engine] pass2 完成: {n2} 只新股入库 ✅")
+                logger.info(f"[minute_engine] pass2 完成: {n2} 只入库 ✅")

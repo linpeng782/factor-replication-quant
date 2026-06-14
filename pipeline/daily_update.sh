@@ -41,20 +41,24 @@ else
   (cd "$REPO" && PYTHONPATH=. python pipeline/refresh_supersets.py) || die "refresh_supersets"
 fi
 
-step "7/8 L3 因子重算（范围=$FACTOR_GLOB；逐个，失败仅告警不中断）"
+N_FACTOR_JOBS="${N_FACTOR_JOBS:-12}"            # step7 并行度（瓶颈是 NFS 读 superset；12~16 即够，800G 内存放得下）
+step "7/8 L3 因子重算（范围=$FACTOR_GLOB；并行 $N_FACTOR_JOBS，失败仅告警不中断）"
 # run.py 自动:面板已存在→增量(尾窗只算新日 append); cxl 中 filter→rolling / change_on 的 5 个因子
 # 自动全量重算(从冻结源确定性, 见 spec_resolver.incremental_safe)。
+# 并行安全:每个因子写自己的 factor 面板(互不冲突)、superset 只读。--yolo-only 只产 raw(信号只读 raw)。
 cd "$REPO"
 # 因子面板结束日 = 最新 raw 交易日（动态；否则用死的 DEFAULT_END 会停在旧日期，新日进不了面板）
 END_DATE="${END_DATE:-$(ls "$FACTOR_REPL_DATA_ROOT"/market-data/minute/raw/[0-9]*.parquet 2>/dev/null | tail -1 | xargs -n1 basename | sed 's/\.parquet//; s/-//g')}"
-echo "  end-date=$END_DATE（最新 raw 交易日）"
-n_ok=0; n_fail=0
-for d in $FACTOR_GLOB; do                       # 支持多个 glob（空格分隔），逐个 spec 目录
+echo "  end-date=$END_DATE | 并行度=$N_FACTOR_JOBS"
+specs=""
+for d in $FACTOR_GLOB; do                        # 支持多个 glob（空格分隔），逐个 spec 目录
   [ -f "$d/spec.yaml" ] || continue
-  qp=$(echo "$d" | sed -E 's#^sources/([^/]+)/([^/]+)/specs/([^/]+)/?$#\1/\2/\3#')
-  # --yolo-only：只产 factors/raw 面板（信号/推理只读 raw）；不跑评估画图（更快，且 ok/fail 只反映面板更新）
-  if PYTHONPATH=. python run.py "$qp" --yolo-only --end-date "$END_DATE" >/dev/null 2>&1; then n_ok=$((n_ok+1)); else echo "  ⚠️ FAIL $qp"; n_fail=$((n_fail+1)); fi
+  specs="$specs $(echo "$d" | sed -E 's#^sources/([^/]+)/([^/]+)/specs/([^/]+)/?$#\1/\2/\3#')"
 done
+res=$(printf '%s\n' $specs | xargs -P "$N_FACTOR_JOBS" -I{} sh -c \
+  "PYTHONPATH=. python run.py '{}' --yolo-only --end-date $END_DATE >/dev/null 2>&1 && echo OK || echo 'FAIL {}'")
+n_ok=$(printf '%s\n' "$res" | grep -c '^OK'); n_fail=$(printf '%s\n' "$res" | grep -c '^FAIL')
+printf '%s\n' "$res" | grep '^FAIL' | sed 's/^/  ⚠️ /'
 echo "  因子完成: ok=$n_ok fail=$n_fail"
 
 step "7b alpha158 L3 增量（无 spec，独立脚本；读本地 raw_ohlcv，零 API，失败仅告警）"

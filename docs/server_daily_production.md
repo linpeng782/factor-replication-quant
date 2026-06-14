@@ -58,10 +58,13 @@ bash pipeline/daily_update.sh
 |---|---|---|
 | 1–5 | ex_factors / raw_ohlcv / minute_ohlcv(+--full) / industry / market_cap | 数据线，拉当日数据（需 rqdatac）|
 | 5b | **fundamentals** | 基本面 PIT 快照 append 当日（cxl 因子线读它）+ `--audit` 重述审计（只告警）|
-| 6 | **refresh_supersets** | 分钟 L2 superset 增量到最新（含 pass2 新股回填）|
-| 7 | **run.py 循环全 spec**（cxl/kysec/founder/guosen）| L3 因子面板增量。**自动判定**：面板已存在→增量（尾窗只算新日 append）；cxl 中 5 个因子（`reg_pb_gshe`/`reg_pe_hist` filter→rolling、`roic_ttm_*8` change_on）→全量重算（从冻结源确定性，**正常、非 bug**，见 §6）。full 模式含评估，较慢；个别 spec 失败仅告警不中断 |
+| 6 | **refresh_supersets `--cache-key prv_v3`** | 只刷 paper_27 用的 prv_v3 superset（含 pass2 新股回填）。**默认不刷** apm/sm/tide/dazzle 等其它 superset（那些是 founder/其它 paper 用的，本生产不更新）|
+| 7 | **run.py 循环 cxl + paper_27**（45 个 spec）| L3 因子面板增量。**自动判定**：面板已存在→增量（尾窗只算新日 append）；cxl 中 5 个因子（`reg_pb_gshe`/`reg_pe_hist` filter→rolling、`roic_ttm_*8` change_on）→全量重算（从冻结源确定性，**正常、非 bug**，见 §6）。个别 spec 失败仅告警不中断 |
 | 7b | **alpha158**（`scripts/alpha158_daily_update.py`）| ⚠️ alpha158 **无 spec、step7 扫不到**，必须独立这步更新；否则下游信号会被 alpha158 旧日期卡死。读本地 raw_ohlcv、零 API |
 | 8 | ml/labels.py | 标签回填（失败不阻塞）|
+
+> **范围 = 生产模型 `cxl_a158_p27_raw_shap_v2` 用到的源**：alpha158 + cxl + kysec/paper_27（共 45 spec + alpha158）。
+> **不更新** founder / guosen / 其它 kysec paper（脚本默认已收窄；要全跑：`FACTOR_GLOB='sources/*/*/specs/*' SUPERSET_KEY= bash pipeline/daily_update.sh`）。
 
 **耗时参考**（128核/800G）：数据线分钟段几分钟；refresh_supersets 视落后天数（1天约每 superset <1min）；因子循环约几十分钟（step 7 含评估）。
 

@@ -11,11 +11,13 @@ export FETCHER_WORKERS="${FETCHER_WORKERS:-24}"        # get_factor 多线程拉
 VENV="${VENV:-/nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate}"
 REPO="${REPO:-/nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new}"
 FETCH="${FETCH:-$REPO/data_fetching}"      # 数据线已并入本仓 data_fetching/
-# 因子线范围（默认=生产模型 cxl_a158_p27_raw_shap_v2 用到的源：cxl + paper_27；alpha158 见 7b）。
-# 其余 source（founder/guosen/其它 kysec paper）默认不更新。要全跑：FACTOR_GLOB='sources/*/*/specs/*'
-FACTOR_GLOB="${FACTOR_GLOB:-sources/cxl/*/specs/* sources/kysec/paper_27_microstructure/specs/*}"
-# 只刷这些 superset（paper_27 用 prv_v3）；置空 SUPERSET_KEY= 则刷全部
-SUPERSET_KEY="${SUPERSET_KEY:-prv_v3}"
+# 因子线分两类（默认=生产模型 cxl_a158_p27_raw_shap_v2 的源；alpha158 见 7c）：
+#  · 分钟 superset 因子 → 批量"读一次算多个"(refresh_factors_batch，~14× 快)
+MINUTE_FACTOR_GLOB="${MINUTE_FACTOR_GLOB:-sources/kysec/paper_27_microstructure/specs/*}"
+SUPERSET_KEY="${SUPERSET_KEY:-prv_v3}"        # paper_27 用 prv_v3；置空 SUPERSET_KEY= 则刷全部 superset
+#  · 非 superset 因子（cxl 读本地基本面）→ 逐个 run.py 并行
+RUNPY_FACTOR_GLOB="${RUNPY_FACTOR_GLOB:-sources/cxl/*/specs/*}"
+# 其余 source（founder/guosen/其它 kysec paper）默认不更新；要更全就把上面两个 glob 改宽 + SUPERSET_KEY=
 
 source "$VENV"
 step() { echo ""; echo "========== $* =========="; }
@@ -41,17 +43,21 @@ else
   (cd "$REPO" && PYTHONPATH=. python pipeline/refresh_supersets.py) || die "refresh_supersets"
 fi
 
-N_FACTOR_JOBS="${N_FACTOR_JOBS:-12}"            # step7 并行度（瓶颈是 NFS 读 superset；12~16 即够，800G 内存放得下）
-step "7/8 L3 因子重算（范围=$FACTOR_GLOB；并行 $N_FACTOR_JOBS，失败仅告警不中断）"
-# run.py 自动:面板已存在→增量(尾窗只算新日 append); cxl 中 filter→rolling / change_on 的 5 个因子
-# 自动全量重算(从冻结源确定性, 见 spec_resolver.incremental_safe)。
-# 并行安全:每个因子写自己的 factor 面板(互不冲突)、superset 只读。--yolo-only 只产 raw(信号只读 raw)。
 cd "$REPO"
+N_FACTOR_JOBS="${N_FACTOR_JOBS:-12}"            # run.py 并行度（800G 内存放得下；NFS 读为瓶颈，12~16 即够）
 # 因子面板结束日 = 最新 raw 交易日（动态；否则用死的 DEFAULT_END 会停在旧日期，新日进不了面板）
 END_DATE="${END_DATE:-$(ls "$FACTOR_REPL_DATA_ROOT"/market-data/minute/raw/[0-9]*.parquet 2>/dev/null | tail -1 | xargs -n1 basename | sed 's/\.parquet//; s/-//g')}"
-echo "  end-date=$END_DATE | 并行度=$N_FACTOR_JOBS"
+echo "  因子面板结束日 end-date=$END_DATE"
+
+step "7a/8 分钟 superset 因子：批量 L3（读 superset 一次算多个，~14×）：$MINUTE_FACTOR_GLOB"
+# 产出与逐个 run.py bit 一致（口径复刻）；不安全/非 superset 因子会被自动跳过。失败仅告警。
+(PYTHONPATH=. python pipeline/refresh_factors_batch.py --factor-glob "$MINUTE_FACTOR_GLOB" --end-date "$END_DATE") || echo "  ⚠️ 批量 L3 失败（非阻塞）"
+
+step "7b/8 非superset因子：run.py 并行 $N_FACTOR_JOBS（cxl 读本地基本面）：$RUNPY_FACTOR_GLOB"
+# run.py 自动:面板已存在→增量(尾窗只算新日 append); cxl 中 filter→rolling/change_on 的 5 个因子
+# 自动全量重算(从冻结源确定性, 见 spec_resolver.incremental_safe)。并行安全:各写各面板、--yolo-only 只产 raw。
 specs=""
-for d in $FACTOR_GLOB; do                        # 支持多个 glob（空格分隔），逐个 spec 目录
+for d in $RUNPY_FACTOR_GLOB; do                  # 支持多个 glob（空格分隔），逐个 spec 目录
   [ -f "$d/spec.yaml" ] || continue
   specs="$specs $(echo "$d" | sed -E 's#^sources/([^/]+)/([^/]+)/specs/([^/]+)/?$#\1/\2/\3#')"
 done
@@ -61,10 +67,9 @@ n_ok=$(printf '%s\n' "$res" | grep -c '^OK'); n_fail=$(printf '%s\n' "$res" | gr
 printf '%s\n' "$res" | grep '^FAIL' | sed 's/^/  ⚠️ /'
 echo "  因子完成: ok=$n_ok fail=$n_fail"
 
-step "7b alpha158 L3 增量（无 spec，独立脚本；读本地 raw_ohlcv，零 API，失败仅告警）"
-# ⚠️ alpha158 没有 spec，step 7 的 glob 扫不到它，必须独立调用，否则 alpha158 因子永不更新、
-#    下游信号(predict_live 自动末日=min(各因子末日))会被 alpha158 旧日期卡死。
-(cd "$REPO" && PYTHONPATH=. python scripts/alpha158_daily_update.py) || echo "  ⚠️ alpha158 失败（非阻塞）"
+step "7c/8 alpha158 L3 增量（无 spec，独立脚本；读本地 raw_ohlcv，零 API，失败仅告警）"
+# ⚠️ alpha158 没有 spec，glob 扫不到，必须独立调用，否则 alpha158 永不更新、下游信号被其旧日期卡死。
+(PYTHONPATH=. python scripts/alpha158_daily_update.py) || echo "  ⚠️ alpha158 失败（非阻塞）"
 
 step "8/8 labels 回填"
 (cd "$REPO" && PYTHONPATH=. python ml/labels.py) || echo "  ⚠️ labels 跳过（增量回填待补，非阻塞）"

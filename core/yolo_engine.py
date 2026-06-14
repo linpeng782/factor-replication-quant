@@ -280,6 +280,37 @@ def _minute_universe(fetcher: DataFetcher) -> List[str]:
     return universe
 
 
+# ── L3 增量写盘内核（生产 + 验收共用，防脱节）─────────────────
+def incremental_append(
+    out_path: Path,
+    wide: pd.DataFrame,
+    last: Optional[pd.Timestamp],
+    rebuild: bool = False,
+) -> pd.DataFrame:
+    """因子宽表 append-only 写盘（设计 §6 / 照搬 alpha158 _append_one）。
+
+    rebuild / 无基线 / last is None → 全量覆盖（首建或周期 reconcile）。
+    否则 → 切 (last, T] 新行 → concat(列并集自动纳新股) → dedup(keep last) → 排序。
+    一律 tmp + os.replace 原子写（对全量路径也是改进）。返回落盘的 combined。
+    """
+    wide = wide.copy()
+    wide.index = pd.to_datetime(wide.index)
+    if rebuild or last is None or not out_path.exists():
+        combined = wide
+    else:
+        new_rows = wide.loc[wide.index > last]
+        old = pd.read_parquet(out_path)
+        old.index = pd.to_datetime(old.index)
+        combined = pd.concat([old, new_rows])
+        combined = combined[~combined.index.duplicated(keep="last")].sort_index()
+    combined = combined.sort_index().sort_index(axis=1)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_suffix(".parquet.tmp")
+    combined.to_parquet(tmp)
+    os.replace(tmp, out_path)
+    return combined
+
+
 # ── 引擎主体 ───────────────────────────────────────────────
 
 
@@ -296,6 +327,8 @@ class YoloEngine:
         end_date: Optional[str] = None,
         trade_date: Optional[str] = None,
         ctx: Optional[Context] = None,
+        incremental: bool = False,
+        rebuild: bool = False,
     ) -> pd.DataFrame:
         # 1. 静态校验（违反任一条立即 raise）
         validate_spec(spec_yaml)
@@ -352,12 +385,21 @@ class YoloEngine:
         out_dir.mkdir(parents=True, exist_ok=True)
         # 文件名用裸名叶子（限定路径 'pub/group/factor' → 'factor'），避免 namespace 叠加
         out_path = out_dir / f"{factor_name_from_arg(factor_name)}.parquet"
-        wide.to_parquet(out_path)
+
+        # 增量 append（面板已存在且非 rebuild）；否则全量覆盖。一律原子写。
+        last = None
+        if incremental and not rebuild and out_path.exists():
+            old_idx = pd.to_datetime(pd.read_parquet(out_path, columns=[]).index)
+            last = old_idx.max() if len(old_idx) else None
+        combined = incremental_append(out_path, wide, last, rebuild=rebuild)
+
+        mode = "增量append" if last is not None else ("rebuild全量" if rebuild else "全量")
+        n_new = int((wide.index > last).sum()) if last is not None else len(wide)
         logger.info(
-            f"[engine] ✅ 写入 {out_path}, shape={wide.shape}, "
-            f"非空={wide.notna().values.sum():,}"
+            f"[engine] ✅ 写入 {out_path} [{mode}], shape={combined.shape}, "
+            f"新增{n_new}日, 非空={combined.notna().values.sum():,}"
         )
-        return wide
+        return combined
 
 
 # ── 便捷入口 ───────────────────────────────────────────────

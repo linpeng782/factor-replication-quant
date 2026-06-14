@@ -174,6 +174,20 @@ def resolve_namespace_safe(factor_name: str, default: str = "_misc/_misc") -> st
         return default
 
 
+def max_rolling_window(spec_yaml: dict) -> int:
+    """W2 = max(spec 中所有 rolling 步骤的 window)；无 rolling 默认 1（设计 §5，禁硬编码）。
+
+    L3 增量回读窗口由此推导：fetch_start = last − (W2 + buffer) 交易日。
+    新研报只要在自己 spec 写 rolling.window，引擎解析即自动生效，无需改代码。
+    """
+    windows = [
+        int(step["window"])
+        for step in (spec_yaml.get("calculation_steps") or [])
+        if step.get("action") == "rolling" and step.get("window") is not None
+    ]
+    return max(windows) if windows else 1
+
+
 def resolve_output_dir(arg: str) -> Path:
     """
     评估产物目录：<project_root>/output/<factor>/

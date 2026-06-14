@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import math
 import os
 import sys
 from pathlib import Path
@@ -42,12 +43,27 @@ from core.config import (
 )
 from core.evaluation import evaluate_single_factor
 from core.spec_generator import load_spec_yaml
-from core.spec_resolver import factor_name_from_arg, resolve_namespace_safe
+from core.spec_resolver import (
+    factor_name_from_arg,
+    max_rolling_window,
+    resolve_namespace_safe,
+)
 from core.yolo_engine import run_factor
+
+# L3 增量回读窗口安全余量（交易日）；fetch_start = last − (W2 + buffer) 交易日
+INCREMENTAL_BUFFER = 10
+
+
+def _raw_factor_path(factor_name: str) -> Path:
+    return (
+        RAW_FACTOR_BASE
+        / resolve_namespace_safe(factor_name)
+        / f"{factor_name_from_arg(factor_name)}.parquet"
+    )
 
 
 def _load_existing_raw(factor_name: str) -> pd.DataFrame:
-    path = RAW_FACTOR_BASE / resolve_namespace_safe(factor_name) / f"{factor_name_from_arg(factor_name)}.parquet"
+    path = _raw_factor_path(factor_name)
     if not path.exists():
         raise FileNotFoundError(
             f"raw 因子不存在: {path}（先 'python run.py {factor_name} --yolo-only' 生成）"
@@ -63,6 +79,7 @@ def run_one(
     fetch_end: str,
     eval_start: str,
     eval_end: str,
+    rebuild: bool = False,
 ) -> None:
     """
     单因子执行主路径。
@@ -92,11 +109,33 @@ def run_one(
     if mode == "evaluate-only":
         factor_df = _load_existing_raw(factor_name)
     else:
+        # L3 增量自动检测：面板已存在且非 --rebuild → 只回读尾窗算新日 append。
+        # 回读窗口 = last − (W2 + buffer) 交易日（W2=max(spec rolling.window)，按 spec 解析）；
+        # 用 1.6× 日历换算保守覆盖最早新日的 warmup（rolling 增量固有的尾窗重算，结果切 (last,T] 后丢弃）。
+        incremental = False
+        panel_path = _raw_factor_path(factor_name)
+        if not rebuild and panel_path.exists() and spec_yaml is not None:
+            old_idx = pd.to_datetime(pd.read_parquet(panel_path, columns=[]).index)
+            if len(old_idx):
+                last = old_idx.max()
+                w2 = max_rolling_window(spec_yaml)
+                lookback_cal = math.ceil((w2 + INCREMENTAL_BUFFER) * 1.6)
+                fetch_start = (last - pd.Timedelta(days=lookback_cal)).strftime("%Y%m%d")
+                incremental = True
+                logger.info(
+                    f"🔁 增量模式: 基线末日={last.date()} | W2={w2} | "
+                    f"回读窗口起点 fetch_start={fetch_start}（{w2}+{INCREMENTAL_BUFFER} 交易日 warmup）"
+                )
+        if rebuild:
+            logger.info("♻️  --rebuild: 全量重算覆盖（reconcile 兜底）")
+
         factor_df = run_factor(
             factor_name=factor_name,
             spec_yaml=spec_yaml,
             start_date=fetch_start,
             end_date=fetch_end,
+            incremental=incremental,
+            rebuild=rebuild,
         )
 
     if mode in ("full", "evaluate-only"):
@@ -155,6 +194,11 @@ def main() -> None:
         type=int,
         help="覆盖 FETCHER_WORKERS（多线程 fetch 并发，默认 12）",
     )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="全量重算覆盖整张面板（关闭增量；周期性 reconcile 对账兜底用）",
+    )
 
     args = parser.parse_args()
 
@@ -189,6 +233,7 @@ def main() -> None:
             fetch_end=args.end_date,
             eval_start=args.eval_start_date,
             eval_end=args.eval_end_date,
+            rebuild=args.rebuild,
         )
     except Exception as exc:
         logger.exception(f"❌ {args.factor} 失败: {exc}")

@@ -49,6 +49,11 @@ for d in $FACTOR_GLOB/; do
 done
 echo "  因子完成: ok=$n_ok fail=$n_fail"
 
+step "7b alpha158 L3 增量（无 spec，独立脚本；读本地 raw_ohlcv，零 API，失败仅告警）"
+# ⚠️ alpha158 没有 spec，step 7 的 glob 扫不到它，必须独立调用，否则 alpha158 因子永不更新、
+#    下游信号(predict_live 自动末日=min(各因子末日))会被 alpha158 旧日期卡死。
+(cd "$REPO" && PYTHONPATH=. python scripts/alpha158_daily_update.py) || echo "  ⚠️ alpha158 失败（非阻塞）"
+
 step "8/8 labels 回填"
 (cd "$REPO" && PYTHONPATH=. python ml/labels.py) || echo "  ⚠️ labels 跳过（增量回填待补，非阻塞）"
 

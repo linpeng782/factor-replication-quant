@@ -17,10 +17,12 @@ fetch 算子
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from loguru import logger
+
+from core.config import FUNDAMENTALS_DIR
 
 from . import Context, OpRegistry
 
@@ -91,9 +93,20 @@ def _resolve_output_columns(step: Dict) -> Dict[str, str]:
 def _fetch_get_factor(
     ctx: Context, fetcher: Any, fields: List[str]
 ) -> pd.DataFrame:
-    """get_factor：日频因子。一次拉所有字段（米筐 API 原生支持 fields list）。"""
+    """get_factor：日频点位因子。
+
+    **优先读本地基本面 PIT 基础层**（market-data/fundamentals/<field>.parquet，
+    冻结快照、防漂移/前视，见 docs/cxl_fundamental_incremental_design.md）；
+    仅当请求字段未全部本地存在、或单日 trade_date 模式时，回退米筐 API。
+    """
     if not (ctx.start_date and ctx.end_date) and not ctx.trade_date:
         raise ValueError("get_factor 需要 ctx.start_date+end_date 或 ctx.trade_date")
+
+    # 区间模式：优先本地（spec 不改，零 API、防漂移）
+    if ctx.start_date and ctx.end_date:
+        local = _read_local_fundamentals(ctx, fields)
+        if local is not None:
+            return local
 
     if ctx.start_date and ctx.end_date:
         df = fetcher.get_factor(
@@ -108,6 +121,37 @@ def _fetch_get_factor(
     if df is None or len(df) == 0:
         raise ValueError(f"get_factor 无返回: fields={fields}")
     return _normalize_to_long(df)
+
+
+def _read_local_fundamentals(ctx: Context, fields: List[str]) -> Optional[pd.DataFrame]:
+    """从本地基本面 PIT 面板读 [start,end]×universe → long [order_book_id, date, *fields]。
+
+    返回 None（→ 调用方回退 API）当：任一字段无本地面板。
+    与米筐 get_factor 返回对齐：reset 成 long、丢全 NaN 行、date 转 datetime。
+    """
+    paths = {f: FUNDAMENTALS_DIR / f"{f}.parquet" for f in fields}
+    missing = [f for f, p in paths.items() if not p.exists()]
+    if missing:
+        logger.warning(f"[fetch] 字段无本地面板 {missing} → 回退 API（建议补进 fundamentals.py FIELDS）")
+        return None
+
+    start, end = pd.Timestamp(ctx.start_date), pd.Timestamp(ctx.end_date)
+    universe = set(ctx.universe)
+    series = []
+    for f, p in paths.items():
+        w = pd.read_parquet(p)
+        w.index = pd.to_datetime(w.index)
+        w = w.loc[(w.index >= start) & (w.index <= end)]
+        cols = [c for c in w.columns if c in universe]
+        s = w[cols].stack(dropna=False)          # MultiIndex (date, order_book_id)
+        s.name = f
+        series.append(s)
+    long = pd.concat(series, axis=1).reset_index()
+    long.columns = ["date", "order_book_id"] + fields
+    long = long.dropna(subset=fields, how="all").reset_index(drop=True)
+    long["date"] = pd.to_datetime(long["date"])
+    logger.info(f"[fetch] 读本地基本面 {len(fields)} 字段 × [{start.date()},{end.date()}] → {len(long):,} 行")
+    return long
 
 
 def _fetch_pit(

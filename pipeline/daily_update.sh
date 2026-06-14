@@ -3,13 +3,14 @@
 # 本地/服务器通用：改下面 4 个变量即可。详见 docs/daily_update.md。
 set -uo pipefail
 
-# ── 环境（本地默认；服务器改这里或用环境变量覆盖）──
-export FACTOR_REPL_DATA_ROOT="${FACTOR_REPL_DATA_ROOT:-/Users/didi/DATA}"
-export MINUTE_WORKERS="${MINUTE_WORKERS:-6}"
-export MINUTE_CHUNK_DAYS="${MINUTE_CHUNK_DAYS:-30}"     # 服务器内存大可设 250
-VENV="${VENV:-/Users/didi/kdj/peterdidi/bin/activate}"
-REPO="${REPO:-/Users/didi/kdj/factor-repilcation-quant}"
-FETCH="${FETCH:-$REPO/data_fetching}"      # 数据线已并入本仓 data_fetching/（原独立 stock-data-fetching）
+# ── 环境（服务器固定默认；如需可用环境变量覆盖）──
+export FACTOR_REPL_DATA_ROOT="${FACTOR_REPL_DATA_ROOT:-/nfs/ofs-prediction/peterzhenglinpeng}"
+export MINUTE_WORKERS="${MINUTE_WORKERS:-64}"          # 128 核机；生产吃满并行
+export MINUTE_CHUNK_DAYS="${MINUTE_CHUNK_DAYS:-250}"   # 800G 内存可设大块
+export FETCHER_WORKERS="${FETCHER_WORKERS:-24}"        # get_factor 多线程拉取
+VENV="${VENV:-/nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate}"
+REPO="${REPO:-/nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new}"
+FETCH="${FETCH:-$REPO/data_fetching}"      # 数据线已并入本仓 data_fetching/
 # 因子线只跑哪些 spec（glob，相对 REPO）；默认全部。HF 专跑可改为 'sources/kysec/paper_27_microstructure/specs/*'
 FACTOR_GLOB="${FACTOR_GLOB:-sources/*/*/specs/*}"
 

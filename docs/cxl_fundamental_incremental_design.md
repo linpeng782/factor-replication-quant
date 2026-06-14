@@ -1,6 +1,6 @@
 # cxl 基本面因子增量更新 — 整体设计
 
-> 状态：**方案稿**（已定核心决策：必须存 L1 PIT 基础层；待施工）。
+> 状态：**阶段1-3 已落地**（L1 PIT 基础层 + 数据线 + fetch 读本地 + L3 增量验收；2026-06-14）。剩阶段4 编排收尾（§13）。
 > 目标：给 cxl 基本面因子补上**本地 PIT 基础数据层**，实现**工业级 append-only 日更**，与分钟/alpha158 三胞胎统一同一套铁律。
 > 设计准则：**简单、清晰、鲁棒**——复用已建好的增量内核（`incremental_append`）+ run.py 自动增量，新增只有"一层存储 + 一个数据线 + fetch 改读本地"。
 > 关联：`minute_incremental_design.md` / `alpha158_incremental_design.md`（孪生）/ `daily_update.md`（编排）。
@@ -170,15 +170,36 @@ raw 增量落地后对增量段走 `run.py <factor> --evaluate-only` 即可，�
 
 ---
 
-## 13. 分期实施（每阶段先与"全量/API"对齐再上线）
+## 13. 分期实施 & 进度（2026-06-14）
 
-- **阶段1（L1 存储 + 数据线 + bootstrap）**：建 `config.FUNDAMENTALS_DIR` + `fundamentals.py`（复用 incremental_append）；
-  跑一次全史 bootstrap 建 18 字段面板。验收：面板形态/字段/日期范围合理；重跑幂等。
-- **阶段2（fetch 改读本地）**：fetch 算子 api=get_factor 切到本地读。验收：cxl 因子读本地 vs 读 API 同窗 `max_rel<1e-6`。
-- **阶段3（增量 + 验收）**：挑 cxl 因子真跑增量（05-27→最新），历史冻结指纹；`scripts/smoke_cxl_l3_truncate_replay.py`（本地源，复用内核）。
-- **阶段4（编排收尾）**：daily_update 加 5b 步 + 重述审计 + 本文档转"已落地"。
+- ✅ **阶段1（L1 存储 + 数据线 + bootstrap）**（commit `fece53e`）：`config.FUNDAMENTALS_DIR` +
+  `data_fetching/fundamentals.py`（复用 incremental_append）；全史 bootstrap 跑通（~22min）→
+  18 字段面板 `(3991,5552)` 2010-01-04~2026-06-12 共 394MB，skip=0。
+- ✅ **阶段2（fetch 改读本地）**（commit `6cb0703`）：`_read_local_fundamentals` 接入；读本地 vs 读 API
+  同窗（全 universe×近10日）共同键逐值 `max_rel=0`、NaN 模式一致（API 多出键全为 NaN，pivot 后等价）。
+- ✅ **阶段3（增量 + 验收）**（commit `3e947ee`）：`scripts/smoke_cxl_l3_truncate_replay.py`（本地源、
+  真实算子 + 生产内核、inf 感知 reconcile）。roe_apoq_mrq 真跑增量 05-27→06-12 append 12 日、历史段
+  指纹冻结、新股列自动纳入。**22 因子分类验收**（见 §13.1）。
+- ⬜ **阶段4（编排收尾）**：daily_update 加 5b 数据线步 + 重述审计 + cleaned/neu。
 
-### 待确认 / 风险
+### 13.1 增量安全性分类（`core.spec_resolver.incremental_safe`，阶段3 落地）
+
+并非所有 cxl 因子都能"有界尾窗增量"。两类**日历回看无界**的因子改为**全量重算**（从冻结 PIT 源
+确定性重算、历史不漂移、截面计算便宜）：
+- **rolling 带 `change_on`**（变化日采样）：window 是变化点个数，季频基本面 8 期≈8 季≈504 日、间隔随股异。
+- **`filter` 在时序算子之前**：filter 删行 → 其后 rolling/transform 的 window/periods 按过滤后行数计。
+
+| 类别 | 数量 | 因子 |
+|---|---|---|
+| **有界增量**（truncate-replay 全过 `max_rel=0`） | **17** | roe×5、npf×8（含 sue8/accs8 = row_aggregate 跨列、非时序）、pe×3、cashflow×1 |
+| **全量重算**（incremental_safe=False） | **5** | reg_pb_gshe / reg_pe_hist（filter→rolling）、roic_ttm_{all_rnk8,dev_std8,ind_rnk8}（change_on）|
+
+> ⚠️ **W2 解析教训**：`max_warmup_window` 必须覆盖 `transform`(diff/shift/yoy/qoq) 的 `periods`，
+> 否则 reg_pe_hist(diff60)/pe_ttm_delta60(diff60)/roic 等会少 warmup 算错（阶段3 发现并修复）。
+
+### 13.2 待确认 / 风险
 - **PIT 实测**：bootstrap 前后用 `get_factor` 拉同一老窗口与现有基线对比，量化重述幅度（决定审计频率）。
-- **get_factor 返回形态**：确认 `fetcher.get_factor(universe, fields, start, end)` 的 index/列，适配 `_normalize_to_long`。
-- **数据线交易日历**：T=最新就绪交易日的判定（与 raw_ohlcv 对齐，含就绪时点）。
+- **链式时序算子**：当前各 spec 每条依赖链至多一个时序算子 → W2 取 max 正确；若未来同链叠加多个（如
+  rolling 后再 diff），需改为按链求和（`max_warmup_window` docstring 已注）。
+- **全量重算因子的成本**：5 个全量因子每日 run.py 全史重算（读本地 1.6GB → 截面计算），实测样本秒级；
+  全 universe 待编排时确认在可接受耗时内。

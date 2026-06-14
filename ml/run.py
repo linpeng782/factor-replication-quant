@@ -30,6 +30,8 @@ from ml.train import train_gbdt
 def main() -> None:
     ap = argparse.ArgumentParser(description="LightGBM 因子合成（两阶段：筛选→合成）")
     ap.add_argument("--sources", nargs="*", default=None)
+    ap.add_argument("--neu-sources", nargs="*", default=None,
+                    help="从 factors/neu 读取的因子源（与 --sources 互补，如 guosen/co_momentum）")
     ap.add_argument("--select-method", default="gbdt", choices=["gbdt", "shap"])
     ap.add_argument("--top-k", type=int, default=64)
     ap.add_argument("--date-sample", type=int, default=None)
@@ -60,9 +62,10 @@ def main() -> None:
     if thread_params:
         logger.info(f"[run {run_id}] 参数覆盖: {thread_params}")
 
-    logger.info(f"[run {run_id}] 启动 @ {launch_ts} | 日志: {log_path} | 参数: {vars(args)}")
+    logger.info(f"[run {run_id}] 启动 @ {launch_ts} | 日志: {log_path} | "
+                f"参数: sources={args.sources} neu_sources={args.neu_sources}")
 
-    sp = build_dataset(args.sources, date_sample=args.date_sample, max_features=args.max_features)
+    sp = build_dataset(args.sources, neu_sources=args.neu_sources, date_sample=args.date_sample, max_features=args.max_features)
 
     # Stage 1: 筛选（只用 train+valid）
     selector = select_by_shap if args.select_method == "shap" else select_by_gbdt_importance

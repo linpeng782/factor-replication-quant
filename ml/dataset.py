@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+from alpha_shared.cleaning.mask_loader import load_filter_masks
 from core import config
 from ml.labels import build_excess_label, load_forward_return
 from ml.preprocess import RobustZScoreScaler
@@ -45,26 +46,31 @@ class Split:
     meta: dict = field(default_factory=dict)
 
 
-def discover_features(sources: list[str] | None = None) -> dict[str, Path]:
-    """从 factors/raw 收集 {因子名: parquet 路径}（默认全部；sources 按 <source> 前缀过滤）。"""
-    pathmap = {p.stem: p for p in sorted(config.RAW_FACTOR_BASE.glob("*/*/*.parquet"))}
+def discover_features(sources: list[str] | None = None, stage: str = "raw") -> dict[str, Path]:
+    """从 factors/<stage> 收集 {因子名: parquet 路径}（默认全部；sources 按 <source> 前缀过滤）。
+
+    stage: "raw" | "neu"
+    """
+    base = config.RAW_FACTOR_BASE if stage == "raw" else config.NEU_FACTOR_BASE
+    pathmap = {p.stem: p for p in sorted(base.glob("*/*/*.parquet"))}
     if sources:
         pathmap = {n: p for n, p in pathmap.items()
-                   if any(str(p.relative_to(config.RAW_FACTOR_BASE)).startswith(s) for s in sources)}
+                   if any(str(p.relative_to(base)).startswith(s) for s in sources)}
     return pathmap
 
 
-def _load_mask(value_col: str) -> pd.DataFrame:
-    """combo_mask 长表 → 宽表布尔。value_col: 'tradable'(pre) 或 'is_limit_up'(post)。"""
-    m = pd.read_parquet(config.COMBO_MASK_PATH)
-    w = m.pivot(index="datetime", columns="order_book_id", values=value_col)
-    w.index = pd.to_datetime(w.index)
-    return w
-
-
 def load_pre_mask() -> pd.DataFrame:
-    """(T,N) 布尔：True=参与（tradable=NOT st/suspended/new）。涨停保留。"""
-    return _load_mask("tradable").astype("boolean")
+    """(T,N) 布尔：True=参与（NOT st/suspended/new，shift(-1) 语义）。
+
+    使用 alpha_shared.cleaning.mask_loader，确保与单因子评估口径一致：
+      - pre_mask = NOT(is_st[t+1] OR is_suspended[t+1] OR is_new_stock[t+1])
+      - 涨停股不过滤（留给回测系统），因为 t+1 日涨停在 t 日盘后未知。
+    """
+    pre_mask, _ = load_filter_masks(
+        combo_mask_path=config.COMBO_MASK_PATH,
+        new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
+    )
+    return pre_mask
 
 
 def _segment_dates(all_dates: pd.DatetimeIndex, date_sample: int | None) -> dict[str, pd.DatetimeIndex]:
@@ -79,15 +85,33 @@ def _segment_dates(all_dates: pd.DatetimeIndex, date_sample: int | None) -> dict
 
 def build_dataset(
     sources: list[str] | None = None,
+    neu_sources: list[str] | None = None,
     date_sample: int | None = None,
     max_features: int | None = None,
 ) -> Split:
-    """组装长表 → 划分 → train 段 fit RobustZScore(特征+标签) → transform 三段。"""
-    pathmap = discover_features(sources)
+    """组装长表 → 划分 → train 段 fit RobustZScore(特征+标签) → transform 三段。
+
+    支持混合读取 raw + neu 目录：
+      - sources      → 从 factors/raw 读取
+      - neu_sources  → 从 factors/neu 读取
+    同一因子名不能同时存在于 raw 和 neu，否则抛异常。
+    """
+    raw_map = discover_features(sources, stage="raw")
+    neu_map = discover_features(neu_sources, stage="neu") if neu_sources else {}
+
+    conflicts = set(raw_map) & set(neu_map)
+    if conflicts:
+        raise ValueError(
+            f"因子名冲突（同时存在于 raw 和 neu）: {sorted(conflicts)}. "
+            f"请确保每个因子只在一个 stage 中存在。"
+        )
+
+    pathmap = {**raw_map, **neu_map}
     feat_names = sorted(pathmap)
     if max_features:
         feat_names = feat_names[:max_features]
-    logger.info(f"[dataset] 因子数={len(feat_names)} sources={sources or 'ALL'}")
+    logger.info(f"[dataset] 因子数={len(feat_names)} "
+                f"raw_sources={sources or 'ALL'} neu_sources={neu_sources or 'NONE'}")
 
     # --- 1) 标签(超额) + 网格 ---
     ret = load_forward_return(HORIZON)

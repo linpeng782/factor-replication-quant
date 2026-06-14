@@ -47,7 +47,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import core.yolo_engine  # noqa: F401  触发所有 reducer 注册
 from core.operators import Context, OpRegistry
 from core.operators.minute_engine import REDUCER_BY_ACTION
-from core.spec_resolver import max_rolling_window, resolve_spec_path
+from core.spec_resolver import max_warmup_window, resolve_spec_path
 from core.yolo_engine import incremental_append
 
 DEFAULT_FACTOR = "pj_peak_minute_count"
@@ -74,7 +74,7 @@ def parse_spec(factor: str):
     features = list(agg_step["features"])
     l3_steps = [s for s in steps if s.get("action") not in REDUCER_BY_ACTION]
     factor_column = spec["factor"]["column"]
-    return superset_dir, l3_steps, features, factor_column, max_rolling_window(spec)
+    return superset_dir, l3_steps, features, factor_column, max_warmup_window(spec)
 
 
 # ==================== 源读取：per-stock superset 长表 ====================

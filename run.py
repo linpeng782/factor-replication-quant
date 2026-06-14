@@ -45,7 +45,8 @@ from core.evaluation import evaluate_single_factor
 from core.spec_generator import load_spec_yaml
 from core.spec_resolver import (
     factor_name_from_arg,
-    max_rolling_window,
+    incremental_safe,
+    max_warmup_window,
     resolve_namespace_safe,
 )
 from core.yolo_engine import run_factor
@@ -114,11 +115,16 @@ def run_one(
         # 用 1.6× 日历换算保守覆盖最早新日的 warmup（rolling 增量固有的尾窗重算，结果切 (last,T] 后丢弃）。
         incremental = False
         panel_path = _raw_factor_path(factor_name)
-        if not rebuild and panel_path.exists() and spec_yaml is not None:
+        if not rebuild and panel_path.exists() and spec_yaml is not None and not incremental_safe(spec_yaml):
+            logger.info(
+                "⚠️ spec 含 filter→时序算子（warmup 无界）→ 全量重算"
+                "（从冻结源确定性重算，历史不漂移；见 spec_resolver.incremental_safe）"
+            )
+        elif not rebuild and panel_path.exists() and spec_yaml is not None:
             old_idx = pd.to_datetime(pd.read_parquet(panel_path, columns=[]).index)
             if len(old_idx):
                 last = old_idx.max()
-                w2 = max_rolling_window(spec_yaml)
+                w2 = max_warmup_window(spec_yaml)
                 lookback_cal = math.ceil((w2 + INCREMENTAL_BUFFER) * 1.6)
                 fetch_start = (last - pd.Timedelta(days=lookback_cal)).strftime("%Y%m%d")
                 incremental = True

@@ -174,18 +174,54 @@ def resolve_namespace_safe(factor_name: str, default: str = "_misc/_misc") -> st
         return default
 
 
-def max_rolling_window(spec_yaml: dict) -> int:
-    """W2 = max(spec 中所有 rolling 步骤的 window)；无 rolling 默认 1（设计 §5，禁硬编码）。
+_TEMPORAL_TRANSFORM_METHODS = {"diff", "shift", "yoy", "qoq"}
 
-    L3 增量回读窗口由此推导：fetch_start = last − (W2 + buffer) 交易日。
-    新研报只要在自己 spec 写 rolling.window，引擎解析即自动生效，无需改代码。
+
+def max_warmup_window(spec_yaml: dict) -> int:
+    """W = spec 中最大时序回看窗口（交易日）；无时序步骤默认 1（禁硬编码）。
+
+    L3 增量回读窗口由此推导：fetch_start = last − (W + buffer) 交易日。
+    覆盖两类时序算子（新研报写 window/periods，引擎解析即自动生效，无需改代码）：
+      · rolling：window
+      · transform 的时序 method（diff/shift/yoy/qoq）：periods
+    注：当前各 spec 每条依赖链至多一个时序算子 → 取 max 正确；若未来在同一链上**叠加**
+        多个时序算子（如 rolling 后再 diff），真实 warmup 需按链求和，应改为求和（over-warmup 安全）。
     """
-    windows = [
-        int(step["window"])
-        for step in (spec_yaml.get("calculation_steps") or [])
-        if step.get("action") == "rolling" and step.get("window") is not None
-    ]
-    return max(windows) if windows else 1
+    wins = [1]
+    for step in (spec_yaml.get("calculation_steps") or []):
+        act = step.get("action")
+        if act == "rolling" and step.get("window") is not None:
+            wins.append(int(step["window"]))
+        elif act == "transform" and step.get("method") in _TEMPORAL_TRANSFORM_METHODS:
+            default = 4 if step.get("method") == "yoy" else 1
+            wins.append(int(step.get("periods", default)))
+    return max(wins)
+
+
+def incremental_safe(spec_yaml: dict) -> bool:
+    """该 spec 是否可用【有界尾窗】增量。
+
+    返回 False（→ 应全量重算）当任一时序算子的**日历回看无界**：
+      (a) `rolling` 带 `change_on`：变化日 rolling——按 change_on 值变化点采样后再 rolling(window)，
+          window 是【变化点个数】而非日历日（季频基本面 8 期≈8 季≈504 日，且变化间隔随股而异）。
+      (b) `filter` 出现在 `rolling` / 时序 `transform` 之前：filter 删行（op_filter 走
+          df.query().reset_index），其后 window/periods 按【过滤后行数】计 → 日历回看不再有界。
+    这类因子改全量重算：从冻结 PIT 源重算是确定性的、历史不漂移，成本可接受（截面计算便宜）。
+    """
+    seen_filter = False
+    for step in (spec_yaml.get("calculation_steps") or []):
+        act = step.get("action")
+        if act == "filter":
+            seen_filter = True
+        elif act == "rolling":
+            if step.get("change_on"):          # 变化日 rolling：日历回看无界
+                return False
+            if seen_filter:                    # filter→rolling：window 按过滤后行数计
+                return False
+        elif act == "transform" and step.get("method") in _TEMPORAL_TRANSFORM_METHODS:
+            if seen_filter:
+                return False
+    return True
 
 
 def resolve_output_dir(arg: str) -> Path:

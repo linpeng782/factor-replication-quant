@@ -1,6 +1,6 @@
 # cxl 基本面因子增量更新 — 整体设计
 
-> 状态：**阶段1-3 已落地**（L1 PIT 基础层 + 数据线 + fetch 读本地 + L3 增量验收；2026-06-14）。剩阶段4 编排收尾（§13）。
+> 状态：**全部落地**（阶段1-4：L1 PIT 基础层 + 数据线 + fetch 读本地 + L3 增量验收 + daily_update 编排；2026-06-14）。cleaned/neu 暂缓（§11）。
 > 目标：给 cxl 基本面因子补上**本地 PIT 基础数据层**，实现**工业级 append-only 日更**，与分钟/alpha158 三胞胎统一同一套铁律。
 > 设计准则：**简单、清晰、鲁棒**——复用已建好的增量内核（`incremental_append`）+ run.py 自动增量，新增只有"一层存储 + 一个数据线 + fetch 改读本地"。
 > 关联：`minute_incremental_design.md` / `alpha158_incremental_design.md`（孪生）/ `daily_update.md`（编排）。
@@ -180,7 +180,10 @@ raw 增量落地后对增量段走 `run.py <factor> --evaluate-only` 即可，�
 - ✅ **阶段3（增量 + 验收）**（commit `3e947ee`）：`scripts/smoke_cxl_l3_truncate_replay.py`（本地源、
   真实算子 + 生产内核、inf 感知 reconcile）。roe_apoq_mrq 真跑增量 05-27→06-12 append 12 日、历史段
   指纹冻结、新股列自动纳入。**22 因子分类验收**（见 §13.1）。
-- ⬜ **阶段4（编排收尾）**：daily_update 加 5b 数据线步 + 重述审计 + cleaned/neu。
+- ✅ **阶段4（编排收尾）**（commit 见下）：`pipeline/daily_update.sh` 加 **5b fundamentals** 步
+  （在因子线之前 append 当天 PIT 快照，fail-fast）+ **重述审计** `--audit`（非阻塞、只告警绝不覆盖）；
+  因子线 step 7（含 cxl）run.py 自动 17 增量 / 5 全量。验证：增量日更优雅识别"已最新" no-op；
+  审计本地 vs API 无漂移。cleaned/neu 仍暂缓（§11，raw 跑通后再定）。
 
 ### 13.1 增量安全性分类（`core.spec_resolver.incremental_safe`，阶段3 落地）
 

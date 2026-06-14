@@ -24,12 +24,18 @@ step "3/8 minute_ohlcv"; (cd "$FETCH" && python minute_ohlcv.py) || die "minute_
 step "3b minute --full(幂等补缺)"; (cd "$FETCH" && python minute_ohlcv.py --full) || die "minute --full"
 step "4/8 industry";     (cd "$FETCH" && python industry.py)     || die "industry"
 step "5/8 market_cap";   (cd "$FETCH" && python market_cap.py)   || die "market_cap"
+# 基本面 PIT 基础层（cxl 因子线读本地，必须在因子线之前 append 到最新）。见 docs/cxl_fundamental_incremental_design.md
+step "5b fundamentals（基本面 PIT 快照 append）"; (cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals.py) || die "fundamentals"
+# 重述审计：比对本地冻结快照 vs API 当前，只告警绝不覆盖（监控财报重述）。非阻塞。
+(cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals.py --audit) || echo "  ⚠️ 重述审计跳过（非阻塞）"
 
 # ── 因子线 ──
 step "6/8 refresh_supersets（刷新所有 superset 到最新）"
 (cd "$REPO" && PYTHONPATH=. python pipeline/refresh_supersets.py) || die "refresh_supersets"
 
-step "7/8 L3 因子重算（cache-hit superset；逐个，失败仅告警不中断）"
+step "7/8 L3 因子重算（逐个，失败仅告警不中断）"
+# 含 minute(读 superset)/cxl(读本地基本面)/其它 spec。run.py 自动:面板已存在→增量(尾窗只算新日);
+# cxl 中 filter→rolling / change_on 的 5 个因子自动全量重算(从冻结源确定性, 见 spec_resolver.incremental_safe)。
 cd "$REPO"
 # 因子面板结束日 = 最新 raw 交易日（动态；否则用死的 DEFAULT_END 会停在旧日期，新日进不了面板）
 END_DATE="${END_DATE:-$(ls "$FACTOR_REPL_DATA_ROOT"/market-data/minute/raw/[0-9]*.parquet 2>/dev/null | tail -1 | xargs -n1 basename | sed 's/\.parquet//; s/-//g')}"

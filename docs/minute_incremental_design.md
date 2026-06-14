@@ -1,9 +1,9 @@
 # 分钟因子增量更新 — 整体设计
 
-> 状态：**设计讨论稿**（含已定决策 + 待讨论项，见 §11）。
+> 状态：**L1/L2/L3 增量内核全部落地闭环**（2026-06-14；阶段1-3 完成，剩编排收尾见 §14）。
 > 目标：把"一次性烤死版"分钟管线，改造为**工业级 append-only 日更**。
 > 设计准则：**简单、清晰、鲁棒**。
-> 上手提示：先读 §1 三铁律 + §2 存储决策；§6 是四层统一的增量算法。
+> 上手提示：先读 §1 三铁律 + §2 存储决策；§6 是四层统一的增量算法；进度看 §12，落地细节看 §13，待办看 §14。
 
 ---
 
@@ -178,6 +178,9 @@ daily_update:
 - **阶段1（L1）**：重写 minute_ohlcv → 原始 + 按日分片 + 增量 + 抽样校验。验收：读时复权 vs 旧 1m_post 逐分钟 bit 级一致。
 - **阶段2（L2）**：算子加增量（读日文件窗口、只算新日）。验收：增量缓存 vs 全量重算逐值一致。
 - **阶段3（L3+标签+编排）**：spec 增量 + 标签回填 + daily_update 串通。验收：增量面板 vs 全量逐值一致；历史 IC（>N+1 天）复现。
+  - ✅ **L3 增量 + 验收已落地（2026-06-14）**：run.py 自动检测增量 + 生产内核 `incremental_append`；
+    验收脚本 `scripts/smoke_minute_l3_truncate_replay.py`（truncate-replay 真实数据对账）全过。详见 §13.1 / §14。
+  - ⬜ **编排收尾**：daily_update 第7步已自动跑增量（=循环 run.py）；待补周期 reconcile + 文档/注释（§14）。
 
 ---
 
@@ -200,7 +203,19 @@ daily_update:
 | 12 | f. stock-data-fetching 仓同步 | 随阶段1 一起（minute_ohlcv 在该仓），走 git/SSH 流程 |
 | 13 | g. 编排器 | 先**单脚本串行 + 失败即停**（简单鲁棒）；以后再上调度 |
 
-> 待议项已全部用"先简单、以后增强"的默认值定下；无悬空项。
+### ✅ 已落地（2026-06-14 复盘项，详见 §13 / §14）
+| # | 决策 | 取向 |
+|---|---|---|
+| 14 | **L3 改增量 append** | ✅ **已落地**（读 superset 尾窗只算新日 append+dedup+原子写，与 alpha158 L3 统一；commit `6f84bb6`，验收 `84c22bb`）|
+| 15 | **pass2 新股回填** | ✅ **已落地**（持久化首现映射；从真实首现回填、去 504 上限/10日门两魔法数；commit `2f1708d`）|
+
+### ⬜ 待落地（编排收尾，详见 §14）
+| # | 决策 | 取向 |
+|---|---|---|
+| 16 | **L3 周期 reconcile** | 周频 `run.py <factor> --rebuild` 全量对账兜底（抓增量漂移）；先文档+cron 建议，未必改脚本 |
+| 17 | **daily_update 收尾** | 第7步加注释（现已自动增量）；接 alpha158 第7b 步（孪生侧 L3 增量，零 API） |
+
+> §1-13（编号 1-13）已全部"先简单、以后增强"定下；14-15（L3 增量 / pass2 简化）**已落地闭环**；16-17 为编排收尾待办。
 
 ---
 
@@ -238,10 +253,100 @@ daily_update:
    - V2.1-引擎 全链路（分块+fork池+缓存）3 股全 36 列 bit；
    - V2.2 增量 append（截断缓存→追加尾部）== golden bit。
    - **关键发现**：W1=**2×std_window**（见 §5 修订，嵌套两层 rolling）。详见 `minute_stage2_l2_refactor.md`。
-4. **阶段3（L3+编排）**：spec 引擎增量 + 单脚本 `daily_update`（§9）。
-   - L3 端到端（run.py peak_minute_count）建议在**服务器全量数据**上跑（全 universe×全史，本地慢）。
+4. ✅ **阶段3（L3 增量 + pass2 简化）完成**（2026-06-14，服务器全量数据验收）：
+   - **L3 增量**（commit `6f84bb6`）：`run.py` 面板已存在→自动增量（读 superset 尾窗 `[last−(W2+10)交易日, T]`
+     只算新日 → `incremental_append` 列并集纳新股 + dedup + 原子写）；`--rebuild` 全量兜底。W2 由
+     `core.spec_resolver.max_rolling_window` 按 spec 解析。
+   - **验收**（commit `84c22bb`）：`scripts/smoke_minute_l3_truncate_replay.py`（superset 为源、真实 rolling 算子
+     + 生产内核、砍尾重放）600 股×20 天 `max_rel=0` + NaN 模式一致 + 真实 IPO 列吻合；全 universe 真跑
+     pj_peak_minute_count 仅 append 5 新日、历史段指纹不变（真冻结）、pass2 新股列自动纳入。
+   - **pass2 简化 #15**（commit `2f1708d`）：持久化首现映射（并行建 14s，增量 O(1)）；从真实首现回填、
+     去 504/10日 两魔法数；真实回填 golden 对账 `max_rel=0`。
+   - ⬜ **剩余编排收尾**见 §14（周期 reconcile + daily_update 注释/alpha158 7b）。
 
 ### 关键不变量（别忘）
 - W1=**2×std_window**（L2 嵌套 rolling，§5 已修订）、W2=max(rolling.window)，**按 spec 解析**（§5），当前 std_window=20→W1=40。
 - append-only + 幂等 + 原子写 + 读时复权（§1 三铁律）。
 - 标签近 N+1 天 maturing，IC 仅 >N+1 天可复现（§7）。
+
+---
+
+## 13. L3 增量化 + pass2 简化（2026-06-14 复盘）
+
+> 背景：alpha158 日频增量已落地（`docs/alpha158_incremental_design.md`），回头审分钟侧发现 L3 与
+> pass2 两处可统一/加固。端到端目标：**L1→L2→L3 全 append-only、每层每日成本有界**。
+> 现状：L1✅ L2✅ L3✅（2026-06-14 L3 增量 + pass2 简化均已落地，见下）。
+
+### 13.1 L3 全量重算 → 已改增量 append ✅（2026-06-14 落地）
+- **现状**：`run.py <factor>` 经 `minute_intraday_aggregate` 算子，**读全量 per-stock superset**
+  （`minute_engine.py:114` 读整文件）→ 重算**整张 (date×stock) panel**。
+- **为何当初这样**：实现简单 + 重活在 L2（分钟→superset 已增量缓存），L3 读紧凑 superset(36列)+轻
+  rolling(W2=20)，"够便宜"。
+- **长期不高效**：每日成本 = O(总天数×股×因子)，**随历史线性增长**（为加 1 天重算 ~4000 天冻结历史，
+  compute+IO 双浪费）。与 alpha158 极力避开的"每天重写冻结历史"同病。
+- **改法（与 alpha158 L3 统一）**：读 superset **尾窗** `[last_factor − W2 − buffer, T]` → **只算新日 →
+  append wide panel + dedup(keep last) + 原子写**。每日成本降到 **O(W2+gap) 恒定**。新股在 L3 由
+  `concat 列并集`自动出现（L2 pass2 负责灌进 superset）。L3 无跨日耦合（pooled corr 已在 L2 算完），
+  W2=20 尾窗即可，改造干净。**可复用 alpha158 的 truncate-replay 同款验证**。
+- **代价/兜底**：增量冻结历史 → 过去的错不自愈 → 配**周期性全量 reconcile**（`--rebuild` 对账，抓漂移，见 §14）。
+- ✅ **落地（commit `6f84bb6`）**：注入点 = **run.py 自动检测**（面板存在且非 `--rebuild` → 增量；否则全量覆盖）。
+  - 共享内核 `core.yolo_engine.incremental_append(out_path, wide, last, rebuild)`（生产 + 验收共用，防脱节）；
+    `YoloEngine.run()` 加 `incremental/rebuild` 参数，写盘处改调内核（含 tmp+os.replace 原子写，全量路径也受益）。
+  - W2 = `core.spec_resolver.max_rolling_window(spec)`（解析 `action==rolling` 的 max window，禁硬编码）；
+    `fetch_start = last − ceil((W2+10)×1.6) 日历日`（warmup 安全余量，尾窗行 `> last` 切掉丢弃）。
+  - ✅ **验收（commit `84c22bb`，`scripts/smoke_minute_l3_truncate_replay.py`）**：以 per-stock superset 为源、
+    真实 `rolling` 算子（经最小 Context）+ 生产内核重放。600 股×20 天 `max_abs=0`/`max_rel=0`、NaN 模式逐格一致、
+    窗口内真实 IPO 688813.XSHG 列自动回来且吻合。全 universe 真跑 pj：仅 append 5 新日、历史段指纹不变（真冻结）。
+
+### 13.2 pass2 新股逻辑 → 已简化为持久化首现映射 ✅（2026-06-14 落地）
+- **旧逻辑**（已替换）：`new_obs ∩ 近10日raw出现` = active → 回扫**最近504日(2年)**建库。
+- **脆弱点**：
+  1. **504 天硬上限**：上市>2年却无缓存的股（缓存被清/历史 universe 漏）只补 2 年，`[IPO, T-504]` 永久留洞，**不自愈**（文档原标"完整修复要 --rebuild"）。
+  2. **10 日检测窗口**：新股上市即停牌>10 日 → 当天被当僵尸跳过，复牌后才补（短暂滞后）。
+  3. **本质**：有状态检测（cached 集合 diff + 启发式窗口 + 上限），失败面天生大于 alpha158 的无状态
+     `concat 列并集`（零检测）。
+- **改法**：把"504 上限"换成"**从该股 raw 首次出现日回填**（无上限）"。真 IPO 成本不变（本就<2年），
+  深坑老股**完全自愈**，去掉 504/10日 两个魔法数。逼近无状态鲁棒度。僵尸股仍靠"无任何 raw 数据"
+  天然过滤（不必近10日启发式）。
+- ✅ **落地（commit `2f1708d`）**：新增**持久化首现映射** `first_appearance_map()`
+  （`minute/minute_first_appearance.parquet`，{order_book_id: 首次出现交易日}）：
+  - 首建 = 并行全扫 raw 单列 order_book_id（64 进程 ~14s，vs 串行 ~416s）；之后每天只增量扫
+    `scanned_through` 之后的新日（O(1)）；哨兵行记录已扫到哪天；纯 raw 派生、可删文件重建、原子写。
+  - pass2 重写：**僵尸过滤 = 不在映射**（永无 raw）→ 干掉近 10 日启发式；**ns_start = active 最早真实首现**
+    → 干掉 504 上限 → 深坑老股完整回填 `[首现, T]`、完全自愈；退市但有过数据的股也纳入（更完整历史）。
+  - ✅ **验收**：并行映射覆盖 5506 股 == 串行基准；幂等 + 哨兵回拨 5 天增量重扫 bit 还原；ns_start 逻辑
+    （深坑股从真实首现覆盖、旧版留洞）；**真实回填 golden 对账**（删 301596 缓存→`refresh_cache` 重建
+    507 行 `max_rel=0`、NaN 模式一致 == golden 全量）。
+
+### 13.3 为何 L2 保持有状态缓存（不改）
+- L2（分钟→superset）的重活值得缓存：分钟 76GB，无状态每天重读太贵。L2 增量本身已正确 append-only。
+- 结论：**只动 L3（改增量）+ pass2（简化回填），L2 不动**。这样分钟侧与 alpha158 收敛成同一套
+  "尾窗→只算新日→append" 增量范式。
+
+---
+
+## 14. 编排收尾（待落地清单，2026-06-14）
+
+> L1→L2→L3 增量内核已全部落地闭环（§13）。本节是把"剩余编排选项"显式落档，逐项可独立执行。
+> **现状**：`pipeline/daily_update.sh` 第 6 步 `refresh_supersets.py`（L2+pass2）、第 7 步循环
+> `run.py <spec>`（L3）——因 run.py 已自动检测增量，**第 7 步现在已经在跑增量了，无需改动即生效**。
+
+### 14.1 ⬜ L3 周期性全量 reconcile（决策 #16，兜底）
+- **为何**：增量冻结历史 → 万一过去某天算错不自愈（与 L2 同理）。需周期性全量重算对账抓漂移。
+- **做法**：周频（如每周日）对每个 spec 跑 `python run.py <spec> --rebuild`（全量覆盖，原子写），
+  与 `refresh_supersets.py --rebuild`（L2 兜底）对称。判据：与现有增量面板活区 `max_rel<1e-6`。
+- **落地选项**：(a) 文档 + 一行 cron 建议（最简，推荐先做）；(b) 写独立 `pipeline/reconcile_l3.sh` 扫 spec 循环 --rebuild。
+- **代价**：全量重算成本（pj 全 universe ~分钟级），周频可接受；放非交易时段。
+
+### 14.2 ⬜ daily_update.sh 收尾（决策 #17）
+- **第 7 步加注释**：说明"面板已存在→run.py 自动增量（读 superset 尾窗只算新日 append）；首建/`--rebuild` 才全量"。
+  脚本逻辑无需改（END_DATE 已动态取最新 raw 交易日）。
+- **接 alpha158 第 7b 步**（孪生侧 L3 增量，零 API，也还没接进编排）：在第 7 步后加
+  `python scripts/alpha158_daily_update.py`（失败仅告警不中断，与 7a 一致；见 `docs/alpha158_incremental_design.md` §10）。
+- **首现映射热身**：首个增量日 `refresh_supersets.py` 会触发一次性并行全扫建 `minute_first_appearance.parquet`
+  （~14s，一次性）；之后每天 O(1)。无需手动预建。
+
+### 14.3 ⬜ 标签增量（决策 #10，仍"不急"）
+- `ml/labels.py` 现为全量；§7 标签近 N+1 天 maturing。后续做"回填末 N+1 天 + 新日"增量，IC 仅 >N+1 天可复现不变。
+
+> 排序建议：14.1(a) 文档+cron → 14.2 注释/接 7b → 14.3 标签（独立，可最后）。三项互不阻塞。

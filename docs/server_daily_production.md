@@ -131,9 +131,14 @@ PYTHONPATH=. python -m ml.export_signal --run-id "$RUN" --source live --layout d
 - `predict_live` 用 `models/$RUN/{model.txt,scaler_x.parquet,selected_features.json}` 推理，自动末日 =
   **min(入选因子覆盖末日, 掩码末日)**。所以**掩码（B）不更新，信号就推不到最新**——日志里看
   `[filters] ... 区间 ~YYYY-MM-DD` 和 `区间 ...~YYYY-MM-DD` 确认推到哪天。
+- `export_signal` **默认 append-only**：只新增信号目录里尚不存在的交易日 `.txt`，**绝不覆盖历史信号**
+  （= 交易流水，写一次冻结；无前视、可复现）。日志会报「新增 N 份，跳过已存在 M 份」。
+  日更照上面跑即可，**不需要也不应该**手动算 `--start`。
 - 产物：`ml/predictions/$RUN/pred_panel_live.parquet`、`ml/signals/$RUN/YYYY-MM-DD.txt`（每日 top-500 排序名单）。
 
-> 模型不需重训：日更只是「同模型 + 新因子 → 新打分」。重训是另一回事（`python -m ml.run ...`，见 `ml-pipeline-guide.md`）。
+> ⚠️ **不要**为了"刷新历史"去加 `--rebuild`：那会按当前因子口径重写历史信号、引入前视、破坏可复现。
+> `--rebuild` 仅用于**显式、罕见的 reconcile**（如修了某因子 bug 后要重定基历史信号），由人决策。
+> 模型不需重训：日更只是「同模型 + 新因子 → 新打分」。重训见 `ml-pipeline-guide.md`。
 
 ---
 

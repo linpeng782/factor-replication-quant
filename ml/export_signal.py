@@ -13,9 +13,14 @@
   daily（默认）：每日一份 YYYY-MM-DD.txt（回测实盘读这个）；
   merged       ：单个 signal.txt，全部日期合并（行同样是 YYYY-MM-DD_代码）。
 
+**信号 = 交易流水，append-only 冻结**（daily 布局默认行为）：
+  日更只**新增**信号目录里尚不存在的交易日 .txt，**绝不覆盖已有历史信号**——
+  保证无前视(每天信号冻结在当日数据口径)、历史可复现、回测稳定。
+  确需按当前因子口径重写历史(罕见 reconcile)才显式 `--rebuild`，与因子侧"日更增量 + 周期 reconcile"对称。
+
 用法：
-    python -m ml.export_signal --run-id full_gbdt_es200                 # live + 每日 txt
-    python -m ml.export_signal --run-id full_gbdt_es200 --start 2026-01-01
+    python -m ml.export_signal --run-id full_gbdt_es200                 # 默认: 只补新增交易日(append-only)
+    python -m ml.export_signal --run-id full_gbdt_es200 --rebuild       # 全段重写(显式 reconcile)
     python -m ml.export_signal --run-id full_gbdt --source eval --layout merged
 产物：
     FACTOR_REPL_DATA_ROOT/ml/signals/<run_id>/YYYY-MM-DD.txt   （daily）
@@ -40,6 +45,7 @@ def export_signal(
     layout: str = "daily",
     start: str | None = None,
     end: str | None = None,
+    rebuild: bool = False,
 ) -> str:
     pred_path = config.ML_PREDICTIONS_DIR / run_id / _PANEL_FILE[source]
     if not pred_path.exists():
@@ -74,17 +80,28 @@ def export_signal(
         return str(out_path)
 
     # daily：每个交易日一份 YYYY-MM-DD.txt
-    n_files = 0
+    # 默认 append-only：跳过已存在的日期文件（冻结历史信号 = 无前视、可复现）；
+    # --rebuild 才覆盖重写（罕见 reconcile）。
+    n_new = n_skip = 0
     for ts, row in panel.iterrows():
         ds = ts.strftime("%Y-%m-%d")
+        fpath = out_dir / f"{ds}.txt"
+        if fpath.exists() and not rebuild:
+            n_skip += 1
+            continue
         codes = _ranked_codes(row)
         if not codes:
             continue
-        (out_dir / f"{ds}.txt").write_text(
-            "\n".join(f"{ds}_{code}" for code in codes) + "\n", encoding="utf-8")
-        n_files += 1
-    logger.success(f"[export] {run_id}({source}/daily): {n_files} 份 YYYY-MM-DD.txt "
-                   f"× top-{top_n} ({panel.index.min().date()}~{panel.index.max().date()}) → {out_dir}")
+        fpath.write_text("\n".join(f"{ds}_{code}" for code in codes) + "\n", encoding="utf-8")
+        n_new += 1
+    mode = "全段重写" if rebuild else "append-only"
+    msg = (f"[export] {run_id}({source}/daily,{mode}): 新增 {n_new} 份"
+           + (f"，跳过已存在 {n_skip} 份（历史冻结）" if n_skip else "")
+           + f" × top-{top_n} → {out_dir}")
+    if n_new:
+        logger.success(msg + f" | 新增区间 ~{panel.index.max().date()}")
+    else:
+        logger.info(msg + "（已最新，无新增交易日）")
     return str(out_dir)
 
 
@@ -96,8 +113,10 @@ def main() -> None:
     ap.add_argument("--layout", default="daily", choices=["daily", "merged"])
     ap.add_argument("--start", default=None)
     ap.add_argument("--end", default=None)
+    ap.add_argument("--rebuild", action="store_true",
+                    help="全段重写覆盖历史信号（默认 append-only 只补新增交易日；reconcile 才用）")
     args = ap.parse_args()
-    export_signal(args.run_id, args.top_n, args.source, args.layout, args.start, args.end)
+    export_signal(args.run_id, args.top_n, args.source, args.layout, args.start, args.end, args.rebuild)
 
 
 if __name__ == "__main__":

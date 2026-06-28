@@ -332,7 +332,8 @@ class MinuteAggregateEngine:
 
         pass 1  主增量/全量
           · 无缓存 → 全量 start_idx=0（首次建库）
-          · 有缓存 → 增量 start_idx = max(cache_last) 之后
+          · 有缓存 → 增量 start_idx = 活跃落后股最早自身前沿之后（**不是**全局 max(cache_last)：
+            前沿异构时全局 max 会让 start_idx 跳过所有人 → 落后股永不更新、无法自愈，见下）
 
         pass 2  新股 / 补洞建库（仅增量模式触发，§13.2 简化）
           · 用持久化"首现映射"识别 universe 中无缓存但有 raw 数据的股
@@ -355,9 +356,20 @@ class MinuteAggregateEngine:
             start_idx = 0
             new_obs = []   # 全量已覆盖，pass 2 不再重复
         else:
-            frontier = max(cached.values())
-            start_idx = self._bisect_after(raw_dates, frontier)
-            need_obs = [ob for ob in cached if cached[ob] < raw_max]
+            # 落后股 = 缓存末日 < raw_max。但 cached 里混着早退市、末日停远古的僵尸股
+            # （永远落后却无新数据）。start_idx 选取的两个错误极端：
+            #   · 全局 max 前沿 → 任意领先子集（如部分刷新/中断遗留）就让 start_idx 越过末日、
+            #     pass1 整段跳过 → 其余落后股永不更新、无法自愈（异构前沿锁死 bug）。
+            #   · 全局 min 前沿 → 僵尸股把起点拖到远古 → 全量重扫，灾难。
+            # 取舍：只 heal「最新交易日 raw 仍出现」的活跃股，start_idx 跟这些活跃落后股的
+            # **最早自身前沿**。逐股过滤（_run_build_pass 的 df.date > lst）保证各只只 append 自己缺的日；
+            # 健康日更（全股均匀在 T-1）时 min 前沿=T-1 → start_idx=T，行为与旧逻辑等价。无魔法数。
+            latest_obs = set(_scan_day_obs(str(MINUTE_RAW_DIR / f"{raw_max.date()}.parquet")))
+            need_obs = [ob for ob in cached if cached[ob] < raw_max and ob in latest_obs]
+            start_idx = (
+                self._bisect_after(raw_dates, min(cached[ob] for ob in need_obs))
+                if need_obs else len(raw_dates)
+            )
 
         warmup = self.reducer.warmup
         workers = max(1, int(os.environ.get("MINUTE_WORKERS", "8")))

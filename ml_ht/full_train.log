@@ -1,0 +1,62 @@
+2026-06-27 12:38:51.544 | INFO     | __main__:cmd_train:68 - Run 目录: /nfs/ofs-prediction/peterzhenglinpeng/ml/ht/runs/20260627_123851
+2026-06-27 12:38:51.545 | INFO     | __main__:cmd_train:70 - === 加载数据 ===
+2026-06-27 12:39:21.117 | INFO     | __main__:cmd_train:72 - 长表: 15,407,168 行, 158 因子
+2026-06-27 12:39:21.117 | INFO     | __main__:cmd_train:74 - === 预处理 ===
+2026-06-27 12:57:55.163 | INFO     | __main__:cmd_train:76 - train=5,032,527 | valid=1,459,019 | test=6,451,168
+2026-06-27 12:57:55.690 | INFO     | __main__:cmd_train:81 - === 构建 DataLoader ===
+2026-06-27 12:57:55.692 | INFO     | __main__:cmd_train:84 - === 训练 ===
+2026-06-27 12:57:55.708 | INFO     | __main__:cmd_train:86 - 模型参数: 14,361
+2026-06-27 12:59:30.116 | INFO     | ml_ht.train:train:142 - Epoch   1/100 | tr loss=0.6988 acc=0.5340 | val loss=0.6868 acc=0.5452 | IC=0.1298 ICIR=1.36 L-S=0.0364 | gap=-0.0112 | 87.1s *best
+2026-06-27 13:00:57.545 | INFO     | ml_ht.train:train:142 - Epoch   2/100 | tr loss=0.6857 acc=0.5496 | val loss=0.6864 acc=0.5450 | IC=0.1297 ICIR=1.36 L-S=0.0371 | gap=+0.0046 | 87.4s *best
+2026-06-27 13:02:23.731 | INFO     | ml_ht.train:train:142 - Epoch   3/100 | tr loss=0.6845 acc=0.5529 | val loss=0.6860 acc=0.5462 | IC=0.1331 ICIR=1.38 L-S=0.0376 | gap=+0.0068 | 86.2s *best
+2026-06-27 13:03:48.444 | INFO     | ml_ht.train:train:142 - Epoch   4/100 | tr loss=0.6838 acc=0.5550 | val loss=0.6856 acc=0.5476 | IC=0.1381 ICIR=1.43 L-S=0.0391 | gap=+0.0074 | 84.7s *best
+2026-06-27 13:05:11.758 | INFO     | ml_ht.train:train:142 - Epoch   5/100 | tr loss=0.6834 acc=0.5560 | val loss=0.6854 acc=0.5484 | IC=0.1397 ICIR=1.45 L-S=0.0392 | gap=+0.0077 | 83.3s *best
+2026-06-27 13:06:36.015 | INFO     | ml_ht.train:train:142 - Epoch   6/100 | tr loss=0.6831 acc=0.5572 | val loss=0.6851 acc=0.5503 | IC=0.1435 ICIR=1.53 L-S=0.0400 | gap=+0.0068 | 84.2s *best
+2026-06-27 13:08:00.878 | INFO     | ml_ht.train:train:142 - Epoch   7/100 | tr loss=0.6828 acc=0.5579 | val loss=0.6852 acc=0.5492 | IC=0.1423 ICIR=1.54 L-S=0.0403 | gap=+0.0086 | 84.9s
+2026-06-27 13:09:26.929 | INFO     | ml_ht.train:train:142 - Epoch   8/100 | tr loss=0.6825 acc=0.5587 | val loss=0.6856 acc=0.5481 | IC=0.1407 ICIR=1.49 L-S=0.0409 | gap=+0.0105 | 86.0s
+2026-06-27 13:10:51.583 | INFO     | ml_ht.train:train:142 - Epoch   9/100 | tr loss=0.6823 acc=0.5591 | val loss=0.6848 acc=0.5503 | IC=0.1465 ICIR=1.60 L-S=0.0415 | gap=+0.0087 | 84.6s *best
+2026-06-27 13:12:17.007 | INFO     | ml_ht.train:train:142 - Epoch  10/100 | tr loss=0.6821 acc=0.5598 | val loss=0.6849 acc=0.5506 | IC=0.1468 ICIR=1.62 L-S=0.0419 | gap=+0.0092 | 85.4s
+2026-06-27 13:13:42.315 | INFO     | ml_ht.train:train:142 - Epoch  11/100 | tr loss=0.6819 acc=0.5603 | val loss=0.6849 acc=0.5508 | IC=0.1465 ICIR=1.67 L-S=0.0418 | gap=+0.0096 | 85.3s
+2026-06-27 13:15:07.491 | INFO     | ml_ht.train:train:142 - Epoch  12/100 | tr loss=0.6817 acc=0.5604 | val loss=0.6843 acc=0.5522 | IC=0.1505 ICIR=1.62 L-S=0.0435 | gap=+0.0081 | 85.2s *best
+2026-06-27 13:16:32.984 | INFO     | ml_ht.train:train:142 - Epoch  13/100 | tr loss=0.6816 acc=0.5610 | val loss=0.6849 acc=0.5504 | IC=0.1480 ICIR=1.61 L-S=0.0427 | gap=+0.0106 | 85.5s
+2026-06-27 13:17:58.476 | INFO     | ml_ht.train:train:142 - Epoch  14/100 | tr loss=0.6814 acc=0.5613 | val loss=0.6848 acc=0.5511 | IC=0.1487 ICIR=1.64 L-S=0.0426 | gap=+0.0101 | 85.5s
+2026-06-27 13:19:23.665 | INFO     | ml_ht.train:train:142 - Epoch  15/100 | tr loss=0.6814 acc=0.5614 | val loss=0.6846 acc=0.5513 | IC=0.1491 ICIR=1.59 L-S=0.0433 | gap=+0.0101 | 85.2s
+2026-06-27 13:20:49.062 | INFO     | ml_ht.train:train:142 - Epoch  16/100 | tr loss=0.6813 acc=0.5618 | val loss=0.6837 acc=0.5536 | IC=0.1547 ICIR=1.69 L-S=0.0442 | gap=+0.0082 | 85.4s *best
+2026-06-27 13:22:15.825 | INFO     | ml_ht.train:train:142 - Epoch  17/100 | tr loss=0.6812 acc=0.5621 | val loss=0.6847 acc=0.5513 | IC=0.1495 ICIR=1.68 L-S=0.0426 | gap=+0.0108 | 86.8s
+2026-06-27 13:23:41.289 | INFO     | ml_ht.train:train:142 - Epoch  18/100 | tr loss=0.6812 acc=0.5620 | val loss=0.6848 acc=0.5515 | IC=0.1487 ICIR=1.64 L-S=0.0425 | gap=+0.0105 | 85.5s
+2026-06-27 13:25:06.572 | INFO     | ml_ht.train:train:142 - Epoch  19/100 | tr loss=0.6811 acc=0.5623 | val loss=0.6840 acc=0.5533 | IC=0.1532 ICIR=1.74 L-S=0.0436 | gap=+0.0090 | 85.3s
+2026-06-27 13:26:31.268 | INFO     | ml_ht.train:train:142 - Epoch  20/100 | tr loss=0.6810 acc=0.5624 | val loss=0.6845 acc=0.5526 | IC=0.1509 ICIR=1.69 L-S=0.0430 | gap=+0.0099 | 84.7s
+2026-06-27 13:27:56.242 | INFO     | ml_ht.train:train:142 - Epoch  21/100 | tr loss=0.6810 acc=0.5626 | val loss=0.6841 acc=0.5528 | IC=0.1526 ICIR=1.63 L-S=0.0441 | gap=+0.0098 | 85.0s
+2026-06-27 13:29:21.462 | INFO     | ml_ht.train:train:142 - Epoch  22/100 | tr loss=0.6809 acc=0.5627 | val loss=0.6838 acc=0.5534 | IC=0.1551 ICIR=1.71 L-S=0.0437 | gap=+0.0094 | 85.2s
+2026-06-27 13:30:46.723 | INFO     | ml_ht.train:train:142 - Epoch  23/100 | tr loss=0.6809 acc=0.5626 | val loss=0.6844 acc=0.5515 | IC=0.1509 ICIR=1.70 L-S=0.0432 | gap=+0.0112 | 85.3s
+2026-06-27 13:32:12.915 | INFO     | ml_ht.train:train:142 - Epoch  24/100 | tr loss=0.6809 acc=0.5629 | val loss=0.6841 acc=0.5527 | IC=0.1529 ICIR=1.74 L-S=0.0437 | gap=+0.0101 | 86.2s
+2026-06-27 13:33:38.837 | INFO     | ml_ht.train:train:142 - Epoch  25/100 | tr loss=0.6808 acc=0.5631 | val loss=0.6842 acc=0.5531 | IC=0.1526 ICIR=1.75 L-S=0.0431 | gap=+0.0099 | 85.9s
+2026-06-27 13:35:03.240 | INFO     | ml_ht.train:train:142 - Epoch  26/100 | tr loss=0.6807 acc=0.5633 | val loss=0.6839 acc=0.5537 | IC=0.1548 ICIR=1.75 L-S=0.0434 | gap=+0.0096 | 84.4s
+2026-06-27 13:36:32.308 | INFO     | ml_ht.train:train:142 - Epoch  27/100 | tr loss=0.6808 acc=0.5629 | val loss=0.6836 acc=0.5540 | IC=0.1558 ICIR=1.74 L-S=0.0443 | gap=+0.0090 | 89.1s *best
+2026-06-27 13:37:57.611 | INFO     | ml_ht.train:train:142 - Epoch  28/100 | tr loss=0.6808 acc=0.5632 | val loss=0.6841 acc=0.5532 | IC=0.1538 ICIR=1.72 L-S=0.0438 | gap=+0.0100 | 85.3s
+2026-06-27 13:39:23.255 | INFO     | ml_ht.train:train:142 - Epoch  29/100 | tr loss=0.6807 acc=0.5633 | val loss=0.6841 acc=0.5527 | IC=0.1535 ICIR=1.70 L-S=0.0438 | gap=+0.0107 | 85.6s
+2026-06-27 13:40:47.796 | INFO     | ml_ht.train:train:142 - Epoch  30/100 | tr loss=0.6807 acc=0.5633 | val loss=0.6843 acc=0.5528 | IC=0.1519 ICIR=1.75 L-S=0.0429 | gap=+0.0105 | 84.5s
+2026-06-27 13:42:13.015 | INFO     | ml_ht.train:train:142 - Epoch  31/100 | tr loss=0.6807 acc=0.5635 | val loss=0.6839 acc=0.5537 | IC=0.1554 ICIR=1.74 L-S=0.0441 | gap=+0.0098 | 85.2s
+2026-06-27 13:43:37.888 | INFO     | ml_ht.train:train:142 - Epoch  32/100 | tr loss=0.6807 acc=0.5634 | val loss=0.6840 acc=0.5519 | IC=0.1535 ICIR=1.70 L-S=0.0434 | gap=+0.0115 | 84.9s
+2026-06-27 13:45:02.747 | INFO     | ml_ht.train:train:142 - Epoch  33/100 | tr loss=0.6806 acc=0.5636 | val loss=0.6841 acc=0.5537 | IC=0.1550 ICIR=1.74 L-S=0.0439 | gap=+0.0099 | 84.9s
+2026-06-27 13:46:29.623 | INFO     | ml_ht.train:train:142 - Epoch  34/100 | tr loss=0.6806 acc=0.5636 | val loss=0.6840 acc=0.5534 | IC=0.1538 ICIR=1.72 L-S=0.0442 | gap=+0.0103 | 86.9s
+2026-06-27 13:47:54.208 | INFO     | ml_ht.train:train:142 - Epoch  35/100 | tr loss=0.6806 acc=0.5636 | val loss=0.6839 acc=0.5533 | IC=0.1549 ICIR=1.74 L-S=0.0444 | gap=+0.0103 | 84.6s
+2026-06-27 13:49:20.473 | INFO     | ml_ht.train:train:142 - Epoch  36/100 | tr loss=0.6805 acc=0.5638 | val loss=0.6839 acc=0.5537 | IC=0.1549 ICIR=1.74 L-S=0.0442 | gap=+0.0101 | 86.3s
+2026-06-27 13:50:45.449 | INFO     | ml_ht.train:train:142 - Epoch  37/100 | tr loss=0.6806 acc=0.5635 | val loss=0.6839 acc=0.5529 | IC=0.1544 ICIR=1.68 L-S=0.0439 | gap=+0.0106 | 85.0s
+2026-06-27 13:52:10.882 | INFO     | ml_ht.train:train:142 - Epoch  38/100 | tr loss=0.6805 acc=0.5637 | val loss=0.6847 acc=0.5527 | IC=0.1517 ICIR=1.63 L-S=0.0439 | gap=+0.0111 | 85.4s
+2026-06-27 13:53:36.556 | INFO     | ml_ht.train:train:142 - Epoch  39/100 | tr loss=0.6806 acc=0.5635 | val loss=0.6842 acc=0.5530 | IC=0.1540 ICIR=1.65 L-S=0.0447 | gap=+0.0105 | 85.7s
+2026-06-27 13:55:01.608 | INFO     | ml_ht.train:train:142 - Epoch  40/100 | tr loss=0.6804 acc=0.5639 | val loss=0.6839 acc=0.5529 | IC=0.1541 ICIR=1.67 L-S=0.0445 | gap=+0.0111 | 85.0s
+2026-06-27 13:56:26.982 | INFO     | ml_ht.train:train:142 - Epoch  41/100 | tr loss=0.6805 acc=0.5637 | val loss=0.6844 acc=0.5520 | IC=0.1518 ICIR=1.68 L-S=0.0438 | gap=+0.0117 | 85.4s
+2026-06-27 13:57:52.145 | INFO     | ml_ht.train:train:142 - Epoch  42/100 | tr loss=0.6805 acc=0.5637 | val loss=0.6841 acc=0.5537 | IC=0.1549 ICIR=1.73 L-S=0.0438 | gap=+0.0100 | 85.2s
+2026-06-27 13:57:52.145 | INFO     | ml_ht.train:train:151 - Early stopping at epoch 42 (patience=15, best epoch=27)
+2026-06-27 13:57:52.146 | SUCCESS  | ml_ht.train:train:157 - 训练完成 | best epoch=27 val_loss=0.6836
+2026-06-27 13:57:52.192 | SUCCESS  | __main__:cmd_train:98 - 模型保存: /nfs/ofs-prediction/peterzhenglinpeng/ml/ht/runs/20260627_123851/model.pt
+2026-06-27 13:58:46.995 | INFO     | __main__:_test_report:51 - === Test 逐年报告 ===
+2026-06-27 13:58:46.995 | INFO     | __main__:_test_report:52 -   overall: IC=0.1322 ICIR=1.19 L-S=0.0344
+2026-06-27 13:58:46.995 | INFO     | __main__:_test_report:55 -   2020: IC=0.1375 ICIR=1.42 L-S=0.0346 pos=0.91 (243d)
+2026-06-27 13:58:46.995 | INFO     | __main__:_test_report:55 -   2021: IC=0.1179 ICIR=1.30 L-S=0.0340 pos=0.91 (243d)
+2026-06-27 13:58:46.996 | INFO     | __main__:_test_report:55 -   2022: IC=0.1396 ICIR=1.57 L-S=0.0410 pos=0.93 (242d)
+2026-06-27 13:58:46.996 | INFO     | __main__:_test_report:55 -   2023: IC=0.1208 ICIR=1.04 L-S=0.0242 pos=0.83 (242d)
+2026-06-27 13:58:46.996 | INFO     | __main__:_test_report:55 -   2024: IC=0.1272 ICIR=0.84 L-S=0.0421 pos=0.83 (242d)
+2026-06-27 13:58:46.996 | INFO     | __main__:_test_report:55 -   2025: IC=0.1467 ICIR=1.28 L-S=0.0315 pos=0.90 (243d)
+2026-06-27 13:58:46.996 | INFO     | __main__:_test_report:55 -   2026: IC=0.1472 ICIR=2.26 L-S=0.0304 pos=0.98 (56d)

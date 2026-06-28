@@ -25,8 +25,12 @@ import pandas as pd
 from loguru import logger
 
 from core import config
-from ml.dataset import discover_features, load_pre_mask
+from ml.dataset import discover_features, load_factor_grid, load_pre_mask
 from ml.preprocess import RobustZScoreScaler
+
+# ── 覆盖校验（C）：防「面板末日新鲜但近日大面积 NaN」静默污染信号（见 superset 前沿锁死类 bug）──
+COVERAGE_RECENT = 10        # 检查最近 N 个交易日
+COVERAGE_DROP = 0.6         # 近期非空股票数 < 0.6×历史基线 → 判骤降
 
 
 def _load_scaler(model_dir, features: list[str]) -> RobustZScoreScaler:
@@ -37,7 +41,8 @@ def _load_scaler(model_dir, features: list[str]) -> RobustZScoreScaler:
     return sc
 
 
-def predict_live(run_id: str = "full_gbdt", start: str = "2022-01-01", end: str | None = None) -> pd.DataFrame:
+def predict_live(run_id: str = "full_gbdt", start: str = "2022-01-01", end: str | None = None,
+                 strict_coverage: bool = False) -> pd.DataFrame:
     model_dir = config.ML_MODELS_DIR / run_id
     scaler_path = model_dir / "scaler_x.parquet"
     if not scaler_path.exists():
@@ -66,15 +71,35 @@ def predict_live(run_id: str = "full_gbdt", start: str = "2022-01-01", end: str 
     logger.info(f"[live] {run_id}: {len(dates)} 天 × pre_mask → {len(rr):,} 样本 | 因子={len(sel)} | "
                 f"区间 {dates.min().date()}~{dates.max().date()}")
 
-    # 逐因子读 raw → inf→NaN → 在样本位置取值填列（只读入选 64 个，内存友好）
+    # 逐因子读 raw（共享组装 load_factor_grid，与训练 build_dataset 同口径，杜绝 train/serve skew）
+    # → 在样本位置取值填列（只读入选 64 个，内存友好）+ 逐日覆盖校验（C）
     mat = np.full((len(rr), len(sel)), np.nan, dtype=np.float32)
+    cov_warn: list[tuple[str, int, list]] = []   # (因子, 基线, [(日期, 近期非空数), ...])
     for j, name in enumerate(sel):
-        df = pd.read_parquet(pathmap[name]); df.index = pd.to_datetime(df.index)
-        arr = df.reindex(index=dates, columns=stocks).to_numpy(dtype=np.float32, copy=True)  # 可写副本：避免 pyarrow 只读视图
-        arr[~np.isfinite(arr)] = np.nan
+        arr = load_factor_grid(pathmap[name], dates, stocks)   # (T, N) float32, inf→NaN
+        # C: 逐日非空股票数，近 COVERAGE_RECENT 日 vs 历史基线，骤降则记（防面板假最新 → 信号退化）
+        if len(dates) > COVERAGE_RECENT * 3:
+            nn = np.isfinite(arr).sum(axis=1)
+            baseline = float(np.median(nn[:-COVERAGE_RECENT]))
+            tail = range(len(dates) - COVERAGE_RECENT, len(dates))
+            bad = [(dates[i].date(), int(nn[i])) for i in tail
+                   if baseline > 0 and nn[i] < COVERAGE_DROP * baseline]
+            if bad:
+                cov_warn.append((name, int(baseline), bad))
         mat[:, j] = arr[rr, cc]
         if (j + 1) % 20 == 0:
             logger.info(f"[live]   填列 {j+1}/{len(sel)}")
+
+    # C: 汇总覆盖校验
+    if cov_warn:
+        logger.warning(f"[live][coverage] ⚠️ {len(cov_warn)}/{len(sel)} 因子近 {COVERAGE_RECENT} 日非空覆盖骤降"
+                       f"（疑面板陈旧/superset 前沿锁死类 → 候选池缩水、信号静默退化）：")
+        for name, base, bad in cov_warn:
+            logger.warning(f"    {name}: 基线~{base}/日 → 近期 {bad}")
+        if strict_coverage:
+            raise RuntimeError(f"[live][coverage] {len(cov_warn)} 因子覆盖骤降且 --strict-coverage，中止以防污染信号")
+    else:
+        logger.info(f"[live][coverage] ✅ {len(sel)} 因子近 {COVERAGE_RECENT} 日覆盖正常")
 
     midx = pd.MultiIndex.from_arrays([dates[rr], stocks[cc]], names=["date", "stock"])
     Xz = sx.transform(pd.DataFrame(mat, index=midx, columns=sel))
@@ -94,8 +119,10 @@ def main() -> None:
     ap.add_argument("--run-id", default="full_gbdt")
     ap.add_argument("--start", default="2022-01-01")
     ap.add_argument("--end", default=None, help="留空=自动取入选因子共同覆盖末日")
+    ap.add_argument("--strict-coverage", action="store_true",
+                    help="任一入选因子近 N 日非空覆盖骤降则中止（默认仅 WARNING 不中止）")
     args = ap.parse_args()
-    predict_live(args.run_id, args.start, args.end)
+    predict_live(args.run_id, args.start, args.end, strict_coverage=args.strict_coverage)
 
 
 if __name__ == "__main__":

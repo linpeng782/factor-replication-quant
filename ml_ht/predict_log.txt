@@ -1,0 +1,5 @@
+2026-06-27 14:07:46.741 | INFO     | __main__:main:147 - 加载模型: /nfs/ofs-prediction/peterzhenglinpeng/ml/ht/models/stock_mlp.pt
+2026-06-27 14:26:52.312 | INFO     | __main__:cmd_predict:108 - === 预测 ===
+2026-06-27 14:27:12.904 | INFO     | ml_ht.predict:predict:45 - 预测完成: 1511 个交易日, 6,451,168 样本
+2026-06-27 14:27:12.904 | INFO     | __main__:cmd_predict:114 - === 导出信号 ===
+2026-06-27 14:27:21.501 | SUCCESS  | ml_ht.export_signal:export_signals:36 - 信号导出完成: 1511 天 → /nfs/ofs-prediction/peterzhenglinpeng/ml/ht/signals/

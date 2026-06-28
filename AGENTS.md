@@ -204,6 +204,139 @@ output/<source>/<group>/<factor>/  评估产物，gitignore；两张图 evaluati
 run.py               日常 CLI（默认 yolo + 评估，裸名/限定路径都接受）
 scripts/             一次性迁移脚本 + factor_inventory + factor_correlation 等
 docs/                项目级架构文档
+ml_ht/               华泰人工智能系列复现（独立，不碰 ml/ 和 core/；详见 §10）
 ```
 
 `.gitignore` 已忽略 `output/`、`*.bak/`、`*.parquet`、`__pycache__/`、`.env`。
+
+---
+
+## 10. ml_ht — 华泰人工智能系列复现
+
+> 独立目录，复现华泰证券研报中的 ML 选股模型。与现有 `ml/`（LightGBM）和 `core/`（因子评估）完全隔离。
+
+### 项目背景
+
+复现华泰 2017 年研报《人工智能选股之全连接神经网络》，使用 alpha158（158 个技术因子）作为特征，PyTorch FCNN 做二分类选股，输出日频信号对接外部回测系统。
+
+### 代码位置
+
+```
+ml_ht/                           # 全新目录，不碰 ml/ 和 core/
+  __init__.py
+  build_long_table.py            # alpha158 长表构建 + can_train 过滤
+  (后续: dataset.py, model.py, train.py, predict.py, export_signal.py, run.py)
+```
+
+### 数据位置
+
+```
+/nfs/ofs-prediction/peterzhenglinpeng/ml/ht/
+  alpha158_long.parquet          # 长表 (date, stock) × [158 因子 + mask 列]
+  build_stats.txt                # 过滤漏斗统计
+```
+
+### can_train 过滤器设计
+
+`can_train(T, X)` 回答"股票 X 在 T 日能否进入训练集"，三个独立条件的交集：
+
+| 条件 | 含义 | 实现 | 时间语义 |
+|------|------|------|---------|
+| `has_factor` | 全部 158 因子非 NaN | `~isnan(factor_stack).any(axis=0)` | T 当天 |
+| `can_buy` | T+1 非 ST/停牌/新股 | 原始 mask 查 T+1（无 shift） | 看 T+1 |
+| `has_label` | 远期收益可计算 | `forward_return_20d.notna()` | T+1~T+21 |
+
+**设计原则**：
+- **无 shift 魔术**：`can_buy` 直接查 `mask[T+1]`，不预移整个矩阵
+- **涨停不过滤**：涨停股票的因子值和标签均可观测，执行约束交给外部回测系统
+- **has_factor 用 all**：MLP 需要 158 个输入全部有限，任一 NaN 即排除
+
+### 已知问题
+
+alpha158 因子存在 NaN 不一致性（111/158 个因子的 NaN 位置与 KMID 不同）：
+- **CNT 家族 bug**：`(close > Ref(close,1)).astype(float)` 在 NaN 处返回 0.0 而非 NaN（待修复）
+- **滚动窗口预热**：BETA/RSQR/CORR 等使用 `sliding_window_view` 的因子，新股上市前 w 天有额外 NaN
+- **VWAP0**：volume=0 时除零产生 NaN
+- 使用 `has_factor = all` 过滤后，这些不一致性不影响 ML 训练（NaN 行被整体排除）
+
+**⚠️ NaN 填充优化（TODO，后续解决）**：
+当前 `has_factor=all` 过于严格——被过滤的 573,938 行中：
+- 60.6% 只有 1~2 个 NaN（158 个因子中仅缺 1~2 个）
+- 中位数 NaN 因子数 = 4，75 分位 = 10
+- 提议：NaN ≤ 5 个的行用截面中位数填充（救回 ~70% 行），> 5 个的丢弃
+- 当前先用严格过滤推进，后续迭代时再加填充逻辑
+
+### 当前状态（2026-06-26）
+
+- ✅ `build_long_table.py` v2 运行完成（exit 0，耗时 612s）
+- ✅ **can_train=True 的 13,071,991 行中，158 因子列零 NaN** ← MLP 安全
+- ✅ AGENTS.md §10 文档已写
+
+**v2 过滤漏斗最终结果**（has_factor=all, 涨停不过滤）：
+```
+总单元格       28,679,854
+has_factor     14,833,230  (51.7%)   ← all: 全部 158 因子非 NaN
+can_buy        13,752,326  (48.0%)   ← T+1 非 ST/停牌/新股（涨停不过滤）
+has_label      14,877,448  (51.9%)
+────────────────────────────
+can_train 交集 13,071,991  (45.6%)
+```
+
+**训练/验证/测试样本量**：
+- 训练 2010-2017：**3,805,414** 样本（日均 1,348→2,478 股票）
+- 验证 2018-2019：**1,533,582** 样本（日均 2,930→3,366 股票）
+- 测试 2020-2025：**6,176,650** 样本（日均 3,416→4,876 股票）
+
+**长表文件**：`/nfs/ofs-prediction/peterzhenglinpeng/ml/ht/alpha158_long.parquet`（7.61 GB）
+
+### 下一步（用户回来后继续）
+
+**Step 1: 检查后台结果**
+```bash
+# 看输出日志中的漏斗统计和 NaN 残留验证
+# 确认 can_train=True 的行中 158 因子零 NaN
+ls -lh /nfs/ofs-prediction/peterzhenglinpeng/ml/ht/alpha158_long.parquet
+```
+
+**Step 2: 实现 `ml_ht/dataset.py`**
+- 读取 `alpha158_long.parquet`（一次 IO，~8 GB）
+- 按时间切分：train 2010-2017 / embargo 2017-12 / valid 2018-2019 / test 2020-2025
+- 截面预处理（每天独立）：zscore（减均值、除标准差），NaN 填 0
+- 标签：读 `forward_return_20d.parquet`，二分类化（> 当日截面中位数 → 1，否则 → 0）
+- 输出 PyTorch DataLoader（batch_size=8192）
+
+**Step 3: 实现 `ml_ht/model.py`**
+```python
+class StockMLP(nn.Module):
+    # 158 → Linear(80) → Tanh → Dropout(0.3)
+    #      → Linear(20) → Tanh → Dropout(0.3)
+    #      → Linear(1)  → Sigmoid
+```
+
+**Step 4: 实现 `ml_ht/train.py`**
+- BCELoss + Adam(lr=1e-3, weight_decay=1e-5)
+- Early stopping: valid loss 连续 15 epoch 不降则停，最多 100 epoch
+- 每 epoch 打训练/验证 loss + accuracy
+
+**Step 5: 实现 `ml_ht/predict.py` + `ml_ht/export_signal.py`**
+- 对测试集（2020-2025）每个交易日预测 P(Y=1)
+- 按概率降序排列 → 写 daily signal 文件 `signals/YYYY-MM-DD.txt`
+- 格式：每行 `YYYY-MM-DD_stockcode`，对接外部日频回测系统
+
+**Step 6: 实现 `ml_ht/run.py`**
+- CLI 入口：`python ml_ht/run.py --train` / `--predict` / `--export`
+- 串联 dataset → train → predict → export 全流程
+
+### 关键设计决策（已确认）
+
+| 决策 | 选择 | 原因 |
+|------|------|------|
+| 因子集 | alpha158（158 个技术因子） | 用户选择 |
+| 框架 | PyTorch | 用户选择 |
+| 代码结构 | 独立 `ml_ht/` 目录 | 不污染现有 ml/ 和 core/ |
+| 标签 | 二分类（> 截面中位数 → 1） | 简化实现 |
+| 时间切分 | 2010-2017 / 2018-2019 / 2020-2025 | embargo 2017-12（21天 > 20天 horizon） |
+| 验证切分 | 时间切分 + embargo | 业界标准，防泄露 |
+| 信号频率 | 日频 | 对接外部日频回测系统 |
+| 涨停处理 | 不过滤 | 因子和标签均可观测 |
+| has_factor | all（158 因子全部非 NaN） | MLP 需要完整输入 |

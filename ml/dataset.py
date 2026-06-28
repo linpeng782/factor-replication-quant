@@ -73,6 +73,22 @@ def load_pre_mask() -> pd.DataFrame:
     return pre_mask
 
 
+def load_factor_grid(path: Path, dates: pd.DatetimeIndex, stocks: pd.Index) -> np.ndarray:
+    """读单因子 raw 面板 → 对齐到 (dates × stocks) 网格 → float32 → inf→NaN。
+
+    **train(build_dataset) 与 live(predict_live) 共用此函数**：特征组装口径（reindex/
+    dtype/inf-NaN 处理）只在这一处定义，杜绝两条路径各写一遍导致的 train/serve skew
+    （任一边改了组装逻辑而另一边没跟 → 实盘喂给模型的分布与训练时不一致、且不报错）。
+
+    返回 (len(dates), len(stocks)) float32 ndarray；缺失格为 NaN（LightGBM 原生处理）。
+    """
+    df = pd.read_parquet(path)
+    df.index = pd.to_datetime(df.index)
+    arr = df.reindex(index=dates, columns=stocks).to_numpy(dtype=np.float32, copy=True)  # 可写副本：避免 pyarrow 只读视图
+    arr[~np.isfinite(arr)] = np.nan
+    return arr
+
+
 def _segment_dates(all_dates: pd.DatetimeIndex, date_sample: int | None) -> dict[str, pd.DatetimeIndex]:
     out = {}
     for seg, (lo, hi) in SPLIT.items():
@@ -139,10 +155,7 @@ def build_dataset(
         return np.full((len(seg_idx[seg][0]), len(feat_names)), np.nan, dtype=np.float32)
     mats = {seg: alloc(seg) for seg in SPLIT}
     for j, name in enumerate(feat_names):
-        df = pd.read_parquet(pathmap[name]); df.index = pd.to_datetime(df.index)
-        df = df.reindex(index=all_dates, columns=all_stocks)
-        arr = df.to_numpy(dtype=np.float32, copy=True)  # 强制可写副本：避免 pyarrow zero-copy 只读视图
-        arr[~np.isfinite(arr)] = np.nan      # inf→NaN
+        arr = load_factor_grid(pathmap[name], all_dates, all_stocks)  # 共享组装：读一次填三段
         for seg in SPLIT:
             rp, cp = seg_idx[seg]
             mats[seg][:, j] = arr[rp, cp]

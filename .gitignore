@@ -1,5 +1,7 @@
 # 评估产物（平铺在项目根 output/<factor>/）
 output/
+# dquant 分钟后端评估产物（MINUTE_DATA_BACKEND=dquant；与 output/ 同等忽略）
+output-dquant/
 
 # 备份目录（mv -bak 隔离用）
 *.bak/
@@ -42,3 +44,6 @@ Thumbs.db
 /factor_inventory/
 ml/logs/
 docs/minute_fetch.*
+# 运行日志 + 临时 debug 产物（不进 git）
+*.log
+debug_output/

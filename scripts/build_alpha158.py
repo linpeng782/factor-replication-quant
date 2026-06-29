@@ -31,7 +31,7 @@ from core.producers.alpha158.groups import factor_group
 
 WINDOWS = [5, 10, 20, 30, 60]
 CHUNK_COLS = 1200                                          # 每块股票数（控内存）
-ALPHA158_RAW_BASE = config.RAW_FACTOR_BASE / "alpha158"    # factors/raw/alpha158/<group>/
+ALPHA158_RAW_BASE = config.ALPHA158_RAW_BASE                # factors/raw/alpha158[-dquant]/<group>/
 
 
 def _existing_names() -> set[str]:

@@ -10,6 +10,10 @@
 # 远端 SSH 机器（高频因子产线，65 GB 分钟数据所在）
 source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate   # Python 3.11
 
+# ⚠️ /tmp 是 overlay 只有 20G，经常被占满（实测 83%+）。所有临时文件、缓存、
+# 中间产物一律放 /nfs/ofs-prediction/ 下（90T，12T 可用），不要写 /tmp。
+# 例如：tmpdir 用 /nfs/ofs-prediction/peterzhenglinpeng/tmp/ 而非 /tmp/
+
 # 本机 macOS（基本面因子复现；高频因子留远端，详见 LOCAL_SETUP.md）
 source /Users/didi/kdj/peterdidi/bin/activate                        # Python 3.11.9 venv（本机唯一 venv，勿再找）
 export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根重定向
@@ -254,7 +258,7 @@ ml_ht/                           # 全新目录，不碰 ml/ 和 core/
 ### 已知问题
 
 alpha158 因子存在 NaN 不一致性（111/158 个因子的 NaN 位置与 KMID 不同）：
-- **CNT 家族 bug**：`(close > Ref(close,1)).astype(float)` 在 NaN 处返回 0.0 而非 NaN（待修复）
+- **CNT 家族 bug** (已修复 2026-06-28): `(close > Ref(close,1)).astype(float)` 在 NaN 处返回 0.0 而非 NaN, 让停牌/未上市/退市区被误算成"非上涨日 0.0". 修复: `factors.py:CNTP/CNTN` 加 `.where(close.notna() & close_lag.notna())` 显式恢复 NaN. SUMP/SUMN/SUMD 不受影响 (pc=NaN 时 `NaN * 0 = NaN` IEEE-754 自然传播)
 - **滚动窗口预热**：BETA/RSQR/CORR 等使用 `sliding_window_view` 的因子，新股上市前 w 天有额外 NaN
 - **VWAP0**：volume=0 时除零产生 NaN
 - 使用 `has_factor = all` 过滤后，这些不一致性不影响 ML 训练（NaN 行被整体排除）
@@ -266,66 +270,30 @@ alpha158 因子存在 NaN 不一致性（111/158 个因子的 NaN 位置与 KMID
 - 提议：NaN ≤ 5 个的行用截面中位数填充（救回 ~70% 行），> 5 个的丢弃
 - 当前先用严格过滤推进，后续迭代时再加填充逻辑
 
-### 当前状态（2026-06-26）
+### 当前状态（2026-06-28）
 
-- ✅ `build_long_table.py` v2 运行完成（exit 0，耗时 612s）
-- ✅ **can_train=True 的 13,071,991 行中，158 因子列零 NaN** ← MLP 安全
-- ✅ AGENTS.md §10 文档已写
+- ✅ 整条流水线已跑通：`dataset.py` / `model.py` / `train.py` / `predict.py` / `export_signal.py` / `run.py`
+- ✅ **rq 基线训练** run `20260627_123851`：val IC=0.1556 / ICIR=1.69，test IC=0.1322 / ICIR=1.19，L-S=0.0344（7 年逐年 IC 0.118~0.147）
+- ✅ **dquant 端训练** run `20260628_154915`：val IC=0.1556 / ICIR=1.71，test IC=0.1331 / ICIR=1.18，L-S=0.0341
+- ✅ **rq vs dquant 等价验证**：test 集样本量完全相同（6,451,168），IC Δ=+0.0009（噪声级），best val_loss 等价 4 位小数（0.6836 vs 0.6837）
+- ✅ 1511 个日频信号文件已导出（`ml/ht/signals/` 和 `ml/ht_dquant/signals/`，两端各自隔离）
+- ✅ 详见对照报告 `ml_ht/docs_rq_vs_dquant.md`
 
-**v2 过滤漏斗最终结果**（has_factor=all, 涨停不过滤）：
-```
-总单元格       28,679,854
-has_factor     14,833,230  (51.7%)   ← all: 全部 158 因子非 NaN
-can_buy        13,752,326  (48.0%)   ← T+1 非 ST/停牌/新股（涨停不过滤）
-has_label      14,877,448  (51.9%)
-────────────────────────────
-can_train 交集 13,071,991  (45.6%)
-```
+#### 路径隔离（rq/dquant 后端开关）
 
-**训练/验证/测试样本量**：
-- 训练 2010-2017：**3,805,414** 样本（日均 1,348→2,478 股票）
-- 验证 2018-2019：**1,533,582** 样本（日均 2,930→3,366 股票）
-- 测试 2020-2025：**6,176,650** 样本（日均 3,416→4,876 股票）
+env `ML_HT_BACKEND=rq`（默认）→ `ml/ht/`；`ML_HT_BACKEND=dquant` → `ml/ht_dquant/`。
+**rq 产物一字不动**，dquant 走完全平级的独立目录。代码改动 4 文件：`core/config.py`（加开关）+ `build_long_table.py`+`dataset.py`+`run.py`（改用 `config.ML_HT_BASE`）。
 
-**长表文件**：`/nfs/ofs-prediction/peterzhenglinpeng/ml/ht/alpha158_long.parquet`（7.61 GB）
+### 下一步（待决策）
 
-### 下一步（用户回来后继续）
+**阶段 B：模型调参 grid（可选,看用户决定是否进）**
+- lr grid {5e-4, 1e-3, 3e-3} × dropout {0.1, 0.3, 0.5} × hidden {(80,20),(120,30),(60,15)} × weight_decay {1e-5, 1e-4}
+- ~16 个组合 × 5 分钟 = 80 分钟，默认在 dquant 端跑，rq 基线作对照
+- 目标：当前 test overall IC=0.133、L-S=0.034，研报给出 IC~0.10 水平，是否进一步上调
 
-**Step 1: 检查后台结果**
-```bash
-# 看输出日志中的漏斗统计和 NaN 残留验证
-# 确认 can_train=True 的行中 158 因子零 NaN
-ls -lh /nfs/ofs-prediction/peterzhenglinpeng/ml/ht/alpha158_long.parquet
-```
-
-**Step 2: 实现 `ml_ht/dataset.py`**
-- 读取 `alpha158_long.parquet`（一次 IO，~8 GB）
-- 按时间切分：train 2010-2017 / embargo 2017-12 / valid 2018-2019 / test 2020-2025
-- 截面预处理（每天独立）：zscore（减均值、除标准差），NaN 填 0
-- 标签：读 `forward_return_20d.parquet`，二分类化（> 当日截面中位数 → 1，否则 → 0）
-- 输出 PyTorch DataLoader（batch_size=8192）
-
-**Step 3: 实现 `ml_ht/model.py`**
-```python
-class StockMLP(nn.Module):
-    # 158 → Linear(80) → Tanh → Dropout(0.3)
-    #      → Linear(20) → Tanh → Dropout(0.3)
-    #      → Linear(1)  → Sigmoid
-```
-
-**Step 4: 实现 `ml_ht/train.py`**
-- BCELoss + Adam(lr=1e-3, weight_decay=1e-5)
-- Early stopping: valid loss 连续 15 epoch 不降则停，最多 100 epoch
-- 每 epoch 打训练/验证 loss + accuracy
-
-**Step 5: 实现 `ml_ht/predict.py` + `ml_ht/export_signal.py`**
-- 对测试集（2020-2025）每个交易日预测 P(Y=1)
-- 按概率降序排列 → 写 daily signal 文件 `signals/YYYY-MM-DD.txt`
-- 格式：每行 `YYYY-MM-DD_stockcode`，对接外部日频回测系统
-
-**Step 6: 实现 `ml_ht/run.py`**
-- CLI 入口：`python ml_ht/run.py --train` / `--predict` / `--export`
-- 串联 dataset → train → predict → export 全流程
+**阶段 C：因子筛选/SHAP 探索**
+- 参考 `ml/select.py` 同样的 SHAP + GBDT pipeline，按 importanceselect top-N 因子再训
+- 或保留全 158 不筛（MLP 本身有能力分配权重）
 
 ### 关键设计决策（已确认）
 
@@ -340,3 +308,4 @@ class StockMLP(nn.Module):
 | 信号频率 | 日频 | 对接外部日频回测系统 |
 | 涨停处理 | 不过滤 | 因子和标签均可观测 |
 | has_factor | all（158 因子全部非 NaN） | MLP 需要完整输入 |
+| 后端隔离 | `ML_HT_BACKEND` env 切换 `ht/`↔`ht_dquant/` | rq 基线保护 |

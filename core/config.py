@@ -55,6 +55,25 @@ RAW_FACTOR_BASE = _FACTORS / "raw"           # 原始因子（spec 引擎/批量
 CLEANED_FACTOR_BASE = _FACTORS / "cleaned"   # 清洗后（MAD+zscore+mask）
 NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产用版本）
 
+# alpha158 数据后端开关: env ALPHA158_DATA_BACKEND=rq (默认) | dquant
+#   rq     → rq 原始 OHLCV + rq 复权因子（既有路径,所有历史产物基准）
+#   dquant → jy/dquant 原始 OHLCV + jy 复权因子（迁移期,验证后投入生产）
+_ALPHA158_BACKEND = os.environ.get("ALPHA158_DATA_BACKEND", "rq")
+
+# alpha158 raw 产物：为避免 dquant 迁移期覆盖 rq 基准，
+# dquant 后端时写到并行目录 factors/raw/alpha158-dquant/（验毕迁移后可改回 alpha158/）
+ALPHA158_RAW_BASE = (
+    _FACTORS / "raw" / "alpha158-dquant" if _ALPHA158_BACKEND == "dquant"
+    else _FACTORS / "raw" / "alpha158"
+)
+
+# ml_ht 训练流水线后端开关: env ML_HT_BACKEND=rq (默认) | dquant
+#   rq     → 读 factors/raw/alpha158/ + 产 ml/ht/          (现状,昨天的 rq 训练基准)
+#   dquant → 读 factors/raw/alpha158-dquant/ + 产 ml/ht_dquant/  (隔离,验证迁移效益)
+# 与 _ALPHA158_BACKEND 独立(显式不强联动):避免只设其一导致因子源/产物后端错配。
+# 日常用法: export ALPHA158_DATA_BACKEND=dquant && export ML_HT_BACKEND=dquant
+_ML_HT_BACKEND = os.environ.get("ML_HT_BACKEND", "rq")
+
 # 辅助面板（跨因子共享；不属于三阶段产物，存 helpers/ 下）
 # Ret20：20日后复权收益面板（宽表），APM 截面回归去动量用（scripts/build_ret20_panel.py 产出）
 RET20_PANEL_PATH = _FACTORS / "helpers" / "ret20_panel.parquet"
@@ -68,6 +87,7 @@ INVENTORY_ROOT = _DATA_ROOT / "factor-inventory"
 # LightGBM 因子合成（repo 顶层 ml/ 包产出）：模型 / 预测 / (可选)数据集。
 # 代码线(repo 的 ml/) 与 数据线(此处) 分离，与 factors/ factor-inventory/ 平级。
 ML_ROOT = _DATA_ROOT / "ml"
+ML_HT_BASE = ML_ROOT / ("ht_dquant" if _ML_HT_BACKEND == "dquant" else "ht")  # rq→ht/  dquant→ht_dquant/
 ML_MODELS_DIR = ML_ROOT / "models"            # lgbm 模型 + 超参 + RobustZScore 尺子
 ML_PREDICTIONS_DIR = ML_ROOT / "predictions"  # ŷ 面板 + test 评估(IC)
 ML_DATASETS_DIR = ML_ROOT / "datasets"        # (可选) train/valid/test 矩阵，便于复跑
@@ -77,18 +97,47 @@ ML_LOGS_DIR = Path(__file__).parent.parent / "ml" / "logs"   # 每次 run 的训
 
 # 分钟级因子：后复权 per-stock 1m parquet 目录（旧版，烤死复权；迁移期保留作对齐基准）
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
+# ==================== 分钟因子数据后端开关（rq → dquant 迁移；与 _ALPHA158_BACKEND 完全独立）====================
+# env MINUTE_DATA_BACKEND=rq (默认) | dquant
+#   rq     → minute/raw (rqdatac 源) + rq ex_cum_factor + intermediate-cache + factors/{raw,cleaned,neu} + output/
+#   dquant → minute-dquant/raw (dquant source="rq",与 rq raw bit 同) + jy adjfactor(与 alpha158-dquant 一致)
+#            + intermediate-cache-dquant + factors/{raw,cleaned,neu}-dquant + output-dquant/
+# 不设此开关时，下列所有路径 byte 级等同历史 rq 产物（零污染）；dquant 端全部走并行目录，互不覆盖。
+_MINUTE_BACKEND = os.environ.get("MINUTE_DATA_BACKEND", "rq")
+_IS_MINUTE_DQUANT = _MINUTE_BACKEND == "dquant"
+
 # 分钟原始（不复权）按日分片目录（新版：minute/raw/<YYYY-MM-DD>.parquet，全股一日一文件）
 # 复权在读时实时算（core.minute_data.load_adjusted_minute_window）。见 docs/minute_incremental_design.md
-MINUTE_RAW_DIR = _MKT / "minute" / "raw"
-# 分钟→日频特征 中间缓存（可再生；market-data/factors/factor-inventory 的同级兄弟）
-INTERMEDIATE_CACHE_DIR = _DATA_ROOT / "intermediate-cache"
+# dquant 端用平行的 minute-dquant/ 树（连 minute_first_appearance.parquet 一并隔离）。
+MINUTE_RAW_DIR = (_MKT / "minute-dquant" / "raw") if _IS_MINUTE_DQUANT else (_MKT / "minute" / "raw")
+# 分钟读时复权因子目录：dquant 端用 jy adjfactor（与 alpha158-dquant 同源），rq 端用 rq ex_cum_factor。
+# 独立于全局 EX_FACTORS_DIR（受 _ALPHA158_BACKEND 控制），使分钟复权口径不被 alpha158 后端牵连。
+MINUTE_EX_FACTORS_DIR = (
+    _MKT / "daily_dquant" / "stock-ex-factors-jy" if _IS_MINUTE_DQUANT
+    else _MKT / "daily" / "stock-ex-factors"
+)
+# 分钟→日频特征 中间缓存（可再生；superset 缓存身份 hash 不含数据后端 → dquant 必须并行目录防覆盖 golden）
+INTERMEDIATE_CACHE_DIR = _DATA_ROOT / ("intermediate-cache-dquant" if _IS_MINUTE_DQUANT else "intermediate-cache")
+
+# dquant 分钟后端：因子三阶段 + 评估产物全部重定向到并行目录（隔离，不污染 rq 基线）。
+if _IS_MINUTE_DQUANT:
+    RAW_FACTOR_BASE = _FACTORS / "raw-dquant"
+    CLEANED_FACTOR_BASE = _FACTORS / "cleaned-dquant"
+    NEU_FACTOR_BASE = _FACTORS / "neu-dquant"
+    OUTPUT_DIR = Path(__file__).parent.parent / "output-dquant"
 
 # ==================== 逐股原始日频行情（alpha158 生产原料 + 复权因子） ====================
 # 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权在读时实时算（core.producers.alpha158.loader）。
 # 由 data_fetching/产出/日更。daily/ 与 minute/ 对称。
-_RAW_OHLCV_ROOT = _MKT / "daily"
-RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv"          # 逐股原始日频 OHLCV
-EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"    # 逐股稀疏复权因子（日频/分钟共用）
+# 后端开关 _ALPHA158_BACKEND 已在前面定义（与 ALPHA158_RAW_BASE 同区,便于集中维护）。
+if _ALPHA158_BACKEND == "dquant":
+    _RAW_OHLCV_ROOT = _MKT / "daily_dquant"
+    RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv-dquant"      # 逐股原始日频 OHLCV (dquant/jy 源)
+    EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors-jy"   # 逐股稀疏复权因子 (jy adjfactor)
+else:
+    _RAW_OHLCV_ROOT = _MKT / "daily"
+    RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv"             # 逐股原始日频 OHLCV (rq 源)
+    EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors"      # 逐股稀疏复权因子 (rq ex_factor)
 INSTRUMENTS_INFO_PATH = _RAW_OHLCV_ROOT / "instruments_info.parquet"   # 股票基本信息（待补）
 TRADING_CALENDAR_PATH = _RAW_OHLCV_ROOT / "trading_calendar.parquet"   # 交易日历（待补）
 

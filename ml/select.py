@@ -57,11 +57,17 @@ def select_by_shap(
     return selected, scores, booster
 
 
-def save_selection(selected: list[str], scores: pd.Series, method: str, out_dir: Path) -> Path:
+def save_selection(selected: list[str], scores: pd.Series, method: str, out_dir: Path,
+                   sources: list[str] | None = None,
+                   neu_sources: list[str] | None = None) -> Path:
+    """落 selected_features.json。**持久化训练时的 sources/neu_sources**：
+    predict_live 读回后按同一组源解析特征路径，确保 rq/dquant 同名因子
+    （如 alpha158 vs alpha158-dquant）实盘打分不串源（train/serve 口径一致）。"""
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "selected_features.json"
     path.write_text(json.dumps({
         "method": method, "top_k": len(selected), "features": selected,
+        "sources": sources, "neu_sources": neu_sources,
         "scores": {k: float(v) for k, v in scores.items()},
     }, ensure_ascii=False, indent=2))
     return path

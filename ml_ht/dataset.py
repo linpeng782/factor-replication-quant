@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from core import config
 
-LONG_TABLE_PATH = config.ML_ROOT / "ht" / "alpha158_long.parquet"
+LONG_TABLE_PATH = config.ML_HT_BASE / "alpha158_long.parquet"   # 跟随 ML_HT_BACKEND 切换 rq/dquant
 LABEL_PATH = config.LABELS_DIR / "forward_return_20d.parquet"
 
 SPLIT = {
@@ -16,6 +16,111 @@ SPLIT = {
     "valid": ("2018-01-01", "2019-12-31"),
     "test": ("2020-01-01", None),
 }
+
+
+# ==================== 预测专用：can_predict 池 ====================
+# 训练用 can_train = has_factor & can_buy & has_label（要 label 算二分类 y）
+# 预测用 can_predict = has_factor & can_buy（不需要 label，覆盖到因子最新日）
+# 两池差异仅在日历末端 ~20 天 + 零星退市股；标准化口径由此而生，详见 docs
+
+
+def load_long_table_for_predict(
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str], np.ndarray, np.ndarray]:
+    """仅预测用：读长表的指定日期区间，不读 label。
+
+    Args:
+        start_date / end_date: YYYY-MM-DD，None 表示不限。利用 parquet filter
+            在 IO 层裁剪，避免加载 7.6G 全表。
+
+    Returns:
+        features:    (n_rows, 158) float32
+        has_factor:  (n_rows,) bool
+        can_buy:     (n_rows,) bool
+        factor_names: list[str]
+        index_dates:  (n_rows,) datetime64
+        index_stocks: (n_rows,) str
+    """
+    filters = []
+    if start_date is not None:
+        filters.append(("date", ">=", pd.Timestamp(start_date)))
+    if end_date is not None:
+        filters.append(("date", "<=", pd.Timestamp(end_date)))
+    df = pd.read_parquet(
+        LONG_TABLE_PATH,
+        filters=filters if filters else None,
+    )
+
+    meta_cols = {"has_factor", "can_buy", "has_label", "can_train"}
+    factor_names = [c for c in df.columns if c not in meta_cols]
+
+    features = df[factor_names].to_numpy(dtype=np.float32)
+    has_factor = df["has_factor"].to_numpy(dtype=bool)
+    can_buy = df["can_buy"].to_numpy(dtype=bool)
+    index_dates = df.index.get_level_values(0).to_numpy()
+    index_stocks = df.index.get_level_values(1).to_numpy()
+
+    del df
+    return features, has_factor, can_buy, factor_names, index_dates, index_stocks
+
+
+def latest_n_dates(n: int) -> list[str]:
+    """返回长表里最后 n 个交易日的 YYYY-MM-DD 字符串列表（不加载因列大）。
+
+    用于 --latest-n 日频增量入口，避免天天全量加载 7.6G。
+    """
+    df = pd.read_parquet(LONG_TABLE_PATH, columns=["can_train"])  # 任意一列即可拿 index
+    dates = pd.DatetimeIndex(sorted(df.index.get_level_values(0).unique()))
+    tail = dates[-n:]
+    del df
+    return [d.strftime("%Y-%m-%d") for d in tail]
+
+
+def build_predict_set(
+    features: np.ndarray,
+    has_factor: np.ndarray,
+    can_buy: np.ndarray,
+    dates: np.ndarray,
+    stocks: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """对 can_predict=has_factor & can_buy 的行做逐日 MAD去极值+zscore。
+
+    与训练的 preprocess 在数值规则上完全等价（同样的 ±5MAD、同分位 zscore），
+    唯一差异：统计量来源池从 can_train 替换为 can_predict（含无 label 股）。
+
+    对历史天，两池差异 < 1% → 信号 ≈ bit 对齐；
+    对末端 has_label 缺失的天，can_train 池为空，can_predict 是唯一可行口径。
+
+    Returns:
+        X_pred:       (n_pred, 158) float32 — 已标准化
+        pred_dates:   (n_pred,) datetime64
+        pred_stocks:  (n_pred,) str
+    """
+    can_predict = has_factor & can_buy
+
+    z = np.zeros_like(features)
+    z_dates = dates[can_predict]  # 仅做 filter 之用的对齐用
+    unique_dates = np.unique(z_dates)
+
+    for d in unique_dates:
+        mask = can_predict & (dates == d)
+        day = features[mask]
+        if len(day) < 2:
+            continue
+        # 1) MAD 去极值（±5×MAD，与训练完全一致）
+        med = np.median(day, axis=0, keepdims=True)
+        mad = np.median(np.abs(day - med), axis=0, keepdims=True)
+        mad = np.where(mad < 1e-8, 1.0, mad)
+        lo, hi = med - 5.0 * 1.4826 * mad, med + 5.0 * 1.4826 * mad
+        day = np.clip(day, lo, hi)
+        # 2) 标准化
+        mu = day.mean(axis=0, keepdims=True)
+        sigma = day.std(axis=0, keepdims=True)
+        sigma = np.where(sigma < 1e-8, 1.0, sigma)
+        z[mask] = (day - mu) / sigma
+
+    return z[can_predict], dates[can_predict], stocks[can_predict]
 
 
 def load_long_table() -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str], np.ndarray]:

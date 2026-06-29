@@ -47,16 +47,24 @@ class Split:
 
 
 def discover_features(sources: list[str] | None = None, stage: str = "raw") -> dict[str, Path]:
-    """从 factors/<stage> 收集 {因子名: parquet 路径}（默认全部；sources 按 <source> 前缀过滤）。
+    """从 factors/<stage> 收集 {因子名: parquet 路径}（默认全部；sources 按 <source>/<group> 路径分量过滤）。
 
     stage: "raw" | "neu"
+
+    口径要点（两条防串味的硬约束）：
+      1. **先按 source 过滤、再按 stem 去重**：当 raw 下并存同名因子的多个源目录时
+         （如 alpha158/ 与 alpha158-dquant/，因子 stem 完全相同），若先全局去重，某一源的
+         路径会抢占 stem，再被前缀过滤误删/误换源（rq 跑会悄悄拿到 dquant 数据）。
+      2. source 用「路径分量」匹配（rel==s 或 rel 以 s+"/" 开头），避免 "alpha158" 误配
+         到 "alpha158-dquant"（字符串 startswith 的坑）。
     """
     base = config.RAW_FACTOR_BASE if stage == "raw" else config.NEU_FACTOR_BASE
-    pathmap = {p.stem: p for p in sorted(base.glob("*/*/*.parquet"))}
+    paths = sorted(base.glob("*/*/*.parquet"))
     if sources:
-        pathmap = {n: p for n, p in pathmap.items()
-                   if any(str(p.relative_to(base)).startswith(s) for s in sources)}
-    return pathmap
+        def _match(rel: str) -> bool:
+            return any(rel == s or rel.startswith(s + "/") for s in sources)
+        paths = [p for p in paths if _match(str(p.relative_to(base)))]
+    return {p.stem: p for p in paths}
 
 
 def load_pre_mask() -> pd.DataFrame:

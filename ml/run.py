@@ -72,7 +72,8 @@ def main() -> None:
     selected, scores, _ = selector(sp.X_train, sp.y_train, sp.X_valid, sp.y_valid,
                                    top_k=args.top_k, params=thread_params or None)
     model_dir = config.ML_MODELS_DIR / run_id
-    save_selection(selected, scores, f"{args.select_method}_gain", model_dir)
+    save_selection(selected, scores, f"{args.select_method}_gain", model_dir,
+                   sources=args.sources, neu_sources=args.neu_sources)
     # 存 RobustZScore 尺子(median/scale, train段拟合)：实盘推理(predict_live)复用同一把尺，口径一致
     model_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame({"median": sp.scaler_x.median_, "scale": sp.scaler_x.scale_}).to_parquet(

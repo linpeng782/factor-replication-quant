@@ -48,9 +48,14 @@ def predict_live(run_id: str = "full_gbdt", start: str = "2022-01-01", end: str 
     if not scaler_path.exists():
         raise FileNotFoundError(f"缺 scaler：{scaler_path}（先用新版 ml.run 重训 {run_id} 以物化尺子）")
     model = lgb.Booster(model_file=str(model_dir / "model.txt"))
-    sel: list[str] = json.loads((model_dir / "selected_features.json").read_text())["features"]
+    meta = json.loads((model_dir / "selected_features.json").read_text())
+    sel: list[str] = meta["features"]
     sx = _load_scaler(model_dir, sel)
-    pathmap = discover_features()
+    # 按训练时持久化的 sources/neu_sources 解析特征路径：rq/dquant 同名因子
+    # （alpha158 vs alpha158-dquant）不串源；老模型 json 无此字段 → None → 回退全量(旧行为)。
+    raw_map = discover_features(meta.get("sources"))
+    neu_map = discover_features(meta.get("neu_sources"), stage="neu") if meta.get("neu_sources") else {}
+    pathmap = {**neu_map, **raw_map}
     missing = [f for f in sel if f not in pathmap]
     if missing:
         raise KeyError(f"入选因子在 factors/raw 找不到：{missing[:5]}…（{len(missing)} 个）")

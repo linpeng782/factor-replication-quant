@@ -17,6 +17,7 @@ can_train(T, X) = has_factor(T, X) ∧ can_buy(T, X) ∧ has_label(T, X)
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -32,14 +33,25 @@ from core import config
 
 # ==================== 路径 ====================
 
-ALPHA158_BASE = config.RAW_FACTOR_BASE / "alpha158"
+ALPHA158_BASE = config.ALPHA158_RAW_BASE    # 跟随 env ALPHA158_DATA_BACKEND 切换 rq/dquant
 GROUPS = ["kline", "price", "rolling", "volume"]
 
-COMBO_MASK_PATH = config.COMBO_MASK_PATH
-NEW_STOCK_MASK_PATH = config.NEW_STOCK_MASK_PATH
+# mask 后端开关：env ML_HT_BACKEND=dquant 时走 cache_dir_dquant 的新 mask（daterange 到 2026-06-26）；
+# 默认 rq 时走 market-data/masks/（旧 mask，daterange 到 2026-06-12）。
+# 两份 schema 完全一致（cols: order_book_id/datetime/is_st/is_suspended/is_limit_up/new_stock...），
+# 仅日期覆盖与每行取值不同 → 通过此开关指向不同文件即可，不重建 schema。
+if os.environ.get("ML_HT_BACKEND") == "dquant":
+    _MASK_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir_dquant")
+    COMBO_MASK_PATH = _MASK_BASE / "combo_mask_long.parquet"
+    NEW_STOCK_MASK_PATH = _MASK_BASE / "new_stock_mask_long.parquet"
+    logger.info(f"[mask] ML_HT_BACKEND=dquant → {COMBO_MASK_PATH}")
+else:
+    COMBO_MASK_PATH = config.COMBO_MASK_PATH
+    NEW_STOCK_MASK_PATH = config.NEW_STOCK_MASK_PATH
+    logger.info(f"[mask] ML_HT_BACKEND=rq → {COMBO_MASK_PATH}")
 LABEL_PATH = config.LABELS_DIR / "forward_return_20d.parquet"
 
-OUT_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng/ml/ht")
+OUT_DIR = config.ML_HT_BASE                            # rq→ml/ht/  dquant→ml/ht_dquant/
 OUT_LONG = OUT_DIR / "alpha158_long.parquet"
 OUT_STATS = OUT_DIR / "build_stats.txt"
 

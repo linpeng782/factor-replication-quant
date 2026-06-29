@@ -40,7 +40,7 @@ def _date_files(start, end) -> list[Path]:
 @lru_cache(maxsize=8192)
 def _cum_factor_series(stock: str) -> pd.Series | None:
     """读单股稀疏 ex_cum_factor（DatetimeIndex 升序）；无则 None。"""
-    p = config.EX_FACTORS_DIR / f"{stock}.parquet"
+    p = config.MINUTE_EX_FACTORS_DIR / f"{stock}.parquet"
     if not p.exists():
         return None
     ex = pd.read_parquet(p, columns=["ex_cum_factor"])

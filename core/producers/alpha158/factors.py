@@ -210,13 +210,25 @@ class Alpha158Panel(PanelOperators):
         return self.RollingCorr(close_ret, volume_ret, w)
 
     def CNTP(self, w: int) -> pd.DataFrame:
-        """Mean((close > Ref(close,1)), w) — 上涨天数占比"""
-        up = (self.close > self.Ref(self.close, 1)).astype(float)
+        """Mean((close > Ref(close,1)), w) — 上涨天数占比
+
+        NaN 处理: close 或 Ref(close,1) 为 NaN 时(停牌/未上市/退市), 比较结果应传播为 NaN
+        而非 bool False→0.0. 原版 `(nan > nan)=False → astype(float)=0.0` 把停牌日当成"非上涨日"
+        纳入窗口, 污染 padding 区统计 (曾导致 301669.XSHE 次新股全史 CNTN5=0.0 而非 NaN).
+        """
+        close_lag = self.Ref(self.close, 1)
+        up = (self.close > close_lag).astype(float)
+        up = up.where(self.close.notna() & close_lag.notna())
         return self.Mean(up, w)
 
     def CNTN(self, w: int) -> pd.DataFrame:
-        """Mean((close < Ref(close,1)), w) — 下跌天数占比"""
-        down = (self.close < self.Ref(self.close, 1)).astype(float)
+        """Mean((close < Ref(close,1)), w) — 下跌天数占比
+
+        NaN 处理: 同 CNTP.
+        """
+        close_lag = self.Ref(self.close, 1)
+        down = (self.close < close_lag).astype(float)
+        down = down.where(self.close.notna() & close_lag.notna())
         return self.Mean(down, w)
 
     def CNTD(self, w: int) -> pd.DataFrame:

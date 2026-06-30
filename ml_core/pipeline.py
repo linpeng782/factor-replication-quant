@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -84,11 +85,16 @@ def run_train(
     adapter: ModelAdapter,
     scale_label: bool = None,
     date_sample: int | None = None,
+    selector: Callable | None = None,
 ) -> dict:
-    """训练编排（模型无关）。返回 {adapter, scaler, feature_names, splits 元信息}。
+    """训练编排（模型无关）。返回 {adapter, standardizer, feature_names, selected, splits 元信息}。
 
     scale_label 留空时按 label.is_regression 决定（回归才对 y 再套同款标准化）。
     date_sample 仅冒烟用（每 k 个交易日取 1）。
+    selector 给定时走【两阶段】：先在 train+valid 全特征上 selector 选 top-k（如 ml_core.select.select_by_shap），
+      再仅用入选因子重训（对齐 ml.run 的「筛选→合成」）。selector 签名：
+      (X_train, y_train, X_valid, y_valid, feature_names) → (selected: list[str], scores: pd.Series)。
+      尺子(standardizer)仍按【全特征】train 段拟合并返回（与 ml.run 一致：实盘按 feature_order 子集对齐）。
     """
     scale_label = label.is_regression if scale_label is None else scale_label
     u = build_universe(horizon=cfg.horizon)
@@ -132,7 +138,18 @@ def run_train(
     else:
         yz = y
 
-    adapter.fit(Xz[tr], yz[tr], Xz[va], yz[va])
+    # Stage-1（可选）：selector 在全特征 train+valid 上选 top-k；尺子仍保持全特征
+    selected, scores = None, None
+    feature_names, Xz_model = fm.feature_names, Xz
+    if selector is not None:
+        selected, scores = selector(Xz[tr], yz[tr], Xz[va], yz[va], fm.feature_names)
+        sel_idx = [fm.feature_names.index(f) for f in selected]
+        feature_names, Xz_model = selected, Xz[:, sel_idx]
+        logger.info(f"[pipeline.train] 两阶段：{len(fm.feature_names)} 因子 → 选 top-{len(selected)} 重训")
+
+    # Stage-2：用入选因子（或全特征）重训
+    adapter.fit(Xz_model[tr], yz[tr], Xz_model[va], yz[va])
     return {"adapter": adapter, "standardizer": standardizer,
-            "feature_names": fm.feature_names,
-            "seg_row": seg_row, "fm": fm, "y": y, "Xz": Xz}
+            "feature_names": feature_names, "selected": selected, "scores": scores,
+            "seg_row": seg_row, "fm": fm, "y": y, "Xz": Xz_model,
+            "u": u, "target_panel": target_panel}

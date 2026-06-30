@@ -23,6 +23,13 @@ from ml_core.model import LGBMAdapter
 TOP_K = 64
 
 
+def _log_ranking(method: str, selected: list[str], scores: pd.Series) -> None:
+    """入选因子按重要性降序逐行打印（对照 ml.run 的入选明细，便于复看 top-k 排序）。"""
+    logger.info(f"[select-{method}] 入选 top-{len(selected)}（按重要性降序）：")
+    for i, f in enumerate(selected, 1):
+        logger.info(f"    {i:>3}. {f:<40} importance={scores[f]:.4f}")
+
+
 def select_by_gbdt_importance(
     X_train, y_train, X_valid, y_valid, feature_names,
     top_k: int = TOP_K, importance_type: str = "gain", params: dict | None = None,
@@ -34,6 +41,7 @@ def select_by_gbdt_importance(
     k = min(top_k, len(scores))
     selected = scores.index[:k].tolist()
     logger.info(f"[select-gbdt] {len(scores)} 因子 → 取 top-{k}；最高 {scores.index[0]}={scores.iloc[0]:.1f}")
+    _log_ranking("gbdt", selected, scores)
     return selected, scores
 
 
@@ -51,4 +59,5 @@ def select_by_shap(
     k = min(top_k, len(scores))
     selected = scores.index[:k].tolist()
     logger.info(f"[select-shap] {len(scores)} 因子 → 取 top-{k}（采样 {len(Xs):,}）")
+    _log_ranking("shap", selected, scores)
     return selected, scores

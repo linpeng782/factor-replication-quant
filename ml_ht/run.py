@@ -37,21 +37,50 @@ from loguru import logger
 from core import config
 from .dataset import (
     load_long_table,
-    load_long_table_for_predict,
     latest_n_dates,
-    build_predict_set,
     preprocess,
     build_loaders,
 )
 from .model import StockMLP
 from .train import train
-from .predict import predict
 from .export_signal import export_signals
 from .metrics import daily_rank_ic, daily_long_short, yearly_report
 
 MODEL_DIR = config.ML_HT_BASE / "models"     # rq→ml/ht/models  dquant→ml/ht_dquant/models
 SIGNAL_DIR = config.ML_HT_BASE / "signals"
 RUNS_DIR = config.ML_HT_BASE / "runs"
+
+
+def _mlp_feature_order() -> list[str]:
+    """MLP serving 因子顺序：优先读 models/feature_names.json（固化的训练列序），
+    回退长表 schema（向后兼容）。**serving 必须与训练同序**，否则输入列错位、静默出垃圾
+    （alpha158 长表列序为 KLEN/KLOW/… 而非字母序，绝不能用 sorted 顶替）。"""
+    import json
+    fp = MODEL_DIR / "feature_names.json"
+    if fp.exists():
+        return json.loads(fp.read_text())["features"]
+    import pyarrow.parquet as pq
+    meta = {"has_factor", "can_buy", "has_label", "can_train"}
+    lt = config.ML_HT_BASE / "alpha158_long.parquet"
+    return [c for c in pq.read_schema(lt).names if c not in meta]
+
+
+def _alpha158_source() -> str:
+    """ml_ht 因子源目录名（跟随 ML_HT_BACKEND：ht_dquant→alpha158-dquant，ht→alpha158）。"""
+    return "alpha158-dquant" if "dquant" in config.ML_HT_BASE.name else "alpha158"
+
+
+def _panel_to_daily(panel):
+    """(date×stock) 概率面板 → export_signals 所需的逐日 (date_strs, stocks, probs)。"""
+    date_strs, stocks_per_day, probs_per_day = [], [], []
+    for ts, row in panel.iterrows():
+        r = row.dropna()
+        if r.empty:
+            continue
+        date_strs.append(ts.strftime("%Y-%m-%d"))
+        stocks_per_day.append(r.index.to_numpy())
+        probs_per_day.append(r.to_numpy(dtype=np.float32))
+    return date_strs, stocks_per_day, probs_per_day
 
 
 def _test_report(model, data, device: str, run_dir: Path) -> dict:
@@ -138,23 +167,29 @@ def cmd_predict(
     latest_n: int | None,
     out_dir: Path | None,
 ):
-    """预测 + 导出信号。
+    """预测 + 导出信号（因子组装走 ml_core 统一管线，脱离预物化长表）。
 
-    走独立的预测流水线（与训练解耦）：
-      1. 读长表（按日期区间 IO 层裁剪；--latest-n 取末 N 天）
-      2. 派生 can_predict = has_factor & can_buy
-      3. 逐日 MAD去极值 + zscore（与训练同款规则，统计量自 can_predict 池）
-      4. 喂模型出 P(Y=1)
-      5. 按日排序、写信号 txt
+    流程（与训练解耦；已逐元素验证与旧长表路径一致，max_abs≈6e-8）：
+      1. ml_core 底座 can_buy（不要 label）→ 现算因子矩阵（has_factor=ALL，缺一即排除）
+         ⇒ 预测池 = can_buy & has_factor，等价旧 can_predict
+      2. 逐日 MAD去极值(±5) + zscore（DailyCrossSectionMAD，统计量自预测池当日截面）
+      3. MLP 出 P(Y=1) → (date×stock) 概率面板
+      4. 按日排序、写信号 txt（沿用 export_signals，输出格式不变）
 
-    特点：
-      - 不读 label、不做 train/valid/test 时间切分
-      - 不受 labels 截止日制约，信号覆盖到因子最新日
-      - 历史天统计量池略广于训练，预期信号 ≈ bit 对齐；末端纯新增
+    要点：
+      - feature_order 取自 models/feature_names.json（固化训练列序）→ 杜绝列错位
+      - 不读 label、不做时间切分；信号覆盖到因子最新日
+      - --latest-n 仍用长表日历定位末 N 天（日期解析未改，cron 语义不变）
     """
-    logger.info("=== 预测（解耦路径：can_predict 池）===")
+    from ml_core.features import HasFactorPolicy
+    from ml_core.model import MLPAdapter
+    from ml_core.pipeline import PipelineConfig
+    from ml_core.pipeline import predict_live as core_predict_live
+    from ml_core.scaling import DailyCrossSectionMAD
 
-    # 解析日期区间
+    logger.info("=== 预测（ml_core 现算组装：can_predict = can_buy & has_factor）===")
+
+    # 解析日期区间（--latest-n 仍按长表日历取末 N 天，保持 cron 语义）
     if latest_n is not None:
         ds_list = latest_n_dates(latest_n)
         start_date, end_date = ds_list[0], ds_list[-1]
@@ -162,28 +197,24 @@ def cmd_predict(
     else:
         logger.info(f"  区间: {start_date or '*'} ~ {end_date or '*'}")
 
-    logger.info("  加载长表（仅截取区间，IO 层裁剪）...")
-    features, has_factor, can_buy, factor_names, dates, stocks = load_long_table_for_predict(
-        start_date=start_date, end_date=end_date,
-    )
-    n_loaded = len(features)
-    n_can_predict = int((has_factor & can_buy).sum())
-    logger.info(f"  加载 {n_loaded:,} 行 → can_predict={n_can_predict:,}")
-    if n_can_predict == 0:
-        logger.error("can_predict 池为空，无法预测。检查日期区间或长表覆盖。")
+    feat_order = _mlp_feature_order()
+    cfg = PipelineConfig(sources=[_alpha158_source()], neu_sources=None,
+                         has_factor_policy=HasFactorPolicy.ALL, horizon=20,
+                         feature_order=feat_order)
+    # 模型：训练后直传则包装其网络；否则从 MODEL_DIR 加载既有 stock_mlp.pt（自动剥 net. 前缀）
+    adapter = MLPAdapter(n_features=len(feat_order), device=device)
+    if model is not None:
+        adapter.net = model.net
+    else:
+        adapter.load(MODEL_DIR)
+        logger.info(f"加载模型: {MODEL_DIR / 'stock_mlp.pt'}")
+
+    panel = core_predict_live(MODEL_DIR, adapter, DailyCrossSectionMAD(), cfg,
+                              start=start_date, end=end_date)
+    date_strs, stocks_per_day, probs_per_day = _panel_to_daily(panel)
+    if not date_strs:
+        logger.error("预测池为空，无法导出信号。检查日期区间或因子覆盖。")
         return
-
-    logger.info("  逐日标准化（MAD+5σ → zscore，can_predict 池）...")
-    X_pred, pred_dates, pred_stocks = build_predict_set(
-        features, has_factor, can_buy, dates, stocks,
-    )
-    del features, has_factor, can_buy
-    logger.info(f"  标准化后样本: {len(X_pred):,} 行")
-
-    logger.info("  喂模型出概率...")
-    date_strs, stocks_per_day, probs_per_day = predict(
-        model, X_pred, pred_dates, pred_stocks, device=device,
-    )
 
     target_dir = out_dir if out_dir is not None else SIGNAL_DIR
     logger.info("=== 导出信号 ===")
@@ -219,13 +250,8 @@ def main():
         )
 
     if args.predict:
-        if model is None:
-            model = StockMLP()
-            model_path = MODEL_DIR / "stock_mlp.pt"
-            model.load_state_dict(torch.load(model_path, map_location=args.device))
-            model = model.to(args.device)
-            logger.info(f"加载模型: {model_path}")
-
+        # 模型加载交给 cmd_predict（经 MLPAdapter，自动兼容 stock_mlp.pt 的 net. 前缀）；
+        # 训练后直跑时 model 为新训 StockMLP，直接复用其网络。
         cmd_predict(
             model,
             device=args.device,

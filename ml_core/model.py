@@ -189,10 +189,26 @@ class MLPAdapter(ModelAdapter):
         model_dir = Path(model_dir); model_dir.mkdir(parents=True, exist_ok=True)
         torch.save(self.net.state_dict(), model_dir / "model.pt")
 
-    def load(self, model_dir: Path) -> "MLPAdapter":
+    def load(self, model_dir: Path, filename: str | None = None) -> "MLPAdapter":
+        """加载权重，兼容两种命名来源（关键：消除 train/serve 串味）：
+          - ml_core 自存：model.pt，state_dict 键为 '0.weight'…（裸 Sequential）
+          - ml_ht 既有：stock_mlp.pt，键带 'net.' 前缀（StockMLP 把网络包在 self.net 里）
+        若检测到统一 'net.' 前缀则剥除，两种命名都能装进同一裸 Sequential（结构逐层对齐）。
+        filename 留空时优先 model.pt，回退 stock_mlp.pt。
+        """
         import torch
+        model_dir = Path(model_dir)
+        if filename is not None:
+            path = model_dir / filename
+        else:
+            path = model_dir / "model.pt"
+            if not path.exists() and (model_dir / "stock_mlp.pt").exists():
+                path = model_dir / "stock_mlp.pt"
         if self.net is None:
             self.net = _build_mlp(self.n_features)
-        self.net.load_state_dict(torch.load(Path(model_dir) / "model.pt", map_location=self.device))
+        sd = torch.load(path, map_location=self.device)
+        if sd and all(k.startswith("net.") for k in sd):   # ml_ht StockMLP 命名 → 剥前缀
+            sd = {k[len("net."):]: v for k, v in sd.items()}
+        self.net.load_state_dict(sd)
         self.net = self.net.to(self.device)
         return self

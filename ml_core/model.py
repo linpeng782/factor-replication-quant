@@ -116,8 +116,9 @@ class LGBMAdapter(ModelAdapter):
 # ==================== PyTorch MLP ====================
 
 
-def _build_mlp(n_features: int = 158, h1: int = 80, h2: int = 20, dropout: float = 0.3):
-    """StockMLP：158→80→20→1，Tanh + Dropout + Xavier 初始化（对齐 ml_ht.model.StockMLP）。"""
+def _build_mlp(n_features: int, h1: int = 80, h2: int = 20, dropout: float = 0.3):
+    """StockMLP：n→80→20→1，Tanh + Dropout + Xavier 初始化（对齐 ml_ht.model.StockMLP）。
+    n_features 必填——输入维度由数据/调用方决定（单阶段=全因子 / 两阶段=top_k），不设默认。"""
     import torch.nn as nn
     net = nn.Sequential(
         nn.Linear(n_features, h1), nn.Tanh(), nn.Dropout(dropout),

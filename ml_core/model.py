@@ -136,9 +136,11 @@ class MLPAdapter(ModelAdapter):
 
     name = "mlp"
 
-    def __init__(self, n_features: int = 158, device: str | None = None,
+    def __init__(self, n_features: int | None = None, device: str | None = None,
                  lr: float = 1e-3, weight_decay: float = 1e-5,
                  patience: int = 15, max_epochs: int = 100, batch_size: int = 8192):
+        # n_features 留空即可：fit 时按训练数据列数自动建网、load 时按权重 shape 自适应
+        # （单阶段=全特征 / 两阶段=top_k，输入维度由数据决定，无需调用方预先数因子）。
         import torch
         self.n_features = n_features
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -151,6 +153,7 @@ class MLPAdapter(ModelAdapter):
         import torch.nn as nn
         from torch.utils.data import DataLoader, TensorDataset
 
+        self.n_features = int(np.asarray(X_train).shape[1])   # 输入维度按训练数据列数定
         self.net = _build_mlp(self.n_features).to(self.device)
         crit = nn.BCEWithLogitsLoss()
         opt = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
@@ -221,11 +224,11 @@ class MLPAdapter(ModelAdapter):
             path = model_dir / "model.pt"
             if not path.exists() and (model_dir / "stock_mlp.pt").exists():
                 path = model_dir / "stock_mlp.pt"
-        if self.net is None:
-            self.net = _build_mlp(self.n_features)
         sd = torch.load(path, map_location=self.device)
         if sd and all(k.startswith("net.") for k in sd):   # ml_ht StockMLP 命名 → 剥前缀
             sd = {k[len("net."):]: v for k, v in sd.items()}
+        self.n_features = int(sd["0.weight"].shape[1])      # 按首层权重 shape 自适应输入维度
+        self.net = _build_mlp(self.n_features)
         self.net.load_state_dict(sd)
         self.net = self.net.to(self.device)
         return self

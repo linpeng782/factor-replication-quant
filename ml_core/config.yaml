@@ -1,0 +1,41 @@
+# ml_core 实验配置 —— 只改这个文件，然后 python -m ml_core.run
+# ============================================================
+# 重活全在 ml_core.pipeline.run_train；run.py 读本文件 → 配模型/选策略 → 训练 → 落盘 → 报 IC。
+
+run_id: null                 # null → 用启动时间戳（复用名字也不会覆盖日志）
+model: lgbm                  # lgbm | mlp  ← 换模型只改这一行（超参各自见下方 lgbm:/mlp: 段）
+
+# ── 数据与因子 ──
+sources:
+  - alpha158-dquant
+  - kysec-dquant/paper_27_microstructure
+neu_sources: null            # 从 factors/neu 读的因子源（与 sources 互补）；null=不用
+horizon: 20                  # 远期收益天数
+
+# ── 两阶段选因子 ──
+# 内部都用 GBDT 选 top_k：对 LGBM 是经典「筛选→合成」；
+# 对 MLP 同样有益（MLP 自身不选因子，先用 GBDT 降维去噪再喂 MLP）。
+select_method: shap          # null=单阶段全特征 | shap | gbdt
+top_k: 64                    # 入选因子数（select_method=null 时忽略）
+
+# ── 时间切分（embargo 月不落入任何段；[起, 止]，null 表示开口）──
+split:
+  train: [null, "2017-11-30"]
+  valid: ["2018-01-01", "2019-11-30"]
+  test:  ["2020-01-01", null]
+
+date_sample: null            # 冒烟用：每 k 个交易日取 1（null=全量）
+
+# ── 模型超参（只有 model 选中的那段生效；缺省键走代码默认）──
+lgbm:                        # 覆盖 LGBM_DEFAULT_PARAMS 的子集
+  seed: 42
+  num_threads: 64
+  learning_rate: 0.05
+  num_leaves: 31
+mlp:                         # 输入维度无需填——按数据自动定（单阶段=全特征/两阶段=top_k）
+  lr: 0.001
+  weight_decay: 0.00001
+  patience: 15
+  max_epochs: 100
+  batch_size: 8192
+  device: null               # null → 自动 cuda/cpu

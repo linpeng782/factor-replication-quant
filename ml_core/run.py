@@ -1,13 +1,14 @@
 """
-ml_core 日常实验入口 —— 配模型 + 选策略，跑一次完整实验
+ml_core 日常实验入口 —— 读 config.yaml，跑一次完整实验
 ============================================================
-这是「用整套 ml_core 跑一个新实验」的主入口：顶部改配置 → python -m ml_core.run。
+用法：改 ml_core/config.yaml → python -m ml_core.run。本文件不含任何实验参数。
 重活全在 ml_core.pipeline.run_train（组装→标签→切分→标准化→可选两阶段→训练），
-本文件只负责①给定这次实验的口径②把产物落到 run_id③报告样本外 IC。
+本文件只负责①把 config.yaml 翻译成模型/策略②落产物到 run_id③报告样本外 IC。
 
-支持两条线（换模型=换三件套，其余编排不变）：
-  LGBM ：ExcessReturn(回归) + WholeSetRobustZ + has_factor=NONE，可两阶段(SHAP/GBDT 选 top-k)
-  MLP  ：BinaryMedian(二分类) + DailyCrossSectionMAD + has_factor=ALL（一般不选因子）
+支持两条线（换模型=config.yaml 的 model 改一行，超参各自在 lgbm:/mlp: 段）：
+  LGBM ：ExcessReturn(回归) + WholeSetRobustZ + has_factor=NONE
+  MLP  ：BinaryMedian(二分类) + DailyCrossSectionMAD + has_factor=ALL（输入维度按数据自动定）
+两阶段 select_method=shap/gbdt 对两条线都适用（GBDT 先选 top_k 降维，再用本模型重训）。
 
 产物（与 ml.run 同惯例，便于下游/回测直读）：
   ML_MODELS_DIR/<run_id>/        模型 + scaler_x.parquet + feature_names.json(+ selected_features.json)
@@ -22,6 +23,7 @@ from functools import partial
 from pathlib import Path
 
 import pandas as pd
+import yaml
 from loguru import logger
 
 from core import config
@@ -34,47 +36,55 @@ from ml_core.scaling import DailyCrossSectionMAD, WholeSetRobustZ
 from ml_core.select import select_by_gbdt_importance, select_by_shap
 from ml_core.splits import SplitConfig
 
-# ════════════════ 实验配置（改这里，不走命令行）════════════════
-RUN_ID = None                       # None → 用启动时间戳；复用名字也不会覆盖日志（带时间戳）
-MODEL = "lgbm"                      # "lgbm" | "mlp"
-SOURCES = ["alpha158-dquant", "kysec-dquant/paper_27_microstructure"]
-NEU_SOURCES = None                  # 从 factors/neu 读的因子源（与 SOURCES 互补）
-SELECT_METHOD = "shap"              # None=单阶段全特征 | "shap" | "gbdt"（两阶段选 top-k）
-TOP_K = 64                          # 两阶段入选因子数（SELECT_METHOD 为 None 时忽略）
-HORIZON = 20                        # 远期收益天数
-DATE_SAMPLE = None                  # 冒烟用：每 k 个交易日取 1（None=全量）
-N_FEATURES = 158                    # 仅 MLP：输入维度（= 因子数；MLP 一般不选因子）
-SPLIT = SplitConfig.default()       # 时间切分；要复现 htsplit 等自定义可改 segments
+CONFIG_PATH = Path(__file__).parent / "config.yaml"
 LOG_DIR = Path(__file__).parent / "logs"
+_SELECTORS = {"shap": select_by_shap, "gbdt": select_by_gbdt_importance}
 
 
-def _strategy():
-    """按 MODEL 选「标签 / 标准化 / 模型适配器 / has_factor 策略」四件套。"""
-    if MODEL == "lgbm":
-        return (ExcessReturn(), WholeSetRobustZ(), LGBMAdapter(), HasFactorPolicy.NONE)
-    if MODEL == "mlp":
+def load_config(path: Path = CONFIG_PATH) -> dict:
+    """读 config.yaml（唯一实验参数来源）。"""
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _strategy(c: dict):
+    """按 model 选「标签 / 标准化 / 模型适配器 / has_factor 策略」四件套，超参取对应段。"""
+    model = c["model"]
+    if model == "lgbm":
+        return (ExcessReturn(), WholeSetRobustZ(),
+                LGBMAdapter(params=c.get("lgbm") or {}), HasFactorPolicy.NONE)
+    if model == "mlp":
         return (BinaryMedian(), DailyCrossSectionMAD(),
-                MLPAdapter(n_features=N_FEATURES), HasFactorPolicy.ALL)
-    raise ValueError(f"未知 MODEL={MODEL!r}（仅 lgbm/mlp）")
+                MLPAdapter(**(c.get("mlp") or {})), HasFactorPolicy.ALL)  # 维度按数据自动定
+    raise ValueError(f"未知 model={model!r}（仅 lgbm/mlp）")
 
 
-def _selector():
-    """按 SELECT_METHOD 注入 Stage-1 选因子；None 则单阶段。"""
-    if SELECT_METHOD is None:
+def _selector(c: dict):
+    """按 select_method 注入 Stage-1 选因子；null 则单阶段。"""
+    sm = c.get("select_method")
+    if sm is None:
         return None
-    fn = {"shap": select_by_shap, "gbdt": select_by_gbdt_importance}[SELECT_METHOD]
-    return partial(fn, top_k=TOP_K)
+    if sm not in _SELECTORS:
+        raise ValueError(f"未知 select_method={sm!r}（仅 shap/gbdt 或 null）")
+    return partial(_SELECTORS[sm], top_k=c["top_k"])
 
 
-def _run() -> None:
-    run_id = RUN_ID or datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger.info(f"=== ml_core 实验 run_id={run_id} | 模型={MODEL} | 选因子={SELECT_METHOD} ===")
+def _split(c: dict) -> SplitConfig:
+    """yaml 的 split 段 [起,止] → SplitConfig（list→tuple，null→None 自动）。"""
+    seg = c.get("split")
+    if not seg:
+        return SplitConfig.default()
+    return SplitConfig(segments={k: tuple(v) for k, v in seg.items()})
 
-    label, standardizer, adapter, policy = _strategy()
-    cfg = PipelineConfig(sources=SOURCES, neu_sources=NEU_SOURCES,
-                         has_factor_policy=policy, horizon=HORIZON, split_cfg=SPLIT)
+
+def _run(c: dict) -> None:
+    run_id = c.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger.info(f"=== ml_core 实验 run_id={run_id} | 模型={c['model']} | 选因子={c.get('select_method')} ===")
+
+    label, standardizer, adapter, policy = _strategy(c)
+    cfg = PipelineConfig(sources=c["sources"], neu_sources=c.get("neu_sources"),
+                         has_factor_policy=policy, horizon=c["horizon"], split_cfg=_split(c))
     res = run_train(cfg, label, standardizer, adapter,
-                    date_sample=DATE_SAMPLE, selector=_selector())
+                    date_sample=c.get("date_sample"), selector=_selector(c))
 
     selected = res["selected"]
     fm, u, te = res["fm"], res["u"], res["seg_row"]["test"]
@@ -88,8 +98,8 @@ def _run() -> None:
         json.dumps({"features": res["feature_names"]}, ensure_ascii=False, indent=2))
     if selected is not None:                      # 两阶段额外存入选明细（含重要性，兼容 ml.run）
         (model_dir / "selected_features.json").write_text(json.dumps({
-            "method": f"{SELECT_METHOD}_gain", "top_k": len(selected), "features": selected,
-            "sources": SOURCES, "neu_sources": NEU_SOURCES,
+            "method": f"{c['select_method']}_gain", "top_k": len(selected), "features": selected,
+            "sources": c["sources"], "neu_sources": c.get("neu_sources"),
             "scores": {k: float(v) for k, v in res["scores"].items()},
         }, ensure_ascii=False, indent=2))
 
@@ -109,15 +119,16 @@ def _run() -> None:
 
 
 def main() -> None:
-    """接 loguru 文件 sink（控制台 + 落盘），保证训练全过程可复看。"""
+    """读配置 + 接 loguru 文件 sink（控制台 + 落盘），保证训练全过程可复看。"""
+    c = load_config()
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = LOG_DIR / f"{RUN_ID or ts}_{ts}.log"
+    log_path = LOG_DIR / f"{c.get('run_id') or ts}_{ts}.log"
     sink = logger.add(log_path, level="INFO",
                       format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}")
     logger.info(f"日志落盘：{log_path}")
     try:
-        _run()
+        _run(c)
     except Exception:
         logger.exception("实验失败")
         raise

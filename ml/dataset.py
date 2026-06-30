@@ -24,6 +24,10 @@ from alpha_shared.cleaning.mask_loader import load_filter_masks
 from core import config
 from ml.labels import build_excess_label, load_forward_return
 from ml.preprocess import RobustZScoreScaler
+# 组装原语「单一真相源」上提至 ml_core.features：discover_features / load_factor_grid 的
+# reindex/dtype/inf→NaN 口径只此一处定义，train(build_dataset) 与 live(predict_live) 共用，
+# 杜绝两边各写一遍导致的 train/serve skew（任一边改了组装而另一边没跟、且不报错）。
+from ml_core.features import discover_features, load_factor_grid  # noqa: F401（再导出，供 ml.* 旧调用方）
 
 # 对齐 ml_ht 时间划分（含 embargo 月：2017-12 / 2019-12 不落入任何段）
 # train 从 2005-01-01 起（dquant/rq 因子最早可用日）；test 末日 2026-03-31 由 20d label 可兑现性卡定
@@ -47,27 +51,6 @@ class Split:
     meta: dict = field(default_factory=dict)
 
 
-def discover_features(sources: list[str] | None = None, stage: str = "raw") -> dict[str, Path]:
-    """从 factors/<stage> 收集 {因子名: parquet 路径}（默认全部；sources 按 <source>/<group> 路径分量过滤）。
-
-    stage: "raw" | "neu"
-
-    口径要点（两条防串味的硬约束）：
-      1. **先按 source 过滤、再按 stem 去重**：当 raw 下并存同名因子的多个源目录时
-         （如 alpha158/ 与 alpha158-dquant/，因子 stem 完全相同），若先全局去重，某一源的
-         路径会抢占 stem，再被前缀过滤误删/误换源（rq 跑会悄悄拿到 dquant 数据）。
-      2. source 用「路径分量」匹配（rel==s 或 rel 以 s+"/" 开头），避免 "alpha158" 误配
-         到 "alpha158-dquant"（字符串 startswith 的坑）。
-    """
-    base = config.RAW_FACTOR_BASE if stage == "raw" else config.NEU_FACTOR_BASE
-    paths = sorted(base.glob("*/*/*.parquet"))
-    if sources:
-        def _match(rel: str) -> bool:
-            return any(rel == s or rel.startswith(s + "/") for s in sources)
-        paths = [p for p in paths if _match(str(p.relative_to(base)))]
-    return {p.stem: p for p in paths}
-
-
 def load_pre_mask() -> pd.DataFrame:
     """(T,N) 布尔：True=参与（NOT st/suspended/new，shift(-1) 语义）。
 
@@ -80,22 +63,6 @@ def load_pre_mask() -> pd.DataFrame:
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
     )
     return pre_mask
-
-
-def load_factor_grid(path: Path, dates: pd.DatetimeIndex, stocks: pd.Index) -> np.ndarray:
-    """读单因子 raw 面板 → 对齐到 (dates × stocks) 网格 → float32 → inf→NaN。
-
-    **train(build_dataset) 与 live(predict_live) 共用此函数**：特征组装口径（reindex/
-    dtype/inf-NaN 处理）只在这一处定义，杜绝两条路径各写一遍导致的 train/serve skew
-    （任一边改了组装逻辑而另一边没跟 → 实盘喂给模型的分布与训练时不一致、且不报错）。
-
-    返回 (len(dates), len(stocks)) float32 ndarray；缺失格为 NaN（LightGBM 原生处理）。
-    """
-    df = pd.read_parquet(path)
-    df.index = pd.to_datetime(df.index)
-    arr = df.reindex(index=dates, columns=stocks).to_numpy(dtype=np.float32, copy=True)  # 可写副本：避免 pyarrow 只读视图
-    arr[~np.isfinite(arr)] = np.nan
-    return arr
 
 
 def _segment_dates(all_dates: pd.DatetimeIndex, date_sample: int | None) -> dict[str, pd.DatetimeIndex]:

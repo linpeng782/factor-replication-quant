@@ -25,11 +25,12 @@ from core import config
 from ml.labels import build_excess_label, load_forward_return
 from ml.preprocess import RobustZScoreScaler
 
-# 方案 A 划分（含 embargo 月：2019-12 / 2021-12 不落入任何段）
+# 对齐 ml_ht 时间划分（含 embargo 月：2017-12 / 2019-12 不落入任何段）
+# train 从 2005-01-01 起（dquant/rq 因子最早可用日）；test 末日 2026-03-31 由 20d label 可兑现性卡定
 SPLIT = {
-    "train": ("2012-01-01", "2019-11-30"),
-    "valid": ("2020-01-01", "2021-11-30"),
-    "test":  ("2022-01-01", "2026-03-31"),
+    "train": ("2005-01-01", "2017-11-30"),
+    "valid": ("2018-01-01", "2019-11-30"),
+    "test":  ("2020-01-01", "2026-03-31"),
 }
 HORIZON = 20
 

@@ -55,10 +55,21 @@ RAW_FACTOR_BASE = _FACTORS / "raw"           # 原始因子（spec 引擎/批量
 CLEANED_FACTOR_BASE = _FACTORS / "cleaned"   # 清洗后（MAD+zscore+mask）
 NEU_FACTOR_BASE = _FACTORS / "neu"           # 行业市值中性化后（生产用版本）
 
-# alpha158 数据后端开关: env ALPHA158_DATA_BACKEND=rq (默认) | dquant
+# ==================== 数据后端主开关（统一入口）====================
+# env DATA_BACKEND=dquant (默认) | rq —— 一处切换 ML「消费侧」数据后端。
+#   它只驱动【消费轴】：ALPHA158_DATA_BACKEND + ML_HT_BACKEND（读哪套 alpha158、产物落 ht/ht_dquant）。
+#   细分 env 若【显式设置】则覆盖主开关（向后兼容：老脚本设 ALPHA158_DATA_BACKEND=rq 仍生效）。
+# ⚠️ MINUTE_DATA_BACKEND 故意【不随】主开关：它是「生产隔离轴」，dquant 会把整个 RAW_FACTOR_BASE
+#    重定向到 factors/raw-dquant，使 alpha158-dquant/cxl 等（在 factors/raw 下）发现不到——
+#    两轴语义不同，强行合并会静默破坏因子发现。分钟因子生产仍需单独 export MINUTE_DATA_BACKEND=dquant。
+_DATA_BACKEND = os.environ.get("DATA_BACKEND", "dquant")
+DATA_BACKEND = _DATA_BACKEND                      # 公开：主开关解析值
+
+# alpha158 数据后端开关: env ALPHA158_DATA_BACKEND 覆盖；缺省继承主开关 DATA_BACKEND
 #   rq     → rq 原始 OHLCV + rq 复权因子（既有路径,所有历史产物基准）
-#   dquant → jy/dquant 原始 OHLCV + jy 复权因子（迁移期,验证后投入生产）
-_ALPHA158_BACKEND = os.environ.get("ALPHA158_DATA_BACKEND", "rq")
+#   dquant → jy/dquant 原始 OHLCV + jy 复权因子（已验证投入生产，现为默认）
+_ALPHA158_BACKEND = os.environ.get("ALPHA158_DATA_BACKEND", _DATA_BACKEND)
+ALPHA158_BACKEND = _ALPHA158_BACKEND              # 公开：消费者用此，勿再各自读 os.environ
 
 # alpha158 raw 产物：为避免 dquant 迁移期覆盖 rq 基准，
 # dquant 后端时写到并行目录 factors/raw/alpha158-dquant/（验毕迁移后可改回 alpha158/）
@@ -67,12 +78,13 @@ ALPHA158_RAW_BASE = (
     else _FACTORS / "raw" / "alpha158"
 )
 
-# ml_ht 训练流水线后端开关: env ML_HT_BACKEND=rq (默认) | dquant
-#   rq     → 读 factors/raw/alpha158/ + 产 ml/ht/          (现状,昨天的 rq 训练基准)
-#   dquant → 读 factors/raw/alpha158-dquant/ + 产 ml/ht_dquant/  (隔离,验证迁移效益)
-# 与 _ALPHA158_BACKEND 独立(显式不强联动):避免只设其一导致因子源/产物后端错配。
-# 日常用法: export ALPHA158_DATA_BACKEND=dquant && export ML_HT_BACKEND=dquant
-_ML_HT_BACKEND = os.environ.get("ML_HT_BACKEND", "rq")
+# ml_ht 训练流水线后端开关: env ML_HT_BACKEND 覆盖；缺省继承主开关 DATA_BACKEND
+#   rq     → 读 factors/raw/alpha158/ + 产 ml/ht/          (历史 rq 训练基准)
+#   dquant → 读 factors/raw/alpha158-dquant/ + 产 ml/ht_dquant/  (已验证，现为默认)
+# 与 ALPHA158 同属【消费轴】，由主开关统一驱动；显式 env 仍可单独覆盖（向后兼容）。
+# 一次切换: export DATA_BACKEND=rq（回退旧 rq 基准）；细粒度仍可单独 export ALPHA158_DATA_BACKEND / ML_HT_BACKEND
+_ML_HT_BACKEND = os.environ.get("ML_HT_BACKEND", _DATA_BACKEND)
+ML_HT_BACKEND = _ML_HT_BACKEND                    # 公开：消费者用此，勿再各自读 os.environ
 
 # 辅助面板（跨因子共享；不属于三阶段产物，存 helpers/ 下）
 # Ret20：20日后复权收益面板（宽表），APM 截面回归去动量用（scripts/build_ret20_panel.py 产出）
@@ -103,7 +115,10 @@ MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
 #   dquant → minute-dquant/raw (dquant source="rq",与 rq raw bit 同) + jy adjfactor(与 alpha158-dquant 一致)
 #            + intermediate-cache-dquant + factors/{raw,cleaned,neu}-dquant + output-dquant/
 # 不设此开关时，下列所有路径 byte 级等同历史 rq 产物（零污染）；dquant 端全部走并行目录，互不覆盖。
+# ⚠️【生产隔离轴】不随主开关 DATA_BACKEND：dquant 会重定向整个 RAW_FACTOR_BASE→factors/raw-dquant，
+#    与「消费轴」语义不同（见顶部主开关说明）。默认恒为 rq，需显式 export MINUTE_DATA_BACKEND=dquant。
 _MINUTE_BACKEND = os.environ.get("MINUTE_DATA_BACKEND", "rq")
+MINUTE_BACKEND = _MINUTE_BACKEND                  # 公开
 _IS_MINUTE_DQUANT = _MINUTE_BACKEND == "dquant"
 
 # 分钟原始（不复权）按日分片目录（新版：minute/raw/<YYYY-MM-DD>.parquet，全股一日一文件）

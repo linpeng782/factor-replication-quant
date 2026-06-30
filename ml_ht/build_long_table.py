@@ -40,7 +40,7 @@ GROUPS = ["kline", "price", "rolling", "volume"]
 # 默认 rq 时走 market-data/masks/（旧 mask，daterange 到 2026-06-12）。
 # 两份 schema 完全一致（cols: order_book_id/datetime/is_st/is_suspended/is_limit_up/new_stock...），
 # 仅日期覆盖与每行取值不同 → 通过此开关指向不同文件即可，不重建 schema。
-if os.environ.get("ML_HT_BACKEND") == "dquant":
+if config.ML_HT_BACKEND == "dquant":   # 用 config 解析值（统一主开关 DATA_BACKEND），勿再各自读 os.environ
     _MASK_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/backtest_engine/cache_dir_dquant")
     COMBO_MASK_PATH = _MASK_BASE / "combo_mask_long.parquet"
     NEW_STOCK_MASK_PATH = _MASK_BASE / "new_stock_mask_long.parquet"

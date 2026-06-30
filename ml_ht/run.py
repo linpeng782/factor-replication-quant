@@ -66,8 +66,8 @@ def _mlp_feature_order() -> list[str]:
 
 
 def _alpha158_source() -> str:
-    """ml_ht 因子源目录名（跟随 ML_HT_BACKEND：ht_dquant→alpha158-dquant，ht→alpha158）。"""
-    return "alpha158-dquant" if "dquant" in config.ML_HT_BASE.name else "alpha158"
+    """ml_ht 因子源目录名（跟随主开关解析值 config.ML_HT_BACKEND：dquant→alpha158-dquant）。"""
+    return "alpha158-dquant" if config.ML_HT_BACKEND == "dquant" else "alpha158"
 
 
 def _panel_to_daily(panel):

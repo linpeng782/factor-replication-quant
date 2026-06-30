@@ -1,11 +1,12 @@
 """
-ml_core 日常实验入口 —— 读 config.yaml，跑一次完整实验
+ml_core 训练入口 —— 读 train_config.yaml，跑一次完整实验
 ============================================================
-用法：改 ml_core/config.yaml → python -m ml_core.run。本文件不含任何实验参数。
+用法：改 ml_core/train_config.yaml → python -m ml_core.run。本文件不含任何实验参数。
 重活全在 ml_core.pipeline.run_train（组装→标签→切分→标准化→可选两阶段→训练），
-本文件只负责①把 config.yaml 翻译成模型/策略②落产物到 run_id③报告样本外 IC。
+本文件只负责①把 train_config.yaml 翻译成模型/策略②落产物到 run_id③报告样本外 IC。
+（推理 / 导信号是独立入口 ml_core.predict + predict_config.yaml，本文件只管训练评估。）
 
-支持两条线（换模型=config.yaml 的 model 改一行，超参各自在 lgbm:/mlp: 段）：
+支持两条线（换模型=train_config.yaml 的 model 改一行，超参各自在 lgbm:/mlp: 段）：
   LGBM ：ExcessReturn(回归) + WholeSetRobustZ + has_factor=NONE
   MLP  ：BinaryMedian(二分类) + DailyCrossSectionMAD + has_factor=ALL（输入维度按数据自动定）
 两阶段 select_method=shap/gbdt 对两条线都适用（GBDT 先选 top_k 降维，再用本模型重训）。
@@ -36,13 +37,13 @@ from ml_core.scaling import DailyCrossSectionMAD, WholeSetRobustZ
 from ml_core.select import select_by_gbdt_importance, select_by_shap
 from ml_core.splits import SplitConfig
 
-CONFIG_PATH = Path(__file__).parent / "config.yaml"
+CONFIG_PATH = Path(__file__).parent / "train_config.yaml"
 LOG_DIR = Path(__file__).parent / "logs"
 _SELECTORS = {"shap": select_by_shap, "gbdt": select_by_gbdt_importance}
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
-    """读 config.yaml（唯一实验参数来源）。"""
+    """读 train_config.yaml（唯一实验参数来源）。"""
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
@@ -96,6 +97,12 @@ def _run(c: dict) -> None:
     sx.save(model_dir / "scaler_x.parquet")
     (model_dir / "feature_names.json").write_text(
         json.dumps({"features": res["feature_names"]}, ensure_ascii=False, indent=2))
+    # run_meta：推理自包含的唯一真相源（ml_core.predict 直读 → 零 train/serve 漂移）
+    (model_dir / "run_meta.json").write_text(json.dumps({
+        "model": c["model"], "sources": c["sources"], "neu_sources": c.get("neu_sources"),
+        "has_factor_policy": policy.value, "horizon": c["horizon"],
+        "select_method": c.get("select_method"), "feature_order": res["feature_names"],
+    }, ensure_ascii=False, indent=2))
     if selected is not None:                      # 两阶段额外存入选明细（含重要性，兼容 ml.run）
         (model_dir / "selected_features.json").write_text(json.dumps({
             "method": f"{c['select_method']}_gain", "top_k": len(selected), "features": selected,

@@ -1,0 +1,23 @@
+# ml_core 推理 / 导信号配置 —— 只改这个文件，然后 python -m ml_core.predict
+# ============================================================
+# 模型口径（model/sources/策略/feature_order）由训练产物 run_meta.json 自带，predict 直读 → 零漂移；
+# 本文件只决定「用哪个模型 + 哪段区间 + 怎么导信号」。
+
+model_run_id: a158_p27_shap_dquant_htsplit_repro_mlcore   # ML_MODELS_DIR 下训好的模型目录名
+
+# ── 区间（同一条推理路径的两种用法）──
+# 日更增量（老模型）：latest_n 设整数（如 1），只算最近 N 个交易日，append-only 自动补缺、冻结历史。
+# 全量重生成（新模型）：latest_n: null，用 start/end；end: null = 自动到入选因子共同覆盖末日。
+latest_n: null
+start: "2022-01-01"
+end: null
+
+# ── 信号导出 ──
+signal_dir: null          # null → ML_PREDICTIONS_DIR/<model_run_id>/signals
+top_n: 500                # 每日取预测分 top-N（回测只用排序，不用分数）
+rebuild: false            # false=append-only（日更冻结历史）；true=全段重写（重训后覆盖旧信号）
+
+# ── 覆盖守门（防因子面板陈旧 → 候选池缩水 → 信号静默退化）──
+coverage_recent: 10       # 检查最近 N 个交易日
+coverage_drop: 0.6        # 近期每日非空股票数 < 基线×此值 → 告警
+strict_coverage: false    # true=骤降则中止（不导可能污染的信号）

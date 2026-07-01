@@ -22,8 +22,19 @@ _DATA_ROOT = Path(
 # 按「角色」组织（非项目名）：所有评估输入数据归于 market-data/，由 data_fetching/ 维护。
 _MKT = _DATA_ROOT / "market-data"
 
-COMBO_MASK_PATH = _MKT / "masks/combo_mask_long.parquet"
-NEW_STOCK_MASK_PATH = _MKT / "masks/new_stock_mask_long.parquet"
+# mask 路径随主开关 DATA_BACKEND 切换（属「消费轴」，与 ALPHA158/ML_HT 同）：
+#   rq     → market-data/masks/                    （旧 mask，历史基准）
+#   dquant → backtest_engine/cache_dir_dquant/      （dquant 日更 mask，与 combo_mask 同步推进到最新交易日）
+# 两份 schema 完全一致（order_book_id/datetime/is_st/is_suspended/is_limit_up/is_new_stock），
+# 仅日期覆盖与取值不同 → 指向不同文件即可，不重建 schema。env MASK_BACKEND 可单独覆盖（向后兼容）。
+_MASK_BACKEND = os.environ.get("MASK_BACKEND", os.environ.get("DATA_BACKEND", "dquant"))
+MASK_BACKEND = _MASK_BACKEND                      # 公开：消费者用此
+_MASK_DIR = (
+    _DATA_ROOT / "backtest_engine" / "cache_dir_dquant" if _MASK_BACKEND == "dquant"
+    else _MKT / "masks"
+)
+COMBO_MASK_PATH = _MASK_DIR / "combo_mask_long.parquet"
+NEW_STOCK_MASK_PATH = _MASK_DIR / "new_stock_mask_long.parquet"
 
 VWAP_POST_PATH = _MKT / "prices/vwap_post.parquet"
 # PIT canonical vwap 宽表面板（build_labels.py 副产）；取代 VWAP_POST_PATH 作 forward_returns 源

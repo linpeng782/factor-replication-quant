@@ -92,12 +92,15 @@ def build_feature_matrix(
     has_factor_policy: HasFactorPolicy = HasFactorPolicy.NONE,
     max_features: int | None = None,
     feature_order: list[str] | None = None,
+    exclude_features: list[str] | None = None,
 ) -> FeatureMatrix:
     """组装 (样本, 因子) 矩阵并按 has_factor 策略过滤行。
 
-    base_mask     : (T, N) bool 候选样本掩码（调用方组合，如训练 can_buy&has_label、推理 can_buy）。
-    feature_order : 显式因子顺序（如 LGBM 选出的 top-k，须与模型/scaler 列序一致）；
-                    留空则用 sorted(discover) 全集。
+    base_mask        : (T, N) bool 候选样本掩码（调用方组合，如训练 can_buy&has_label、推理 can_buy）。
+    feature_order    : 显式因子顺序（如 LGBM 选出的 top-k，须与模型/scaler 列序一致）；
+                       留空则用 sorted(discover) 全集。
+    exclude_features : 从全集剔除的因子名（如天然稀疏因子，避免 has_factor=ALL 大量丢样本）；
+                       feature_order 非空时忽略此项（已显式指定）。
     返回 FeatureMatrix：ALL 策略下 X 行已保证全非 NaN；NONE 策略下保留全部候选行（可含 NaN）。
     """
     raw_map = discover_features(sources, stage="raw")
@@ -113,6 +116,12 @@ def build_feature_matrix(
         feat = list(feature_order)
     else:
         feat = sorted(pathmap)
+        if exclude_features:
+            ex = set(exclude_features)
+            feat = [f for f in feat if f not in ex]
+            dropped = ex & set(pathmap)
+            if dropped:
+                logger.info(f"[features] 剔除 {len(dropped)} 个因子: {sorted(dropped)}")
         if max_features:
             feat = feat[:max_features]
     if not feat:

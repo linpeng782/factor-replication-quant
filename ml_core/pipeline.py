@@ -38,6 +38,7 @@ class PipelineConfig:
     has_factor_policy: HasFactorPolicy = HasFactorPolicy.NONE
     horizon: int = 20
     feature_order: list[str] | None = None        # 显式因子子集顺序（LGBM 选出的 top-k）
+    exclude_features: list[str] | None = None     # 从全集剔除的因子（如天然稀疏因子，避免 has_factor=ALL 大量丢样本）
     split_cfg: SplitConfig = field(default_factory=SplitConfig.default)
 
 
@@ -69,6 +70,7 @@ def predict_live(
     fm = build_feature_matrix(
         u, base, sources=cfg.sources, neu_sources=cfg.neu_sources,
         has_factor_policy=cfg.has_factor_policy, feature_order=cfg.feature_order,
+        exclude_features=cfg.exclude_features,
     )
     Xz = standardizer.transform(fm.X, dates=fm.dates)
     yhat = adapter.predict(Xz)
@@ -110,6 +112,7 @@ def run_train(
     fm = build_feature_matrix(
         u, base, sources=cfg.sources, neu_sources=cfg.neu_sources,
         has_factor_policy=cfg.has_factor_policy, feature_order=cfg.feature_order,
+        exclude_features=cfg.exclude_features,
     )
     # 标签：在 has_factor 过滤后的样本池上算（二分类中位数池口径）
     sample_mask = np.zeros(u.shape, dtype=bool)

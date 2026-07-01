@@ -83,7 +83,8 @@ def _run(c: dict) -> None:
 
     label, standardizer, adapter, policy = _strategy(c)
     cfg = PipelineConfig(sources=c["sources"], neu_sources=c.get("neu_sources"),
-                         has_factor_policy=policy, horizon=c["horizon"], split_cfg=_split(c))
+                         has_factor_policy=policy, horizon=c["horizon"], split_cfg=_split(c),
+                         exclude_features=c.get("exclude_features"))
     res = run_train(cfg, label, standardizer, adapter,
                     date_sample=c.get("date_sample"), selector=_selector(c))
 
@@ -102,6 +103,7 @@ def _run(c: dict) -> None:
         "model": c["model"], "sources": c["sources"], "neu_sources": c.get("neu_sources"),
         "has_factor_policy": policy.value, "horizon": c["horizon"],
         "select_method": c.get("select_method"), "feature_order": res["feature_names"],
+        "exclude_features": c.get("exclude_features"),
     }, ensure_ascii=False, indent=2))
     if selected is not None:                      # 两阶段额外存入选明细（含重要性，兼容 ml.run）
         (model_dir / "selected_features.json").write_text(json.dumps({

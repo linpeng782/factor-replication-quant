@@ -1,0 +1,44 @@
+# ml_core 滚动训练配置 —— python -m ml_core.run_rolling
+# ============================================================
+# 每年滚动重训，让模型适应当下市场风格。两种切分模式（split_mode）：
+#   stock —— 旧：按股票随机切 train/valid（对齐 dnn-gru-v2 的 split_datasets）
+#   time  —— 新：标准时间滚动，最近 N 月做 valid 早停（对齐 run_train 范式：
+#            选因子 + 一次带早停训练，早停后直接用该模型，不再全量重训）。
+
+run_id: lgbm_rolling_2025_repro    # 复现昨晚 stock 版（换名保留旧产物 lgbm_rolling_2025 做对照）
+
+# ── 切分模式 ──
+split_mode: stock                  # stock（旧）| time（新，方案1+2）
+
+# ── 滚动参数 ──
+year: 2025                          # 训练截止年，预测 year+1（2026）
+train_years_back: 10               # 往前推 10 年（训练 2015-01 ~ 2025-11）
+seed: 42                           # 随机种子（切分/选因子可复现）
+
+# ── split_mode=stock 专用 ──
+train_sample_ratio: 0.8            # 股票随机切分：80% 训练 / 20% 验证
+
+# ── split_mode=time 专用 ──
+valid_months: 12                   # 最近 12 个月做时间 valid（早停，最贴近预测年）
+embargo_months: 1                  # valid 与预测年间隔 1 个月 embargo（>20 交易日，防标签重叠）
+
+# ── 数据与因子 ──
+sources:
+  - alpha158-dquant
+  - kysec-dquant/paper_27_microstructure
+neu_sources: null
+horizon: 20
+
+# 因子剔除（LGBM 走 has_factor=NONE 原生吃 NaN，不需要剔除）
+exclude_features: null
+
+# ── 两阶段选因子 ──
+select_method: shap                 # shap | null
+top_k: 64                          # SHAP 选 top-64
+
+# ── LGBM 超参（同固定训练口径）──
+lgbm:
+  seed: 42
+  num_threads: 64
+  learning_rate: 0.05
+  num_leaves: 31

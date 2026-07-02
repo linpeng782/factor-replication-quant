@@ -45,6 +45,69 @@ source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
 
 > 下面所有命令默认 `DATA_BACKEND=dquant`（不写即默认）。所有命令均为单行，可直接复制。
 
+### dquant 因子目录速查（ml_core 训练读这里）
+
+ml_core 通过 `discover_features(sources=[...])` 从 `factors/raw/<source>/` 发现因子宽表。当前默认 sources 及目录结构：
+
+```
+<nfs/ofs-prediction/peterzhenglinpeng>/factors/raw/
+├── alpha158-dquant/                    ← ml_core 默认 source（158 因子）
+│   ├── kline/      (9 个: KMID/KLEN/KLOW/KUP/KSFT...)
+│   ├── price/      (4 个: OPEN0/HIGH0/LOW0/VWAP0)
+│   ├── rolling/    (115 个: BETA*/CNT*/MA*/RSI*/VSTD...)
+│   └── volume/     (30 个: VMA*/VSTD*)
+├── kysec-dquant/
+│   └── paper_27_microstructure/        ← ml_core 默认 source（23 个分钟微结构因子）
+└── style-dquant/                       ← 风格/日历因子（week_of_year 等，规划中）
+```
+
+每个因子是一个 parquet 宽表：`index=交易日(DatetimeIndex, 2005-01-04~最新)` × `columns=股票代码(000001.XSHE 格式)` × `values=float32`。`discover_features` 按 `<source>/<group>/<factor>.parquet` 两级路径发现，source 名带 `-dquant` 后缀（与 rq 版本 `alpha158/`、`kysec/` 平级共存，互不覆盖）。
+
+> ⚠️ **两套 dquant 目录别混淆**：
+> - **消费轴** `factors/raw/<source>-dquant/`（上面这些）—— ml_core 训练/推理读这里，由 `DATA_BACKEND=dquant` 驱动。
+> - **生产隔离轴** `factors/raw-dquant/<source>/`（分钟因子生产落这里）—— 由 `MINUTE_DATA_BACKEND=dquant` 驱动，与消费轴独立，ml_core 默认不读。
+
+### 日更：把因子更新到最新（推理前置）
+
+推理只能推到「因子面板末日」。日更增量把模型读的两套 dquant 因子（`alpha158-dquant` + `kysec-dquant/paper_27_microstructure`）推到最新交易日，再跑 `latest_n` 增量推理即可。全部 append-only、历史冻结、零 API（数据线除外）。
+
+**① 数据线（dquant 专用取数，硬编码写 dquant 目录；增量补缺日）**
+
+```bash
+PYTHONPATH=. python data_fetching/raw_ohlcv_dquant.py
+```
+```bash
+PYTHONPATH=. python data_fetching/ex_factors_jy.py
+```
+```bash
+PYTHONPATH=. python data_fetching/minute_ohlcv_dquant.py --workers 64
+```
+
+**② alpha158-dquant 因子（读 daily_dquant，零 API；后端感知写 `alpha158-dquant`）**
+
+```bash
+PYTHONPATH=. python alpha158/daily_update.py
+```
+
+**③ p27 微结构因子（分钟线，必须 `MINUTE_DATA_BACKEND=dquant`；先刷 superset 再批量 L3）**
+
+```bash
+MINUTE_DATA_BACKEND=dquant PYTHONPATH=. python pipeline/refresh_supersets.py --cache-key prv_v3
+```
+```bash
+MINUTE_DATA_BACKEND=dquant PYTHONPATH=. python pipeline/refresh_factors_batch.py --factor-glob 'sources/kysec/paper_27_microstructure/specs/*'
+```
+
+**④ 验证末日（两套都应 = 最新交易日）**
+
+```bash
+PYTHONPATH=. python -c "import pandas as pd; from core import config as c; f=lambda p: pd.to_datetime(pd.read_parquet(p, columns=[]).index).max().date(); print('a158', f(c.ALPHA158_RAW_BASE/'rolling/MAX60.parquet')); print('p27', f(c.RAW_FACTOR_BASE/'kysec-dquant/paper_27_microstructure/peak_minute_count.parquet'))"
+```
+
+> ⚠️ 后端要点：alpha158 认 `ALPHA158_DATA_BACKEND`（默认 dquant）→ 写 `alpha158-dquant`；p27 分钟因子认 `MINUTE_DATA_BACKEND`，**必须显式 `=dquant`**，否则写到 rq 目录、模型读不到。两者是独立轴。
+> 细节与全链路（掩码/信号/回测）见 `docs/server_daily_production.md`；alpha158 线总览见 `alpha158/README.md`。
+> `pipeline/daily_update.sh` 是 **rq 分钟线**编排器；dquant 分钟/p27 目前按上面手动跑（带 `MINUTE_DATA_BACKEND=dquant`）。
+
 ---
 
 ## 三、ml_core 主线：配置驱动训练 + 推理（推荐）

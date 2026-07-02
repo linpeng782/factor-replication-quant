@@ -13,6 +13,7 @@ ml_core.model —— 模型适配器（管线唯一真正分叉处）
 """
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -154,10 +155,17 @@ class MLPAdapter(ModelAdapter):
         import torch.nn as nn
         from torch.utils.data import DataLoader, TensorDataset
 
+        from ml_core.metrics import daily_long_short, daily_rank_ic
+
         self.n_features = int(np.asarray(X_train).shape[1])   # 输入维度按训练数据列数定
         self.net = _build_mlp(self.n_features).to(self.device)
         crit = nn.BCEWithLogitsLoss()
         opt = torch.optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        # 选股排序类指标（预测概率 vs 真实远期收益，非二分类标签）；val_ret/val_dates 由 pipeline 透传
+        val_ret = kw.get("val_ret")
+        val_dates = kw.get("val_dates")
+        has_rank_metrics = val_ret is not None and val_dates is not None
 
         def _loader(X, y, shuffle):
             ds = TensorDataset(torch.from_numpy(np.asarray(X, dtype=np.float32)),
@@ -166,32 +174,62 @@ class MLPAdapter(ModelAdapter):
                               drop_last=shuffle, num_workers=0, pin_memory=True)
 
         tr, va = _loader(X_train, y_train, True), _loader(X_valid, y_valid, False)
-        best_loss, best_state, no_improve = float("inf"), None, 0
+        best_loss, best_state, no_improve, best_epoch = float("inf"), None, 0, -1
         for epoch in range(1, self.max_epochs + 1):
+            t0 = time.time()
             self.net.train()
+            tr_loss, tr_correct, tr_total = 0.0, 0, 0
             for xb, yb in tr:
                 xb, yb = xb.to(self.device), yb.to(self.device)
-                loss = crit(self.net(xb), yb)
+                logit = self.net(xb)
+                loss = crit(logit, yb)
                 opt.zero_grad(); loss.backward(); opt.step()
+                tr_loss += loss.item() * xb.size(0)
+                tr_correct += ((logit > 0) == yb).sum().item()
+                tr_total += xb.size(0)
+            tr_loss, tr_acc = tr_loss / tr_total, tr_correct / tr_total
+
             # valid
-            self.net.eval(); vloss, n = 0.0, 0
+            self.net.eval(); va_loss, va_correct, va_total = 0.0, 0, 0
+            va_probs = []
             with torch.no_grad():
                 for xb, yb in va:
                     xb, yb = xb.to(self.device), yb.to(self.device)
-                    l = crit(self.net(xb), yb)
-                    vloss += l.item() * xb.size(0); n += xb.size(0)
-            vloss /= n
-            if vloss < best_loss:
-                best_loss, no_improve = vloss, 0
+                    logit = self.net(xb)
+                    va_loss += crit(logit, yb).item() * xb.size(0)
+                    va_correct += ((logit > 0) == yb).sum().item()
+                    va_total += xb.size(0)
+                    va_probs.append(torch.sigmoid(logit).cpu().numpy().ravel())
+            va_loss, va_acc = va_loss / va_total, va_correct / va_total
+            va_probs = np.concatenate(va_probs)
+            dt = time.time() - t0
+
+            # 选股排序指标（有 val_ret 时才算）
+            if has_rank_metrics:
+                ic = daily_rank_ic(va_probs, val_ret, val_dates)
+                ls = daily_long_short(va_probs, val_ret, val_dates)
+                ic_s = f"IC={ic['ic_mean']:.4f} ICIR={ic['icir']:.2f} L-S={ls['long_short']:.4f}"
+            else:
+                ic_s = "IC=— ICIR=— L-S=—"
+
+            is_best = va_loss < best_loss
+            if is_best:
+                best_loss, best_epoch, no_improve = va_loss, epoch, 0
                 best_state = {k: v.cpu().clone() for k, v in self.net.state_dict().items()}
             else:
                 no_improve += 1
-            logger.info(f"[mlp] epoch {epoch:>3} val_loss={vloss:.4f}{' *best' if no_improve==0 else ''}")
+            logger.info(
+                f"Epoch {epoch:>3}/{self.max_epochs} | "
+                f"tr loss={tr_loss:.4f} acc={tr_acc:.4f} | "
+                f"val loss={va_loss:.4f} acc={va_acc:.4f} | "
+                f"{ic_s} | gap={tr_acc - va_acc:+.4f} | {dt:.1f}s{' *best' if is_best else ''}"
+            )
             if no_improve >= self.patience:
-                logger.info(f"[mlp] early stop @ {epoch}")
+                logger.info(f"[mlp] early stop @ {epoch} (patience={self.patience}, best epoch={best_epoch})")
                 break
         if best_state is not None:
             self.net.load_state_dict(best_state)
+        logger.success(f"[mlp] 训练完成 | best epoch={best_epoch} val_loss={best_loss:.4f}")
         return self
 
     def predict(self, X) -> np.ndarray:

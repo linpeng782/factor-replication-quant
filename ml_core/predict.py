@@ -138,6 +138,12 @@ def _run(pc: dict) -> None:
     _coverage_guard(panel, pc.get("coverage_recent", 10), pc.get("coverage_drop", 0.6),
                     pc.get("strict_coverage", False))
 
+    # 存预测面板（供集成等下游消费；信号 txt 只有排名丢了分数，面板保留连续分）
+    pred_dir = config.ML_PREDICTIONS_DIR / run_id
+    pred_dir.mkdir(parents=True, exist_ok=True)
+    panel.to_parquet(pred_dir / "pred_panel_live.parquet")
+    logger.info(f"[predict] 面板已存 → {pred_dir / 'pred_panel_live.parquet'}")
+
     signal_dir = pc.get("signal_dir") or (config.ML_PREDICTIONS_DIR / run_id / "signals")
     export_panel(panel, signal_dir, top_n=pc.get("top_n", 500), rebuild=pc.get("rebuild", False))
     logger.success(f"=== 推理完成。信号 → {signal_dir} ===")

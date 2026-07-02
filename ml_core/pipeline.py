@@ -151,7 +151,9 @@ def run_train(
         logger.info(f"[pipeline.train] 两阶段：{len(fm.feature_names)} 因子 → 选 top-{len(selected)} 重训")
 
     # Stage-2：用入选因子（或全特征）重训
-    adapter.fit(Xz_model[tr], yz[tr], Xz_model[va], yz[va])
+    # 透传 valid 段原始远期收益 + 日期，供 MLP 每 epoch 算 rank-IC/ICIR/L-S（对齐 ml_ht 日志格式）
+    adapter.fit(Xz_model[tr], yz[tr], Xz_model[va], yz[va],
+                val_ret=ret[ri[va], ci[va]], val_dates=fm.dates[va])
     return {"adapter": adapter, "standardizer": standardizer,
             "feature_names": feature_names, "selected": selected, "scores": scores,
             "seg_row": seg_row, "fm": fm, "y": y, "Xz": Xz_model,

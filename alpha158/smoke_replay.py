@@ -14,7 +14,7 @@ alpha158 增量正确性验收：truncate-replay 真实数据对账
 
 通过 = 重叠(日期×股票) max|Δ|==0 且 NaN 模式一致 且 IPO 列吻合。
 
-核心函数 incremental_step() 即生产 alpha158_daily_update.py 的内核（共享，杜绝脱节）。
+核心函数 incremental_step() 即生产 alpha158/daily_update.py 的内核（共享，杜绝脱节）。
 """
 from __future__ import annotations
 

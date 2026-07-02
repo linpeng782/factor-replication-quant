@@ -4,7 +4,7 @@ Alpha158 评估出图 pass：直读已落盘 cleaned/neu → 评估 + 2×2 报�
 复用 core.evaluation._analyze_and_plot（IC/ICIR/分层/单调 + 出图），不重算清洗/中性化。
 每因子 2 张 PNG：evaluation_<range>__cleaned.png / __neu.png。fork 并行，matplotlib Agg。
 
-用法：python scripts/plot_alpha158.py [--workers 4] [--limit N]
+用法：python alpha158/plot.py [--workers 4] [--limit N]
 """
 from __future__ import annotations
 

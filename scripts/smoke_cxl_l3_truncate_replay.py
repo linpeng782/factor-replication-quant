@@ -1,7 +1,7 @@
 """
 cxl 基本面 L3 因子增量正确性验收：truncate-replay 真实数据对账
 ============================================================
-三胞胎之一（孪生 smoke_minute_l3_truncate_replay / smoke_alpha158_truncate_replay）。
+三胞胎之一（孪生 smoke_minute_l3_truncate_replay / alpha158/smoke_replay.py）。
 docs/cxl_fundamental_incremental_design.md §9。
 
 思路：以**本地基本面 PIT 基础层**（market-data/fundamentals/<field>.parquet，冻结快照）为源——

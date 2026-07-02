@@ -1,7 +1,7 @@
 """
 分钟 L3 因子增量正确性验收：truncate-replay 真实数据对账
 ============================================================
-孪生于 scripts/smoke_alpha158_truncate_replay.py（同一套黄金标准），但验的是
+孪生于 alpha158/smoke_replay.py（同一套黄金标准），但验的是
 **分钟侧 L3**（superset → spec rolling → 因子宽表 append）。
 
 思路（docs/minute_incremental_design.md §13.1）：

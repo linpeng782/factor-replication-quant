@@ -133,7 +133,7 @@ L3 因子面板每天 `read old → append 新行 → 写回`。因 parquet 无�
 
 > ⚠️ **非平凡洞察②：对账只比"活区"，不比上市前死区**。CNT 族（CNTP/CNTN/CNTD）= `Mean((close>Ref(close,1)).astype(float), w)`，**布尔比较把 NaN 吃成 False→0**，加上算子 `Mean` 用 `min_periods=1`（`panel_operators.py:39`），导致 CNTP 在**上市前死区也有伪值 0**（全量构建的 latent 伪值）；增量重放该死区为 NaN，**反而更正确**。两者只在死区不一致，活区（个股上市后）完全吻合，而死区下游必被 `new_stock_mask` 抹掉。故 `reconcile` 按 `date >= 个股首个有效 close` 限定活区比较——这是正确语义，非"掩盖问题"。（MA 族因 close 本身 NaN→死区 NaN，无此问题。）
 
-> **验收结论（2026-06-14，600 股样本 × 20 天重放）**：全 158 因子通过——活区 `max_rel=5.9e-8`（CORD5 最大）、NaN 模式逐格一致、3 只真实 IPO（001393/603435/688635）新股列自动回来且吻合。脚本 `scripts/smoke_alpha158_truncate_replay.py`（`--all` 验 158，默认验 6 个代表因子）。
+> **验收结论（2026-06-14，600 股样本 × 20 天重放）**：全 158 因子通过——活区 `max_rel=5.9e-8`（CORD5 最大）、NaN 模式逐格一致、3 只真实 IPO（001393/603435/688635）新股列自动回来且吻合。脚本 `alpha158/smoke_replay.py`（`--all` 验 158，默认验 6 个代表因子）。
 
 **红利**：测试内核 = 生产 `alpha158_daily_update.py` 的核心。抽成共享函数 `incremental_append(factor_dir, ohlcv_source, up_to_date)`，生产日更调它、测试砍尾循环调它 → 杜绝"测试通过但生产是另一套"的脱节。
 
@@ -147,7 +147,7 @@ alpha158 **无 spec**，`daily_update.sh` 第 7 步的 `FACTOR_GLOB`（扫 `sour
 数据线 1–5（ex_factors/raw_ohlcv/minute_ohlcv/industry/market_cap）  [已有]
  6.  refresh_supersets.py        分钟 L2 superset 增量(+pass2)        [已有]
  7a. paper_27 L3：run.py 循环 23 spec                                 [已有]
- 7b. ★ python scripts/alpha158_daily_update.py    alpha158 L3 增量    [新建]
+ 7b. ★ python alpha158/daily_update.py    alpha158 L3 增量    [新建]
  8.  ml/labels.py                标签回填                              [已有]
 ```
 
@@ -180,8 +180,8 @@ raw 是核心。cleaned（MAD+zscore）与 neu（行业市值中性化）都是*
 
 ## 13. 分期实施 & 进度（2026-06-14）
 
-- ✅ **阶段1+2**：`scripts/smoke_alpha158_truncate_replay.py`（截断重放对账）全 158 因子通过（活区 rel<1e-6 + 3 真实 IPO 吻合）；`scripts/alpha158_daily_update.py` 已写（按股并行读 + compute_all + 逐因子 WIDE append + dedup + 原子写）。
+- ✅ **阶段1+2**：`alpha158/smoke_replay.py`（截断重放对账）全 158 因子通过（活区 rel<1e-6 + 3 真实 IPO 吻合）；`alpha158/daily_update.py` 已写（按股并行读 + compute_all + 逐因子 WIDE append + dedup + 原子写）。
 - ✅ **首次基线 = 增量 catch-up（非全量重建）**：旧 WIDE 基线到 05-29（后复权 append-safe → ≤05-29 值不受 ex_factors 更新影响，可直接复用），用 `alpha158_daily_update.py` 一次性 append (05-29, 06-12] 10 个交易日补齐到最新。独立用 Alpha158Panel 重算 06-12 行对账：全 158 因子 max_rel=5.9e-8 ✅。**省去全量重建**。
   - 多天 catch-up 关键：回读窗口 = `[last-(W+buffer)交易日, T]`，随 gap 自适应，保证最早新日的 warmup（单日日更同一路径）。
-- ⬜ **阶段3**：接入 `daily_update.sh` 7b（`python scripts/alpha158_daily_update.py`，零 API，失败仅告警）；首次稳态日更后跑一次 reconcile 确认 IC 复现。
+- ⬜ **阶段3**：接入 `daily_update.sh` 7b（`python alpha158/daily_update.py`，零 API，失败仅告警）；首次稳态日更后跑一次 reconcile 确认 IC 复现。
 - 📌 **偶尔全量重建**：`build_alpha158.py --full`（WIDE，按股分块内存安全）作为周期性对账/重置基线手段，非日常路径。

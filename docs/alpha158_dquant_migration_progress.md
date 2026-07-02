@@ -299,9 +299,9 @@
   1. `core/config.py` 加环境变量开关 `ALPHA158_DATA_BACKEND`, 默认 `rq` 行为零变化
   2. dquant 后端: `RAW_OHLCV_DIR` → `daily_dquant/stock-ohlcv-dquant`, `EX_FACTORS_DIR` → `daily_dquant/stock-ex-factors-jy`
   3. 新增 `ALPHA158_RAW_BASE` 常量: dquant 后端输出到 `factors/raw/alpha158-dquant/` (隔离 rq 基准, 验毕可切回)
-  4. `scripts/build_alpha158.py` 改用 `config.ALPHA158_RAW_BASE` (1 行改动)
+  4. `alpha158/build.py` 改用 `config.ALPHA158_RAW_BASE` (1 行改动)
   5. **`adjusted_panels.py` / `factors.py` 等算子图一行不动**——只通过 config 路径切换
-- **改动文件**: `core/config.py` (+12 行), `scripts/build_alpha158.py` (1 行)
+- **改动文件**: `core/config.py` (+12 行), `alpha158/build.py` (1 行)
 - **验收**:
   ```
   默认(rq):
@@ -355,7 +355,7 @@
 - **依赖**: T4 + T5.1
 - **目标**: 用 dquant 后端跑全量 158 因子, 与 rq 全量做 bit-exact 对账, 量化整体偏差范围
 - **做法**:
-  1. `ALPHA158_DATA_BACKEND=dquant python scripts/build_alpha158.py --full --chunk 6000` 跑全量
+  1. `ALPHA158_DATA_BACKEND=dquant python alpha158/build.py --full --chunk 6000` 跑全量
      (全史 2005-01-04~2026-06-26, 5215 日 × 5511 股)
   2. 写并行对账脚本 `/tmp/T6_full_compare.py`, 32 workers, 158 个因子逐一比对
   3. 指标: max_abs / max_rel / p99_rel / bit_exact_pct / lt1e4_pct / NaN 结构

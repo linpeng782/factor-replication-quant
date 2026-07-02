@@ -121,8 +121,8 @@ L3  factors/raw/alpha158/...                 build_alpha158 / alpha158_daily_upd
 | L1 取数（rq，待仿写 dquant 版） | `data_fetching/raw_ohlcv.py` |
 | L0 取数（rq，待换 jy 版） | `data_fetching/ex_factors.py` |
 | 读时后复权 | `core/producers/alpha158/adjusted_panels.py` |
-| L3 全量 / 增量 | `scripts/build_alpha158.py` / `scripts/alpha158_daily_update.py` |
-| 对账（可复用） | `scripts/smoke_alpha158_truncate_replay.py` / `scripts/verify_alpha158_reproduction.py` |
+| L3 全量 / 增量 | `alpha158/build.py` / `alpha158/daily_update.py` |
+| 对账（可复用） | `alpha158/smoke_replay.py` / `alpha158/verify_repro.py` |
 | dquant 单日取数范例 | `../stock-data-fetching/core/dquant_daily.py` |
 
 ---

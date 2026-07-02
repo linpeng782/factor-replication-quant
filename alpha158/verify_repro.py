@@ -13,7 +13,7 @@ Alpha158 抽取复现校验
 为快与省内存：默认只加载 LOAD_START 起的数据（给 60d 窗口足够 warmup），
               只在 COMPARE_START~COMPARE_END 区间比对。改 FACTORS=None 比全 158。
 
-用法：python scripts/verify_alpha158_reproduction.py
+用法：python alpha158/verify_repro.py
 """
 from __future__ import annotations
 

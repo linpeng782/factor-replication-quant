@@ -2,7 +2,7 @@
 alpha158 日频因子日更增量 append（生产）
 ==========================================
 设计见 docs/alpha158_incremental_design.md；增量内核已由
-scripts/smoke_alpha158_truncate_replay.py 真实数据对账验证（全 158 因子 rel<1e-6 + 新股吻合）。
+alpha158/smoke_replay.py 真实数据对账验证（全 158 因子 rel<1e-6 + 新股吻合）。
 
 算法（§6）：
   last = 现有 WIDE 面板的最大日期；T = 源数据(raw_ohlcv)最新日期；need = (last, T]
@@ -13,7 +13,8 @@ scripts/smoke_alpha158_truncate_replay.py 真实数据对账验证（全 158 因
   ③ 逐因子：读旧 WIDE → 切 (last,T] 新行 → concat(列并集自动纳新股) → dedup(keep last) → 原子写
 
 零 API：只读已落盘的 raw_ohlcv/ex_factors（数据线负责拉取）。
-首次须先有基线：若无 factors/raw/alpha158/ 面板，先跑 scripts/build_alpha158.py --full。
+基线目录后端感知 = config.ALPHA158_RAW_BASE（dquant→alpha158-dquant，rq→alpha158）；
+首次须先有基线：若无对应面板，先跑 alpha158/build.py --full（同后端 env）。
 """
 from __future__ import annotations
 
@@ -38,7 +39,7 @@ from core.producers.alpha158.groups import factor_group
 
 RAW_DIR = config.RAW_OHLCV_DIR
 EX_DIR = config.EX_FACTORS_DIR
-ALPHA158_BASE = config.RAW_FACTOR_BASE / "alpha158"
+ALPHA158_BASE = config.ALPHA158_RAW_BASE     # 后端感知：dquant→alpha158-dquant，rq→alpha158
 WINDOWS = [5, 10, 20, 30, 60]
 W = max(WINDOWS)
 BUFFER = 10                     # warmup 安全余量（交易日）
@@ -127,7 +128,7 @@ def main():
 
     last = baseline_last_date()
     if last is None:
-        logger.error(f"无基线面板 {ALPHA158_BASE}/；请先跑 build_alpha158.py --full 建全量基线")
+        logger.error(f"无基线面板 {ALPHA158_BASE}/；请先跑 alpha158/build.py --full 建全量基线")
         sys.exit(1)
     logger.info(f"基线末日 last = {last.date()}")
 

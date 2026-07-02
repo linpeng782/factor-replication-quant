@@ -6,10 +6,10 @@ Alpha158 全量生产：读后复权面板 → 算 158 因子 → 落 factors/ra
 
 group ∈ {kline, price, rolling, volume}（见 core.producers.alpha158.groups）。落盘 float32。
 
-用法：python scripts/build_alpha158.py            # 增量：只算缺的
-      python scripts/build_alpha158.py --full     # 全量重算覆盖
-      python scripts/build_alpha158.py --only KMID MA20
-      python scripts/build_alpha158.py --chunk 1200   # 调股票分块大小（内存↔速度）
+用法：python alpha158/build.py            # 增量：只算缺的
+      python alpha158/build.py --full     # 全量重算覆盖
+      python alpha158/build.py --only KMID MA20
+      python alpha158/build.py --chunk 1200   # 调股票分块大小（内存↔速度）
 """
 from __future__ import annotations
 

@@ -342,7 +342,7 @@ daily_update:
 - **第 7 步加注释**：说明"面板已存在→run.py 自动增量（读 superset 尾窗只算新日 append）；首建/`--rebuild` 才全量"。
   脚本逻辑无需改（END_DATE 已动态取最新 raw 交易日）。
 - **接 alpha158 第 7b 步**（孪生侧 L3 增量，零 API，也还没接进编排）：在第 7 步后加
-  `python scripts/alpha158_daily_update.py`（失败仅告警不中断，与 7a 一致；见 `docs/alpha158_incremental_design.md` §10）。
+  `python alpha158/daily_update.py`（失败仅告警不中断，与 7a 一致；见 `docs/alpha158_incremental_design.md` §10）。
 - **首现映射热身**：首个增量日 `refresh_supersets.py` 会触发一次性并行全扫建 `minute_first_appearance.parquet`
   （~14s，一次性）；之后每天 O(1)。无需手动预建。
 

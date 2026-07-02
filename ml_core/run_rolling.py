@@ -7,6 +7,7 @@ ml_core.run_rolling —— 滚动训练入口
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -24,7 +25,9 @@ from ml_core.rolling import (
     save_rolling_model,
 )
 
-CONFIG_PATH = Path(__file__).parent / "rolling_config.yaml"
+# 支持环境变量 ML_CORE_ROLLING_CONFIG 指定独立 config（批量并行训练用）
+CONFIG_PATH = Path(os.environ.get("ML_CORE_ROLLING_CONFIG",
+                                  str(Path(__file__).parent / "rolling_config.yaml")))
 LOG_DIR = Path(__file__).parent / "logs"
 
 

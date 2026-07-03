@@ -24,6 +24,7 @@ from loguru import logger
 
 warnings.filterwarnings("ignore")
 
+from core import config
 from core.config import RAW_FACTOR_BASE
 from core.spec_resolver import factor_name_from_arg, resolve_namespace_safe
 from core.spec_schema import validate_spec
@@ -262,6 +263,14 @@ def build_universe(universe_cfg: dict, trade_date: str, fetcher: DataFetcher) ->
     if primary == "MINUTE_DIR":
         return _minute_universe(fetcher)
     if primary == "ALL":
+        # dquant 基本面后端：universe = 本地基本面面板列（全市场，零 rqdatac）
+        if config.FUNDAMENTAL_BACKEND == "dquant":
+            panel = config.FUNDAMENTALS_DIR / "net_profit_mrq_0.parquet"
+            if panel.exists():
+                stocks = sorted(pd.read_parquet(panel).columns.tolist())
+                logger.info(f"[universe] ALL → dquant 基本面面板列 {len(stocks)} 只")
+                return stocks
+            logger.warning(f"[universe] dquant 面板缺失 {panel} → 回退 all_instruments API")
         return fetcher.all_instruments(type_="CS")["order_book_id"].tolist()
     return fetcher.get_index_components(primary, trade_date)
 

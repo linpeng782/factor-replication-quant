@@ -172,7 +172,19 @@ TRADING_CALENDAR_PATH = _RAW_OHLCV_ROOT / "trading_calendar.parquet"   # 交易�
 # 每日 append 当天快照、历史永不改写 = as-first-reported 冻结 PIT（防漂移/前视）。
 # 由 data_fetching/fundamentals.py 产出/日更；fetch 算子 api=get_factor 改读此处。
 # 见 docs/cxl_fundamental_incremental_design.md
-FUNDAMENTALS_DIR = _MKT / "fundamentals"                 # market-data/fundamentals/<field>.parquet
+# ── 基本面数据后端开关（rq → dquant 迁移；与 ALPHA158_DATA_BACKEND 同模式）──
+# env FUNDAMENTAL_DATA_BACKEND 覆盖；缺省继承主开关 DATA_BACKEND（现默认 dquant）。
+#   rq     → market-data/fundamentals/ + rqdatac 行业/universe + 因子落 factors/raw/cxl/
+#   dquant → market-data/fundamentals-dquant/（fundamentals_dquant.py 产出/日更）
+#            + industry-dquant 本地行业面板 + universe 取面板列（零 rqdatac）
+#            + namespace cxl→cxl-dquant（spec_resolver.resolve_namespace 统一映射，
+#              raw/cleaned/neu/output 四处产物自动并行隔离，不覆盖 rq 基线）
+_FUNDAMENTAL_BACKEND = os.environ.get("FUNDAMENTAL_DATA_BACKEND", _DATA_BACKEND)
+FUNDAMENTAL_BACKEND = _FUNDAMENTAL_BACKEND        # 公开：消费者用此，勿再各自读 os.environ
+FUNDAMENTALS_DIR = _MKT / ("fundamentals-dquant" if _FUNDAMENTAL_BACKEND == "dquant" else "fundamentals")
+# dquant 中信一级行业日频宽面板（industry_dquant.py 产出/日更；因子生产 fetch custom 用。
+# 评估中性化仍用 INDUSTRY_PANEL_ZX_PATH，消费轴不受此开关影响）
+INDUSTRY_PANEL_ZX_DQUANT_PATH = _MKT / "industry-dquant/industry_panel_zx_dquant.parquet"
 
 # 复权时价格字段 ×cum_factor、成交量字段 ÷cum_factor
 PRICE_FIELDS = ["open", "high", "low", "close", "limit_up", "limit_down"]

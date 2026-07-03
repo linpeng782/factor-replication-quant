@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from loguru import logger
 
-from core.config import FUNDAMENTALS_DIR
+from core.config import FUNDAMENTALS_DIR, FUNDAMENTAL_BACKEND, INDUSTRY_PANEL_ZX_DQUANT_PATH
 
 from . import Context, OpRegistry
 
@@ -63,6 +63,12 @@ def op_fetch(ctx: Context, step: Dict, fetcher: Any) -> None:
     # 排序保证 groupby+diff/rolling 等下游算子语义稳定
     if "order_book_id" in df.columns and "date" in df.columns:
         df = df.sort_values(["order_book_id", "date"]).reset_index(drop=True)
+
+    # inf 守门：数据源原始字段可能自带 ±inf（如 pe_ratio_ttm=市值/0）→ 统一转 NaN
+    # 在出口统一处理，本地面板 / API 回退两条路径同享
+    num_cols = [c for c in output_cols if c in df.columns and pd.api.types.is_float_dtype(df[c])]
+    if num_cols:
+        df[num_cols] = df[num_cols].replace([float("inf"), float("-inf")], float("nan"))
 
     ctx.set_df(target_df, df)
 
@@ -176,6 +182,10 @@ def _fetch_custom(ctx: Context, fetcher: Any, step: Dict) -> pd.DataFrame:
     if not command:
         raise ValueError("fetch api=custom 时必须指定 command")
 
+    # dquant 后端：行业分类读本地日频面板（industry_dquant.py 产出），零 rqdatac
+    if command == "__internal__zx2019_industry" and FUNDAMENTAL_BACKEND == "dquant":
+        return _zx_industry_from_local(ctx)
+
     raw = fetcher._rq.client.get_client().execute(command)
     columns = step.get("columns_raw")
     df = pd.DataFrame(raw, columns=columns) if columns else pd.DataFrame(raw)
@@ -185,6 +195,22 @@ def _fetch_custom(ctx: Context, fetcher: Any, step: Dict) -> pd.DataFrame:
         return df
 
     raise ValueError(f"fetch api=custom: 未规范化的 command={command!r}")
+
+
+def _zx_industry_from_local(ctx: Context) -> pd.DataFrame:
+    """dquant 本地行业日频宽面板 → long (order_book_id, date, first_industry_name)。
+
+    面板已日频（industry_dquant.py 按交易日落盘），无需再 ffill 到交易日。
+    """
+    w = pd.read_parquet(INDUSTRY_PANEL_ZX_DQUANT_PATH)
+    w.index = pd.to_datetime(w.index)
+    s, e = pd.Timestamp(ctx.start_date), pd.Timestamp(ctx.end_date)
+    w = w.loc[(w.index >= s) & (w.index <= e)]
+    long = w.stack(dropna=True).reset_index()
+    long.columns = ["date", "order_book_id", "first_industry_name"]
+    long["date"] = pd.to_datetime(long["date"])
+    logger.info(f"[fetch] 读本地行业面板(dquant) [{s.date()},{e.date()}] → {len(long):,} 行")
+    return long[["order_book_id", "date", "first_industry_name"]]
 
 
 def _zx_industry_to_daily(

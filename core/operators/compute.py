@@ -53,4 +53,9 @@ def op_compute(ctx: Context, step: Dict, fetcher: Any) -> None:
     except Exception:
         result = pd.eval(formula, local_dict=local, engine="python")
 
+    # inf 守门：除零（x/0=±inf）统一转 NaN——因子面板不允许 inf
+    # （分母=0 时比率无经济学意义；NaN 在下游清洗/中性化被正确处理，inf 会污染统计量）
+    if hasattr(result, "replace"):
+        result = result.replace([float("inf"), float("-inf")], float("nan"))
+
     ctx.add_column(target_df, out, result)

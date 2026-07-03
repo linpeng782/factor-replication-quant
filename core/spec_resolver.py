@@ -161,9 +161,16 @@ def resolve_namespace(arg: str) -> str:
     group = 研报/系列（拥有 ~10-20 个因子的自然单元）。落盘：
       factors/<stage>/<publisher>/<group>/<factor>.parquet
       output/<publisher>/<group>/<factor>/
+
+    基本面后端 dquant 时（config.FUNDAMENTAL_BACKEND），cxl 产物统一映射到
+    cxl-dquant/（raw/cleaned/neu/output 四处自动并行隔离，不覆盖 rq 基线）。
     """
     spec_path = resolve_spec_path(arg)
-    return "/".join(spec_path.relative_to(SOURCES_DIR).parts[:2])
+    ns = "/".join(spec_path.relative_to(SOURCES_DIR).parts[:2])
+    from core import config
+    if config.FUNDAMENTAL_BACKEND == "dquant" and ns.startswith("cxl/"):
+        ns = "cxl-dquant/" + ns[len("cxl/"):]
+    return ns
 
 
 def resolve_namespace_safe(factor_name: str, default: str = "_misc/_misc") -> str:

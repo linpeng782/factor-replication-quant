@@ -41,7 +41,11 @@ def _long_to_wide(long_df: pd.DataFrame, value_col: str) -> pd.DataFrame:
         value_col: 状态列名（is_st / is_suspended / is_limit_up / is_new_stock）
     """
     wide = long_df[value_col].unstack(level="order_book_id").sort_index()
-    return wide.fillna(True).astype(bool)  # 未知状态 = 阻断（显式决策，勿改成 False）
+    # 未上市/退市/缺失 = NaN → 显式按「状态未知=阻断」处理（True 使该格子被 ~status 排除）。
+    # 用 numpy 显式转换，绕开 pandas fillna 在 object dtype 上的静默 downcast 警告。
+    arr = wide.to_numpy()
+    arr = np.where(pd.isna(arr), True, arr).astype(bool)
+    return pd.DataFrame(arr, index=wide.index, columns=wide.columns)
 
 
 def _use_next_day_status(wide: pd.DataFrame) -> pd.DataFrame:

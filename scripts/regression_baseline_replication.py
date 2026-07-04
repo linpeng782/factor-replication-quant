@@ -28,7 +28,11 @@ from core.evaluation import evaluate_single_factor
 OUT_DIR = PROJECT_ROOT / "scripts" / "regression_baselines"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-FACTORS = ["peak_minute_count", "npf_mrq_sue8"]
+# 因子已迁移到 <source>/<group>/ 命名空间（2026-07 修复：旧扁平路径失效）
+FACTORS = {
+    "peak_minute_count": "kysec/paper_27_microstructure/peak_minute_count.parquet",
+    "npf_mrq_sue8": "cxl/npf_series/npf_mrq_sue8.parquet",
+}
 START = "20200101"
 END = "20241231"
 IC_HORIZONS = (2, 5, 10, 20)
@@ -64,9 +68,9 @@ def main():
     layered_rows = []
     fingerprint_rows = []
 
-    for factor_name in FACTORS:
+    for factor_name, rel_path in FACTORS.items():
         logger.info(f"\n--- {factor_name} ---")
-        raw_path = config.RAW_FACTOR_BASE / f"{factor_name}.parquet"
+        raw_path = config.RAW_FACTOR_BASE / rel_path
         factor_df = pd.read_parquet(raw_path)
 
         result = evaluate_single_factor(

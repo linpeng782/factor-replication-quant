@@ -16,6 +16,7 @@ ml_core 训练入口 —— 读 train_config.yaml，跑一次完整实验
   ML_PREDICTIONS_DIR/<run_id>/   pred_panel.parquet + ic_series.parquet
   ml_core/logs/<run_id>_<时间戳>.log   训练全程
 """
+
 from __future__ import annotations
 
 import json
@@ -51,11 +52,19 @@ def _strategy(c: dict):
     """按 model 选「标签 / 标准化 / 模型适配器 / has_factor 策略」四件套，超参取对应段。"""
     model = c["model"]
     if model == "lgbm":
-        return (ExcessReturn(), WholeSetRobustZ(),
-                LGBMAdapter(params=c.get("lgbm") or {}), HasFactorPolicy.NONE)
+        return (
+            ExcessReturn(),
+            WholeSetRobustZ(),
+            LGBMAdapter(params=c.get("lgbm") or {}),
+            HasFactorPolicy.NONE,
+        )
     if model == "mlp":
-        return (BinaryMedian(), DailyCrossSectionMAD(),
-                MLPAdapter(**(c.get("mlp") or {})), HasFactorPolicy.ALL)  # 维度按数据自动定
+        return (
+            BinaryMedian(),
+            DailyCrossSectionMAD(),
+            MLPAdapter(**(c.get("mlp") or {})),
+            HasFactorPolicy.ALL,
+        )  # 维度按数据自动定
     raise ValueError(f"未知 model={model!r}（仅 lgbm/mlp）")
 
 
@@ -79,14 +88,27 @@ def _split(c: dict) -> SplitConfig:
 
 def _run(c: dict) -> None:
     run_id = c.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger.info(f"=== ml_core 实验 run_id={run_id} | 模型={c['model']} | 选因子={c.get('select_method')} ===")
+    logger.info(
+        f"=== ml_core 实验 run_id={run_id} | 模型={c['model']} | 选因子={c.get('select_method')} ==="
+    )
 
     label, standardizer, adapter, policy = _strategy(c)
-    cfg = PipelineConfig(sources=c["sources"], neu_sources=c.get("neu_sources"),
-                         has_factor_policy=policy, horizon=c["horizon"], split_cfg=_split(c),
-                         exclude_features=c.get("exclude_features"))
-    res = run_train(cfg, label, standardizer, adapter,
-                    date_sample=c.get("date_sample"), selector=_selector(c))
+    cfg = PipelineConfig(
+        sources=c["sources"],
+        neu_sources=c.get("neu_sources"),
+        has_factor_policy=policy,
+        horizon=c["horizon"],
+        split_cfg=_split(c),
+        exclude_features=c.get("exclude_features"),
+    )
+    res = run_train(
+        cfg,
+        label,
+        standardizer,
+        adapter,
+        date_sample=c.get("date_sample"),
+        selector=_selector(c),
+    )
 
     selected = res["selected"]
     fm, u, te = res["fm"], res["u"], res["seg_row"]["test"]
@@ -97,28 +119,50 @@ def _run(c: dict) -> None:
     adapter.save(model_dir)
     sx.save(model_dir / "scaler_x.parquet")
     (model_dir / "feature_names.json").write_text(
-        json.dumps({"features": res["feature_names"]}, ensure_ascii=False, indent=2))
+        json.dumps({"features": res["feature_names"]}, ensure_ascii=False, indent=2)
+    )
     # run_meta：推理自包含的唯一真相源（ml_core.predict 直读 → 零 train/serve 漂移）
-    (model_dir / "run_meta.json").write_text(json.dumps({
-        "model": c["model"], "sources": c["sources"], "neu_sources": c.get("neu_sources"),
-        "has_factor_policy": policy.value, "horizon": c["horizon"],
-        "select_method": c.get("select_method"), "feature_order": res["feature_names"],
-        "exclude_features": c.get("exclude_features"),
-    }, ensure_ascii=False, indent=2))
-    if selected is not None:                      # 两阶段额外存入选明细（含重要性，兼容 ml.run）
-        (model_dir / "selected_features.json").write_text(json.dumps({
-            "method": f"{c['select_method']}_gain", "top_k": len(selected), "features": selected,
-            "sources": c["sources"], "neu_sources": c.get("neu_sources"),
-            "scores": {k: float(v) for k, v in res["scores"].items()},
-        }, ensure_ascii=False, indent=2))
+    (model_dir / "run_meta.json").write_text(
+        json.dumps(
+            {
+                "model": c["model"],
+                "sources": c["sources"],
+                "neu_sources": c.get("neu_sources"),
+                "has_factor_policy": policy.value,
+                "horizon": c["horizon"],
+                "select_method": c.get("select_method"),
+                "feature_order": res["feature_names"],
+                "exclude_features": c.get("exclude_features"),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    if selected is not None:  # 两阶段额外存入选明细（含重要性，兼容 ml.run）
+        (model_dir / "selected_features.json").write_text(
+            json.dumps(
+                {
+                    "method": f"{c['select_method']}_gain",
+                    "top_k": len(selected),
+                    "features": selected,
+                    "sources": c["sources"],
+                    "neu_sources": c.get("neu_sources"),
+                    "scores": {k: float(v) for k, v in res["scores"].items()},
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
 
     # ── 样本外评估：模型 IC（pred vs 标签面板，对齐 ml.evaluate.model_ic）──
     pred_te = adapter.predict(res["Xz"][te])
     pred_panel = pd.Series(pred_te, index=fm.index[te], name="yhat").unstack("stock")
     target_panel = pd.DataFrame(res["target_panel"], index=u.dates, columns=u.stocks)
     ic = model_ic_panel(pred_panel, target_panel)
-    logger.success(f"[run {run_id}] 选 {len(res['feature_names'])} 因子 | test IC 均值={ic.mean():+.4f} "
-                   f"ICIR={ic.mean()/ic.std():+.3f} t={ic.mean()/ic.std()*len(ic)**0.5:+.2f} 天数={len(ic)}")
+    logger.success(
+        f"[run {run_id}] 选 {len(res['feature_names'])} 因子 | test IC 均值={ic.mean():+.4f} "
+        f"ICIR={ic.mean()/ic.std():+.3f} t={ic.mean()/ic.std()*len(ic)**0.5:+.2f} 天数={len(ic)}"
+    )
 
     pred_dir = config.ML_PREDICTIONS_DIR / run_id
     pred_dir.mkdir(parents=True, exist_ok=True)
@@ -133,8 +177,11 @@ def main() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = LOG_DIR / f"{c.get('run_id') or ts}_{ts}.log"
-    sink = logger.add(log_path, level="INFO",
-                      format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}")
+    sink = logger.add(
+        log_path,
+        level="INFO",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}",
+    )
     logger.info(f"日志落盘：{log_path}")
     try:
         _run(c)

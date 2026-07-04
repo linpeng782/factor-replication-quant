@@ -65,29 +65,6 @@ def _use_next_day_status(wide: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(shifted, index=idx, columns=wide.columns)
 
 
-def _slice_and_reindex(
-    wide: pd.DataFrame,
-    start: Optional[str],
-    end: Optional[str],
-    reindex_columns: Optional[pd.Index],
-    fill_value: bool,
-    name: str,
-) -> pd.DataFrame:
-    """对宽表做时间区间过滤 + 列对齐。"""
-    if start is not None or end is not None:
-        wide = wide.loc[start:end]
-
-    if reindex_columns is not None:
-        missing = set(reindex_columns) - set(wide.columns)
-        if missing:
-            logger.warning(
-                f"[filters/{name}] {len(missing)} 只股票在 mask 中不存在，"
-                f"将填 {fill_value}；样例: {sorted(missing)[:5]}"
-            )
-        wide = wide.reindex(columns=reindex_columns, fill_value=fill_value)
-    return wide
-
-
 def load_filter_masks(
     combo_mask_path: Union[str, Path],
     new_stock_mask_path: Union[str, Path],
@@ -157,18 +134,25 @@ def load_filter_masks(
     # ── 3. 组合成两个决策掩码 ──
     #    can_buy      资格过滤：ST/停牌/新股 → 连因子池都不进（污染截面分布）
     #    not_limit_up 价格过滤：涨停股进池参与标准化，但 T+1 下不了单
-    can_buy_mask_full = ~(is_st | is_suspended | is_new_stock)
-    not_limit_up_mask_full = ~is_limit_up
+    can_buy_mask = ~(is_st | is_suspended | is_new_stock)
+    not_limit_up_mask = ~is_limit_up
 
     # ── 4. 裁剪区间 + 对齐目标股票池 ──
-    #    can_buy 缺失股票补 False（基础过滤：没数据 = 不可买）
-    #    not_limit_up 缺失股票补 True（附加过滤：不因缺数据误杀，最终由 can_buy 兜底）
-    can_buy_mask = _slice_and_reindex(
-        can_buy_mask_full, start, end, reindex_columns, fill_value=False, name="can_buy"
-    )
-    not_limit_up_mask = _slice_and_reindex(
-        not_limit_up_mask_full, start, end, reindex_columns, fill_value=True, name="not_limit_up"
-    )
+    if start is not None or end is not None:
+        can_buy_mask = can_buy_mask.loc[start:end]
+        not_limit_up_mask = not_limit_up_mask.loc[start:end]
+
+    if reindex_columns is not None:
+        missing = set(reindex_columns) - set(can_buy_mask.columns)
+        if missing:
+            logger.warning(
+                f"[filters] {len(missing)} 只股票不在 mask 中"
+                f"（can_buy 补 False / not_limit_up 补 True）；样例: {sorted(missing)[:5]}"
+            )
+        # 不对称补值：can_buy 是基础过滤，缺数据 = 不可买；
+        # not_limit_up 是附加过滤，不因缺数据误杀（最终 can_buy & not_limit_up 仍为 False，由 can_buy 兜底）
+        can_buy_mask = can_buy_mask.reindex(columns=reindex_columns, fill_value=False)
+        not_limit_up_mask = not_limit_up_mask.reindex(columns=reindex_columns, fill_value=True)
 
     # 5. 日志统计
     final = can_buy_mask & not_limit_up_mask

@@ -29,34 +29,40 @@ import pandas as pd
 from loguru import logger
 
 
-def _load_long_to_wide(
-    parquet_path: Path,
-    value_col: str,
-) -> pd.DataFrame:
+def _long_to_wide(long_df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     """
-    加载长表 parquet 中的指定布尔列，unstack 成 (T, N) 宽表，并 shift(-1)。
+    长表某状态列 → (T, N) 宽表。纯格式转换，不做任何时序位移。
 
-    返回:
-        wide: pd.DataFrame, index=datetime, columns=order_book_id, dtype=bool
-              T 日的值 = T+1 日的原始状态（最后一行保守置 False）
+    未上市 / 退市 / 数据缺失的格子 unstack 后是 NaN → 显式按「状态未知=阻断」
+    处理：fillna(True) 使该格子被 ~status 排除出可买池（宁可错杀不可漏放）。
+
+    参数:
+        long_df  : 已 set_index([datetime, order_book_id]) 的长表
+        value_col: 状态列名（is_st / is_suspended / is_limit_up / is_new_stock）
     """
-    long_df = pd.read_parquet(
-        parquet_path, columns=["order_book_id", "datetime", value_col]
-    )
-    long_df["datetime"] = pd.to_datetime(long_df["datetime"])
+    wide = long_df[value_col].unstack(level="order_book_id").sort_index()
+    return wide.fillna(True).astype(bool)  # 未知状态 = 阻断（显式决策，勿改成 False）
 
-    wide_raw = (
-        long_df.set_index(["datetime", "order_book_id"])[value_col]
-        .unstack(level="order_book_id")
-        .sort_index()
-    )
 
-    # shift(-1)：T 日 mask 反映 T+1 状态（用 numpy 直接位移，避免 dtype 退化为 object）
-    arr = wide_raw.to_numpy(dtype=bool)
+def _use_next_day_status(wide: pd.DataFrame) -> pd.DataFrame:
+    """
+    T 日行使用 T+1 日的状态（实现为 shift(-1)：把明天的状态拉回今天的行）。
+
+    业务背景：T 日盘后算因子 → T+1 日开盘下单。周二盘后需要知道的是
+    「周三停不停牌 / 涨不涨停」，所以把周三的状态搬到周二行。
+    末行没有明日数据 → 保守置 False（不可交易）。
+
+    前提：行索引必须升序且无重复（按行位置位移，日期缺失/乱序会静默错位一天，
+    时序错一天整个回测就全错）——进函数先校验，坏数据当场报错。
+    """
+    idx = wide.index
+    if not (idx.is_monotonic_increasing and idx.is_unique):
+        raise ValueError("mask 日期索引必须升序且无重复，否则按行位移会静默错位")
+    arr = wide.to_numpy(dtype=bool)
     shifted = np.empty_like(arr)
-    shifted[:-1] = arr[1:]
-    shifted[-1] = False  # 最后一行保守置 False
-    return pd.DataFrame(shifted, index=wide_raw.index, columns=wide_raw.columns)
+    shifted[:-1] = arr[1:]   # T 行 ← T+1 行
+    shifted[-1] = False      # 末日无明日数据，保守不可交易
+    return pd.DataFrame(shifted, index=idx, columns=wide.columns)
 
 
 def _slice_and_reindex(
@@ -122,24 +128,41 @@ def load_filter_masks(
     if not new_stock_path.exists():
         raise FileNotFoundError(f"new_stock_mask 文件不存在: {new_stock_path}")
 
-    # 1. 加载三类 combo_mask 列 + new_stock_mask（unstack + shift(-1)）
-    is_st = _load_long_to_wide(combo_path, "is_st")
-    is_suspended = _load_long_to_wide(combo_path, "is_suspended")
-    is_limit_up = _load_long_to_wide(combo_path, "is_limit_up")
-    is_new_stock = _load_long_to_wide(new_stock_path, "is_new_stock")
+    # ── 1. 原始状态（T 日当天）：combo 一次 I/O 读 3 列，new_stock 单独文件 ──
+    combo = pd.read_parquet(
+        combo_path,
+        columns=["order_book_id", "datetime", "is_st", "is_suspended", "is_limit_up"],
+    )
+    combo["datetime"] = pd.to_datetime(combo["datetime"])
+    combo = combo.set_index(["datetime", "order_book_id"])
 
-    # 2. 把 new_stock 的索引对齐到 combo 的索引（理论上完全对齐，做一次保险）
+    new_stock = pd.read_parquet(
+        new_stock_path, columns=["order_book_id", "datetime", "is_new_stock"]
+    )
+    new_stock["datetime"] = pd.to_datetime(new_stock["datetime"])
+    new_stock = new_stock.set_index(["datetime", "order_book_id"])
+
+    # ── 2. 换到 T+1 视角（T 日盘后决策，看的是明天的状态）──
+    is_st = _use_next_day_status(_long_to_wide(combo, "is_st"))
+    is_suspended = _use_next_day_status(_long_to_wide(combo, "is_suspended"))
+    is_limit_up = _use_next_day_status(_long_to_wide(combo, "is_limit_up"))
+    is_new_stock = _use_next_day_status(_long_to_wide(new_stock, "is_new_stock"))
+
+    # new_stock 网格对齐到 combo 网格（理论上完全一致，做一次保险；
+    # combo 里有而 new_stock 里没有的格子补 False = 非新股，不因缺数据误杀）
     is_new_stock = is_new_stock.reindex(
         index=is_st.index, columns=is_st.columns, fill_value=False
     )
 
-    # 3. 组合 can_buy_mask 和 not_limit_up_mask
+    # ── 3. 组合成两个决策掩码 ──
+    #    can_buy      资格过滤：ST/停牌/新股 → 连因子池都不进（污染截面分布）
+    #    not_limit_up 价格过滤：涨停股进池参与标准化，但 T+1 下不了单
     can_buy_mask_full = ~(is_st | is_suspended | is_new_stock)
     not_limit_up_mask_full = ~is_limit_up
 
-    # 4. 时间区间 + 列对齐
-    #    can_buy_mask 缺失股票 fill_value=False（缺失视为不可交易）
-    #    not_limit_up_mask 缺失股票 fill_value=True（仅控制涨停过滤；最终乘上 can_buy_mask 后仍为 False）
+    # ── 4. 裁剪区间 + 对齐目标股票池 ──
+    #    can_buy 缺失股票补 False（基础过滤：没数据 = 不可买）
+    #    not_limit_up 缺失股票补 True（附加过滤：不因缺数据误杀，最终由 can_buy 兜底）
     can_buy_mask = _slice_and_reindex(
         can_buy_mask_full, start, end, reindex_columns, fill_value=False, name="can_buy"
     )

@@ -97,7 +97,7 @@ def build_universe(
     if end is not None:
         dates = dates[dates <= pd.Timestamp(end)]
 
-    # can_buy = 旧 can_buy_mask = NOT(st|suspended|new)@T+1；缺格补 False（不可买）
+    # can_buy_mask = NOT(st|suspended|new)@T+1；缺格补 False（不可买）
     can_buy_mask, _ = load_filter_masks(
         combo_mask_path=config.COMBO_MASK_PATH,
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH,

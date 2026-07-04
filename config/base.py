@@ -9,9 +9,10 @@
               ALPHA158 / ML_HT / FUNDAMENTAL / MASK。
               一处 export DATA_BACKEND=rq 即整体回退旧 rq 基准；
               细分 env 若【显式设置】则单独覆盖（向后兼容老脚本）。
-  【生产隔离轴】 MINUTE —— 故意【不随】主开关。
+  【生产隔离轴】 MINUTE —— 故意【不随】主开关，但自身默认已切到 dquant（生产现状）。
               dquant 会把整个 factors/{raw,cleaned,neu} + output 重定向到并行 -dquant 目录；
               与消费轴语义不同，强行合并会静默破坏因子发现。
+              需回退旧 rq 基线时显式 export MINUTE_DATA_BACKEND=rq。
 
 数据根路径由环境变量 FACTOR_REPL_DATA_ROOT 控制（默认 NFS 远端路径）。
 本地跑时设置 `export FACTOR_REPL_DATA_ROOT=~/factor-repl-data`，所有路径自动重定向。
@@ -59,9 +60,11 @@ FUNDAMENTAL_BACKEND = os.environ.get("FUNDAMENTAL_DATA_BACKEND", DATA_BACKEND)
 # 仅日期覆盖与取值不同 → 指向不同文件即可，不重建 schema。
 MASK_BACKEND = os.environ.get("MASK_BACKEND", DATA_BACKEND)
 
-# —— 生产隔离轴开关：env MINUTE_DATA_BACKEND=rq (默认) | dquant，独立于主开关 ——
-# rq     → minute/raw + rq ex_cum_factor + intermediate-cache + factors/{raw,cleaned,neu} + output/
+# —— 生产隔离轴开关：env MINUTE_DATA_BACKEND=dquant (默认) | rq，独立于主开关 ——
 # dquant → minute-dquant/raw(与 rq raw bit 同) + jy adjfactor + intermediate-cache-dquant
 #          + factors/{raw,cleaned,neu}-dquant + output-dquant/（全并行目录，零污染 rq 基线）
-MINUTE_BACKEND = os.environ.get("MINUTE_DATA_BACKEND", "rq")
+# rq     → minute/raw + rq ex_cum_factor + intermediate-cache + factors/{raw,cleaned,neu} + output/
+# 默认 dquant：分钟原始数据由 data_fetching/minute_ohlcv_dquant.py 日更到 minute-dquant/，
+#             消费侧默认对齐取 dquant；需复现旧 rq 基线时 export MINUTE_DATA_BACKEND=rq。
+MINUTE_BACKEND = os.environ.get("MINUTE_DATA_BACKEND", "dquant")
 _IS_MINUTE_DQUANT = MINUTE_BACKEND == "dquant"

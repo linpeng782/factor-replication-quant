@@ -175,6 +175,9 @@ def _write_fields(long: pd.DataFrame, full: bool) -> dict:
             continue
         wide = long.pivot(index="trade_date", columns="order_book_id", values=field)
         wide.index = pd.to_datetime(wide.index)
+        # inf 守门：数据源除零可能产生 ±inf（如 pe_ratio_ttm=市值/0）→ 统一转 NaN
+        # 与 core/operators/fetch.py 出口守门一致，保证面板落盘即干净
+        wide = wide.replace([np.inf, -np.inf], np.nan)
         path = _panel_path(field)
         last = None
         if not full and path.exists():

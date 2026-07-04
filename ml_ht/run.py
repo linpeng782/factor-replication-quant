@@ -34,7 +34,7 @@ import numpy as np
 import torch
 from loguru import logger
 
-from core import config
+import config
 from .dataset import (
     load_long_table,
     latest_n_dates,

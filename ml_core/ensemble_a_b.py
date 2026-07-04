@@ -5,7 +5,7 @@
 import pandas as pd, numpy as np
 from pathlib import Path
 from loguru import logger
-from core import config
+import config
 from ml_core.signals import export_panel
 
 A_PATH = config.ML_PREDICTIONS_DIR / "lgbm_a158_p27_top64" / "pred_panel_live.parquet"

@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 from core.producers.alpha158.adjusted_panels import load_adjusted_panels
 
 from . import Context, OpRegistry

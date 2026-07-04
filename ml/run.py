@@ -20,7 +20,7 @@ from datetime import datetime
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 from ml.dataset import build_dataset
 from ml.evaluate import model_ic, predict_panel
 from ml.select import save_selection, select_by_gbdt_importance, select_by_shap

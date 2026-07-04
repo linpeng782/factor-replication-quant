@@ -21,7 +21,7 @@ import pandas as pd
 from loguru import logger
 
 from alpha_shared.cleaning.mask_loader import load_filter_masks
-from core import config
+import config
 from ml.labels import build_excess_label, load_forward_return
 from ml.preprocess import RobustZScoreScaler
 # 组装原语「单一真相源」上提至 ml_core.features：discover_features / load_factor_grid 的

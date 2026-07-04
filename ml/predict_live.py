@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 from ml.dataset import discover_features, load_factor_grid, load_can_buy_mask
 from ml.preprocess import RobustZScoreScaler
 

@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from core import config
+import config
 
 PRICE_FIELDS = ["open", "high", "low", "close"]   # 仅价格 × cum_factor；量/额本就是原始
 

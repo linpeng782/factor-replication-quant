@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-import core.config as config
+import config
 from alpha_shared.cleaning.mask_loader import load_filter_masks
 from alpha_shared.cleaning.preprocess import prepare_factor
 from alpha_shared.evaluation.ic import compute_ic_report, compute_ic_series

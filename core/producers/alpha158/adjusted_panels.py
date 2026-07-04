@@ -1,5 +1,5 @@
 """
-后复权宽表面板构建（从 my-alpha-engine 抽取，路径改读 core.config）
+后复权宽表面板构建（从 my-alpha-engine 抽取，路径改读 config）
 
 核心逻辑：
   - 磁盘只存原始价格（不复权） + 复权因子（稀疏 cum_factor）
@@ -22,7 +22,7 @@ import pandas as pd
 import numpy as np
 from loguru import logger
 
-from core import config
+import config
 
 
 # ==================== 基础读取 ====================

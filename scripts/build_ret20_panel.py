@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core.config import EX_FACTORS_DIR, RAW_OHLCV_DIR, RET20_PANEL_PATH
+from config import EX_FACTORS_DIR, RAW_OHLCV_DIR, RET20_PANEL_PATH
 
 WINDOW = 20   # 20 日滚动收益
 DTYPE  = "float32"

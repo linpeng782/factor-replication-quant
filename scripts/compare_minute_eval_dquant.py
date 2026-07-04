@@ -32,7 +32,7 @@ import pandas as pd
 from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import core.config as config  # noqa: E402
+import config  # noqa: E402
 
 NS = "kysec/paper_27_microstructure"
 RQ_BASE = config._FACTORS / "raw"          # noqa: SLF001

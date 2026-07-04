@@ -6,7 +6,7 @@ import pandas as pd
 import lightgbm as lgb
 import shap
 from scipy.stats import spearmanr
-from core import config
+import config
 from ml.shap_plot import build_sample
 from ml.predict_live import _load_scaler
 

@@ -37,7 +37,7 @@ def _patch_paths() -> None:
     SAND_RAW.mkdir(parents=True, exist_ok=True)
     SAND_CLEAN.mkdir(parents=True, exist_ok=True)
     SAND_OUT.mkdir(parents=True, exist_ok=True)
-    import core.config as cfg
+    import config as cfg
     import core.yolo_engine as ye
 
     ye.RAW_FACTOR_BASE = SAND_RAW
@@ -136,7 +136,7 @@ def _run_eval_only(factor: str, redirect_output: bool) -> None:
 def _run_full_pipeline(factor: str) -> None:
     import yaml
 
-    from core.config import DEFAULT_END_DATE, DEFAULT_START_DATE
+    from config import DEFAULT_END_DATE, DEFAULT_START_DATE
     from core.evaluation import evaluate_single_factor
     from core.spec_resolver import resolve_spec_path
     from core.yolo_engine import run_factor
@@ -179,7 +179,7 @@ def main() -> None:
     _run_full_pipeline(factor)
 
     # ── 对比 raw / cleaned parquet
-    from core.config import RAW_FACTOR_BASE as _patched_raw  # noqa: F401
+    from config import RAW_FACTOR_BASE as _patched_raw  # noqa: F401
     prod_raw = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/raw_factor") / f"{factor}.parquet"
     prod_clean = Path("/nfs/ofs-prediction/peterzhenglinpeng/factor-replication/cleaned_factor") / f"{factor}.parquet"
 

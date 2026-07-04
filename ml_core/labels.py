@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 
 
 def load_forward_return(horizon: int = 20) -> pd.DataFrame:

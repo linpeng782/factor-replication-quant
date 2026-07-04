@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from core import config
+import config
 
 LONG_TABLE_PATH = config.ML_HT_BASE / "alpha158_long.parquet"   # 跟随 ML_HT_BACKEND 切换 rq/dquant
 LABEL_PATH = config.LABELS_DIR / "forward_return_20d.parquet"

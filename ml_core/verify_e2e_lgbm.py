@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 from ml_core.features import HasFactorPolicy
 from ml_core.model import LGBMAdapter
 from ml_core.pipeline import PipelineConfig, predict_live

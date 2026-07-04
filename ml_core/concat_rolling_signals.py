@@ -22,7 +22,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 
 YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
 OUT_RUN_ID = "lgbm_rolling_concat_2019_2025"

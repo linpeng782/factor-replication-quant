@@ -29,7 +29,7 @@ import pandas as pd
 from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core import config  # noqa: E402
+import config  # noqa: E402
 
 _FACTORS = config._FACTORS  # noqa: SLF001
 RQ_BASE = _FACTORS / "raw"

@@ -14,7 +14,7 @@
 from __future__ import annotations
 import numpy as np, pandas as pd, rqdatac
 from loguru import logger
-from core import config
+import config
 from alpha_shared.cleaning.mask_loader import load_filter_masks
 from alpha_shared.evaluation.ic import compute_ic_series
 from scripts.comomentum_cmc import build_ind_ret_panel, WINDOW, N_MOM, N_REV

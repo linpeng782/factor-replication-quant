@@ -13,7 +13,7 @@
 """
 import numpy as np
 import pandas as pd
-from core import config
+import config
 from ml_core.labels import load_forward_return
 from alpha_shared.cleaning.mask_loader import load_filter_masks
 

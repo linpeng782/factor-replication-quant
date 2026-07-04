@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from loguru import logger
 
-from core.config import FUNDAMENTALS_DIR, FUNDAMENTAL_BACKEND, INDUSTRY_PANEL_ZX_DQUANT_PATH
+from config import FUNDAMENTALS_DIR, FUNDAMENTAL_BACKEND, INDUSTRY_PANEL_ZX_DQUANT_PATH
 
 from . import Context, OpRegistry
 

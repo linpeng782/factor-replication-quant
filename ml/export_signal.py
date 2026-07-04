@@ -33,7 +33,7 @@ import argparse
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 
 _PANEL_FILE = {"live": "pred_panel_live.parquet", "eval": "pred_panel.parquet"}
 

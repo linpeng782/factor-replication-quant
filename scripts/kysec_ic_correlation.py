@@ -29,7 +29,7 @@ from loguru import logger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-from core import config  # noqa: E402
+import config  # noqa: E402
 from alpha_shared.evaluation.ic import compute_ic_series  # noqa: E402
 
 RAW_KYSEC = Path("/nfs/ofs-prediction/peterzhenglinpeng/factors/raw/kysec")

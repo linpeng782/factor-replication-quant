@@ -36,7 +36,7 @@ from loguru import logger
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core import config
+import config
 from alpha_shared.evaluation.ic import compute_ic_series, compute_ic_report
 from alpha_shared.evaluation.layered import layered_backtest
 

@@ -26,7 +26,7 @@ import pandas as pd
 from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core import config  # noqa: E402
+import config  # noqa: E402
 
 # config.RAW_FACTOR_BASE 受 MINUTE_DATA_BACKEND 影响；这里显式取两个固定基座，避免歧义。
 _FACTORS = config._FACTORS  # noqa: SLF001

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from core import config
+import config
 
 
 def load_forward_return(horizon: int = 20) -> pd.DataFrame:

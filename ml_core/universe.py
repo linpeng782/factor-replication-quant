@@ -28,7 +28,7 @@ import pandas as pd
 from loguru import logger
 
 from alpha_shared.cleaning.mask_loader import load_filter_masks
-from core import config
+import config
 
 
 @dataclass

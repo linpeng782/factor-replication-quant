@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 from loguru import logger
 
-from core import config
+import config
 from ml_core.features import HasFactorPolicy
 from ml_core.model import LGBMAdapter
 from ml_core.pipeline import PipelineConfig, predict_live

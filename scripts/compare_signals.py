@@ -18,7 +18,7 @@ ml_ht 新旧信号对比器
         --old-dir /nfs/ofs-prediction/peterzhenglinpeng/ml/ht_dquant/dquant-signals \
         --new-dir /nfs/ofs-prediction/peterzhenglinpeng/ml/ht_dquant/signals-new
 
-设计自包含：不依赖 core.config，路径全由命令行参数控制。
+设计自包含：不依赖 config，路径全由命令行参数控制。
 """
 from __future__ import annotations
 

@@ -34,7 +34,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import core.yolo_engine  # noqa: F401  触发 reducer 注册
-from core.config import RAW_FACTOR_BASE
+from config import RAW_FACTOR_BASE
 from core.operators import Context, OpRegistry
 from core.operators.minute_engine import REDUCER_BY_ACTION, MinuteAggregateEngine
 from core.spec_resolver import (

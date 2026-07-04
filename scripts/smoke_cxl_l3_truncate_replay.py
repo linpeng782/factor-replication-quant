@@ -34,7 +34,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import yaml as _yaml
-from core.config import FUNDAMENTALS_DIR
+from config import FUNDAMENTALS_DIR
 from core.operators import Context, OpRegistry
 from core.spec_resolver import incremental_safe, max_warmup_window, resolve_spec_path
 from core.yolo_engine import incremental_append

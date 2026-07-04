@@ -39,7 +39,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import dquant  # noqa: F401  (确保 fork 子进程继承连接)
-from core import config
+import config
 from data_fetching.dquant_source import latest_trading_date
 
 # ==================== 常量 / 路径 ====================

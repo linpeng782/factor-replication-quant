@@ -6,7 +6,7 @@ load_panel 算子
 典型用途：把 Ret20 后复权面板并入 APM 长表，供 cross_section_regress 使用。
 
 Spec 契约：
-  panel_config  : str   core.config 中的属性名（如 'RET20_PANEL_PATH'），或绝对路径
+  panel_config  : str   config 中的属性名（如 'RET20_PANEL_PATH'），或绝对路径
   output_column : str   合并到 target df 的列名
   output_dataframe : str  默认 'data'
 """
@@ -19,7 +19,7 @@ from typing import Any, Dict
 import pandas as pd
 from loguru import logger
 
-import core.config as cfg
+import config as cfg
 from . import Context, OpRegistry
 
 

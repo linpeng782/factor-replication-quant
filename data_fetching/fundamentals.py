@@ -42,7 +42,7 @@ from loguru import logger
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.config import FUNDAMENTALS_DIR
+from config import FUNDAMENTALS_DIR
 from core.yolo_engine import DataFetcher, incremental_append
 
 # ==================== 字段集（扫 spec get_factor 并集；新字段加这里）====================

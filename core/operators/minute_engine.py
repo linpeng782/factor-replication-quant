@@ -23,7 +23,7 @@ from typing import Dict, List
 import pandas as pd
 from loguru import logger
 
-from core.config import INTERMEDIATE_CACHE_DIR, MINUTE_RAW_DIR
+from config import INTERMEDIATE_CACHE_DIR, MINUTE_RAW_DIR
 from core.minute_data import load_adjusted_minute_window
 
 from . import Context, OpRegistry

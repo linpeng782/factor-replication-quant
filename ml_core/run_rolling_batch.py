@@ -62,7 +62,7 @@ def _run_one(year: int) -> int:
 
 def _already_done(year: int) -> bool:
     """检查该 year 的模型 + 信号是否已存在（跳过已完成）。"""
-    from core import config
+    import config
     model_dir = config.ML_MODELS_DIR / f"lgbm_rolling_{year}"
     sig_dir = config.ML_PREDICTIONS_DIR / f"lgbm_rolling_{year}" / "signals"
     return model_dir.exists() and sig_dir.exists() and any(sig_dir.glob("*.txt"))

@@ -36,7 +36,7 @@ import numpy.lib.stride_tricks as nst
 import pandas as pd
 from loguru import logger
 
-import core.config as cfg
+import config as cfg
 from . import Context, OpRegistry
 
 

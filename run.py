@@ -11,8 +11,8 @@ FACTOR 两种形态都接受：
     kysec/paper_27_microstructure/peak_minute_count     # 限定路径，重名时消歧
 
 可选参数:
-    --start-date YYYYMMDD   默认 core.config.DEFAULT_START_DATE
-    --end-date YYYYMMDD     默认 core.config.DEFAULT_END_DATE
+    --start-date YYYYMMDD   默认 config.DEFAULT_START_DATE
+    --end-date YYYYMMDD     默认 config.DEFAULT_END_DATE
     --workers N             覆盖环境变量 FETCHER_WORKERS（多线程 fetch 并发）
 
 约定:
@@ -34,7 +34,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from core.config import (
+from config import (
     DEFAULT_END_DATE,
     DEFAULT_EVAL_END_DATE,
     DEFAULT_EVAL_START_DATE,

@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 
 WINDOW, N_MOM, N_REV = 20, 5, 15
 START, END = "2010-01-01", "2023-12-31"

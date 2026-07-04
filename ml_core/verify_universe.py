@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 from ml_core.universe import build_universe, dquant_grid
 
 

@@ -39,7 +39,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core import config
+import config
 from ml_core.features import HasFactorPolicy
 from ml_core.labels import ExcessReturn
 from ml_core.metrics import model_ic_panel

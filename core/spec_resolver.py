@@ -167,7 +167,7 @@ def resolve_namespace(arg: str) -> str:
     """
     spec_path = resolve_spec_path(arg)
     ns = "/".join(spec_path.relative_to(SOURCES_DIR).parts[:2])
-    from core import config
+    import config
     if config.FUNDAMENTAL_BACKEND == "dquant" and ns.startswith("cxl/"):
         ns = "cxl-dquant/" + ns[len("cxl/"):]
     return ns

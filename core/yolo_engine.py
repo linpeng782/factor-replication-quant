@@ -24,8 +24,8 @@ from loguru import logger
 
 warnings.filterwarnings("ignore")
 
-from core import config
-from core.config import RAW_FACTOR_BASE
+import config
+from config import RAW_FACTOR_BASE
 from core.spec_resolver import factor_name_from_arg, resolve_namespace_safe
 from core.spec_schema import validate_spec
 

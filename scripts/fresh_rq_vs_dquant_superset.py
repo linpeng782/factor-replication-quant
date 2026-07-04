@@ -26,7 +26,7 @@ import pandas as pd
 from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core import config  # noqa: E402
+import config  # noqa: E402
 from core.minute_data import load_adjusted_minute_window  # noqa: E402
 from core.operators.minute_intraday_aggregate import (  # noqa: E402
     _SUPERSET_COLUMNS,

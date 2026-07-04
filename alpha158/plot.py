@@ -26,7 +26,7 @@ from loguru import logger
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core import config
+import config
 from core.evaluation import _analyze_and_plot
 
 START, END = "2016-01-01", "2025-12-31"

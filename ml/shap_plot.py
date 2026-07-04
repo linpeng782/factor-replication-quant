@@ -27,7 +27,7 @@ matplotlib.use("Agg")  # 无显示环境
 import matplotlib.pyplot as plt  # noqa: E402
 import shap  # noqa: E402
 
-from core import config  # noqa: E402
+import config  # noqa: E402
 from ml.dataset import SPLIT, discover_features, load_can_buy_mask  # noqa: E402
 from ml.predict_live import _load_scaler  # noqa: E402
 

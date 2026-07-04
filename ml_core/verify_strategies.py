@@ -19,11 +19,11 @@ def main() -> None:
     # ── 1) ExcessReturn vs ml.labels.build_excess_label ──
     logger.info("=== 1) ExcessReturn vs ml ===")
     from ml.labels import build_excess_label, load_forward_return
-    from ml.dataset import load_pre_mask
+    from ml.dataset import load_can_buy_mask
     from ml_core.labels import ExcessReturn
 
     ret = load_forward_return(20)
-    pm = load_pre_mask().reindex(index=ret.index, columns=ret.columns)
+    pm = load_can_buy_mask().reindex(index=ret.index, columns=ret.columns)
     ml_excess = build_excess_label(ret, pm).to_numpy(dtype=np.float32)
     can_buy = pm.astype("boolean").fillna(False).to_numpy(dtype=bool)
     mine = ExcessReturn().build_panel(ret.to_numpy(np.float32), can_buy, can_buy)

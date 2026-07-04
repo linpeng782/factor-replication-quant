@@ -110,14 +110,14 @@ def paper_aligned_backtest():
     vwap = vwap.reindex(index=dates, columns=stocks)
     ret_m = vwap.loc[me].shift(-1) / vwap.loc[me] - 1
 
-    pre_mask, post_mask = load_filter_masks(
+    can_buy_mask, not_limit_up_mask = load_filter_masks(
         combo_mask_path=config.COMBO_MASK_PATH,
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH, reindex_columns=stocks)
-    raw_me = cmc_panel.loc[me].where(pre_mask.reindex(index=me, columns=stocks))
+    raw_me = cmc_panel.loc[me].where(can_buy_mask.reindex(index=me, columns=stocks))
 
     # neu：清洗 → 行业市值中性化（对标论文的正确口径）
-    cleaned = prepare_factor(cmc_panel, pre_mask.reindex(dates, columns=stocks),
-                             post_mask.reindex(dates, columns=stocks))
+    cleaned = prepare_factor(cmc_panel, can_buy_mask.reindex(dates, columns=stocks),
+                             not_limit_up_mask.reindex(dates, columns=stocks))
     cleaned.index.name = "datetime"   # 避免 neutralize groupby 'date' 歧义
     industry = pd.read_parquet(config.INDUSTRY_PANEL_ZX_PATH); industry.index = pd.to_datetime(industry.index)
     size = pd.read_parquet(config.MARKET_CAP_PANEL_PATH); size.index = pd.to_datetime(size.index)

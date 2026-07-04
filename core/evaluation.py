@@ -191,7 +191,7 @@ def evaluate_single_factor(
             logger.info("[1/4] 加载完整 mask & 清洗因子...")
             # 先加载完整 mask（不截断），确保清洗后的因子保留原始数据的完整时间范围
             # mask 路径在此注入（alpha_shared.load_filter_masks 自身不依赖任何 config）
-            pre_mask_full, post_mask_full = load_filter_masks(
+            can_buy_mask_full, not_limit_up_mask_full = load_filter_masks(
                 combo_mask_path=config.COMBO_MASK_PATH,
                 new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
                 reindex_columns=factor_df.columns,
@@ -200,13 +200,13 @@ def evaluate_single_factor(
             # 用 factor_df 的时间范围截取 mask，避免 mask 比 factor 长导致大量 NaN
             start_dt = factor_df.index.min()
             end_dt = factor_df.index.max()
-            pre_mask = pre_mask_full.loc[start_dt:end_dt]
-            post_mask = post_mask_full.loc[start_dt:end_dt]
+            can_buy_mask = can_buy_mask_full.loc[start_dt:end_dt]
+            not_limit_up_mask = not_limit_up_mask_full.loc[start_dt:end_dt]
 
             factor_clean = prepare_factor(
                 factor=factor_df,
-                pre_mask=pre_mask,
-                post_mask=post_mask,
+                can_buy_mask=can_buy_mask,
+                not_limit_up_mask=not_limit_up_mask,
                 mad_n=mad_n,
             )
 

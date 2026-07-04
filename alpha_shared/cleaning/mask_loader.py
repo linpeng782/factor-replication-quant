@@ -1,5 +1,5 @@
 """
-交易状态过滤：从外部 combo_mask + new_stock_mask 加载 pre/post 过滤掩码
+交易状态过滤：从外部 combo_mask + new_stock_mask 加载 can_buy / not_limit_up 掩码
 ============================================================
 
 数据源（由调用方传入路径，本模块不依赖任何项目 config）：
@@ -10,10 +10,10 @@
 
 实盘时序逻辑:
     T 日盘后:
-      1. 用 pre_mask 过滤 ST / 停牌 / 新股（这三类不参与因子计算，避免污染分布）
+      1. 用 can_buy_mask 过滤 ST / 停牌 / 新股（这三类不参与因子计算，避免污染分布）
       2. 在干净横截面上做 winsorize + zscore
     T+1 日开盘前:
-      3. 用 post_mask 过滤涨停（涨停股参与了截面标准化但不下单）
+      3. 用 not_limit_up_mask 过滤涨停（涨停股参与了截面标准化但不下单）
 
 shift(-1) 语义:
     combo_mask 中的 is_xxx / is_new_stock 都是 T 日"当天"状态。
@@ -90,20 +90,20 @@ def load_filter_masks(
     reindex_columns: Optional[pd.Index] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    加载 pre/post 过滤掩码（T 日信号 → T+1 日交易）。
+    加载交易状态过滤掩码（T 日信号 → T+1 日交易）。
 
-    pre_mask  (T, N) bool: True = 参与因子分布（标准化）
+    can_buy_mask  (T, N) bool: True = 参与因子分布（标准化）
         = NOT is_st AND NOT is_suspended AND NOT is_new_stock
         ST / 停牌 / 新股 这三类股票 T 日就已知不可交易，提前过滤避免污染分布。
 
-    post_mask (T, N) bool: True = 可执行下单
+    not_limit_up_mask (T, N) bool: True = 可执行下单
         = NOT is_limit_up
         涨停股是正常可观测股票，应参与截面标准化；但 T+1 日不能买入，故最终过滤。
 
-    最终可交易 = pre_mask & post_mask。
+    最终可交易 = can_buy_mask & not_limit_up_mask。
 
     所有 mask 都经过 shift(-1)：T 日的 mask = T+1 日的原始状态。
-    （reindex_columns 缺失股票 pre_mask 填 False，post_mask 填 True，
+    （reindex_columns 缺失股票 can_buy_mask 填 False，not_limit_up_mask 填 True，
       最终组合为 False，即缺失股票不可交易）
 
     参数:
@@ -113,7 +113,7 @@ def load_filter_masks(
         reindex_columns      : 目标股票池；传入后对齐列
 
     返回:
-        (pre_mask, post_mask): tuple[pd.DataFrame, pd.DataFrame]
+        (can_buy_mask, not_limit_up_mask): tuple[pd.DataFrame, pd.DataFrame]
     """
     combo_path = Path(combo_mask_path)
     new_stock_path = Path(new_stock_mask_path)
@@ -133,35 +133,35 @@ def load_filter_masks(
         index=is_st.index, columns=is_st.columns, fill_value=False
     )
 
-    # 3. 组合 pre_mask 和 post_mask
-    pre_mask_full = ~(is_st | is_suspended | is_new_stock)
-    post_mask_full = ~is_limit_up
+    # 3. 组合 can_buy_mask 和 not_limit_up_mask
+    can_buy_mask_full = ~(is_st | is_suspended | is_new_stock)
+    not_limit_up_mask_full = ~is_limit_up
 
     # 4. 时间区间 + 列对齐
-    #    pre_mask 缺失股票 fill_value=False（缺失视为不可交易）
-    #    post_mask 缺失股票 fill_value=True（仅控制涨停过滤；最终乘上 pre_mask 后仍为 False）
-    pre_mask = _slice_and_reindex(
-        pre_mask_full, start, end, reindex_columns, fill_value=False, name="pre"
+    #    can_buy_mask 缺失股票 fill_value=False（缺失视为不可交易）
+    #    not_limit_up_mask 缺失股票 fill_value=True（仅控制涨停过滤；最终乘上 can_buy_mask 后仍为 False）
+    can_buy_mask = _slice_and_reindex(
+        can_buy_mask_full, start, end, reindex_columns, fill_value=False, name="can_buy"
     )
-    post_mask = _slice_and_reindex(
-        post_mask_full, start, end, reindex_columns, fill_value=True, name="post"
+    not_limit_up_mask = _slice_and_reindex(
+        not_limit_up_mask_full, start, end, reindex_columns, fill_value=True, name="not_limit_up"
     )
 
     # 5. 日志统计
-    final = pre_mask & post_mask
+    final = can_buy_mask & not_limit_up_mask
     logger.info(
-        f"[filters] 加载完成: shape={pre_mask.shape}, "
-        f"区间={pre_mask.index.min().date()} ~ {pre_mask.index.max().date()}"
+        f"[filters] 加载完成: shape={can_buy_mask.shape}, "
+        f"区间={can_buy_mask.index.min().date()} ~ {can_buy_mask.index.max().date()}"
     )
     logger.info(
-        f"[filters] pre_mask 通过率={pre_mask.values.mean():.2%} "
+        f"[filters] can_buy_mask 通过率={can_buy_mask.values.mean():.2%} "
         f"(过滤 ST/停牌/新股)"
     )
     logger.info(
-        f"[filters] post_mask 通过率={post_mask.values.mean():.2%} (过滤涨停)"
+        f"[filters] not_limit_up_mask 通过率={not_limit_up_mask.values.mean():.2%} (过滤涨停)"
     )
     logger.info(
-        f"[filters] 最终可交易比例={final.values.mean():.2%} (pre_mask & post_mask)"
+        f"[filters] 最终可交易比例={final.values.mean():.2%} (can_buy_mask & not_limit_up_mask)"
     )
 
-    return pre_mask, post_mask
+    return can_buy_mask, not_limit_up_mask

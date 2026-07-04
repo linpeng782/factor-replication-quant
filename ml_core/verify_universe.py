@@ -8,7 +8,7 @@
 三步：
   1. 全集网格底座 build_universe() → 打印 can_buy / has_label 计数。
   2. 【strict】对齐 ml：在 ml 旧网格（标签 index/columns）上，
-     can_buy 应逐 bit == ml.dataset.load_pre_mask，has_label 应逐 bit == isfinite(标签)。
+     can_buy 应逐 bit == ml.dataset.load_can_buy_mask，has_label 应逐 bit == isfinite(标签)。
   3. 【descriptive】交叉核对 ml_ht 长表的 can_buy/has_label 计数（mask 源若不同则仅近似）。
 """
 from __future__ import annotations
@@ -29,15 +29,15 @@ def main() -> None:
 
     # ── 2) strict：对齐 ml（同 masks 源、ml 旧网格=标签 index/columns）──
     logger.info("=== 2) 对齐 ml（逐 bit）===")
-    from ml.dataset import load_pre_mask
+    from ml.dataset import load_can_buy_mask
     from ml.labels import load_forward_return
 
     ret = load_forward_return(20)
     u_ml = build_universe(dates=ret.index, stocks=ret.columns, horizon=20)
 
-    pm = load_pre_mask().reindex(index=ret.index, columns=ret.columns).fillna(False).to_numpy(dtype=bool)
+    pm = load_can_buy_mask().reindex(index=ret.index, columns=ret.columns).fillna(False).to_numpy(dtype=bool)
     hl = np.isfinite(ret.to_numpy(dtype=np.float32))
-    assert np.array_equal(u_ml.can_buy, pm), "❌ can_buy 与 ml pre_mask 不一致"
+    assert np.array_equal(u_ml.can_buy, pm), "❌ can_buy 与 ml can_buy_mask 不一致"
     assert np.array_equal(u_ml.has_label, hl), "❌ has_label 与 ml 不一致"
     logger.success(f"  ✅ ml 网格 {u_ml.shape}：can_buy / has_label 与 ml 逐 bit 一致")
 

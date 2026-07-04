@@ -4,14 +4,14 @@ ml_core.universe —— 管线底座层（模型无关、因子无关）
 只回答一件事："哪些 (日期, 股票) 格子是合法样本候选"。由三件相互独立的事拼出：
 
   universe   公共网格列空间 = dquant instruments 全集（每日全市场快照的并集）
-  can_buy    T+1 非 ST/停牌/新股 —— masks 派生（shift(-1) 语义），即旧 pre_mask
+  can_buy    T+1 非 ST/停牌/新股 —— masks 派生（shift(-1) 语义），即旧 can_buy_mask
   has_label  forward_return_Nd 非 NaN —— labels 派生（依赖 horizon）
 
 **不含 has_factor**：那是随因子集 + 模型完整性策略变化的动态量，归 features 层现算，
 不进底座（避免像 ml_ht 长表那样把动态量焊死进静态产物 → 加因子就过期）。
 
 口径与 ml/ml_ht 完全一致：
-  - can_buy 走 alpha_shared.cleaning.mask_loader（向量化、已 bit 级验证），等价旧 pre_mask；
+  - can_buy 走 alpha_shared.cleaning.mask_loader（向量化、已 bit 级验证），等价旧 can_buy_mask；
     不重写 ml_ht 那段 _next_day_map 循环。
   - 缺列/缺日期 reindex 一律补 False（不可买 / 无标签）→ 退市股、未上市段被自动滤掉。
   - 公共网格行=交易日历、列=全集股票；其余宽表（因子/标签）都 reindex 到此网格。
@@ -37,7 +37,7 @@ class Universe:
 
     dates: pd.DatetimeIndex   # 公共网格行空间（交易日历）
     stocks: pd.Index          # 公共网格列空间（dquant 全集）
-    can_buy: np.ndarray       # (T, N) bool —— T+1 可买入（旧 pre_mask）
+    can_buy: np.ndarray       # (T, N) bool —— T+1 可买入（旧 can_buy_mask）
     has_label: np.ndarray     # (T, N) bool —— 远期收益可计算
     horizon: int = 20         # has_label 对应的远期收益期数
 
@@ -97,13 +97,13 @@ def build_universe(
     if end is not None:
         dates = dates[dates <= pd.Timestamp(end)]
 
-    # can_buy = 旧 pre_mask = NOT(st|suspended|new)@T+1；缺格补 False（不可买）
-    pre_mask, _ = load_filter_masks(
+    # can_buy = 旧 can_buy_mask = NOT(st|suspended|new)@T+1；缺格补 False（不可买）
+    can_buy_mask, _ = load_filter_masks(
         combo_mask_path=config.COMBO_MASK_PATH,
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
     )
     can_buy = (
-        pre_mask.reindex(index=dates, columns=stocks).fillna(False).to_numpy(dtype=bool)
+        can_buy_mask.reindex(index=dates, columns=stocks).fillna(False).to_numpy(dtype=bool)
     )
 
     # has_label = forward_return_{horizon}d 非 NaN；缺格 → False（无标签）

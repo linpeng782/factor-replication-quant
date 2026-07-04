@@ -21,17 +21,17 @@ HORIZON = 20
 ret = load_forward_return(HORIZON)
 ret.index = pd.to_datetime(ret.index)
 
-pre_mask, _ = load_filter_masks(
+can_buy_mask, _ = load_filter_masks(
     combo_mask_path=config.COMBO_MASK_PATH,
     new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
 )
-pre_mask = pre_mask.reindex(index=ret.index, columns=ret.columns).fillna(False).to_numpy(dtype=bool)
+can_buy_mask = can_buy_mask.reindex(index=ret.index, columns=ret.columns).fillna(False).to_numpy(dtype=bool)
 ret_arr = ret.to_numpy(dtype=np.float32)
 dates = ret.index
 stocks = ret.columns
 
 # 截面 demean（对齐 ExcessReturn：仅 can_buy 计入市场均值）
-ret_for_mean = np.where(pre_mask, ret_arr, np.nan)
+ret_for_mean = np.where(can_buy_mask, ret_arr, np.nan)
 mkt = np.nanmean(ret_for_mean, axis=1, keepdims=True)  # (T,1)
 excess = ret_arr - mkt
 
@@ -50,7 +50,7 @@ for name, (lo, hi) in SEGMENTS.items():
     mask = (dates >= pd.Timestamp(lo)) & (dates <= pd.Timestamp(hi))
     seg_ret = ret_arr[mask]
     seg_excess = excess[mask]
-    seg_pm = pre_mask[mask]
+    seg_pm = can_buy_mask[mask]
 
     # 仅 can_buy 且非 NaN 的样本
     valid = seg_pm & np.isfinite(seg_ret)

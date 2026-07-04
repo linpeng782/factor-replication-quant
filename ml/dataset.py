@@ -3,10 +3,10 @@
 ============================================================
 流程（内存友好：先定样本索引，再逐因子填列，避免巨型中间体）：
   1. 读 label → 超额(demean) → 确定 train/valid/test 各段「样本索引」
-       样本 = 段内日期 × pre_mask(剔ST/停牌/新股) × label 非 NaN
+       样本 = 段内日期 × can_buy_mask(剔ST/停牌/新股) × label 非 NaN
   2. 预分配 (N样本, F因子) float32 矩阵；逐因子读 raw → inf→NaN → 在样本位置取值填列
   3. RobustZScaler 在【train 段】fit（特征一套 + 标签一套），三段 transform
-  4. post_mask(涨停) 记录于样本元信息，供预测/可买集合使用
+  4. not_limit_up_mask(涨停) 记录于样本元信息，供预测/可买集合使用
 返回 Split（X/y train/valid/test + 两个 scaler + 元信息）。
 
 冒烟测试旋钮：date_sample（每 k 个交易日取 1）、max_features（只取前 m 个因子）。
@@ -47,22 +47,22 @@ class Split:
     feature_cols: list[str]
     scaler_x: RobustZScoreScaler
     scaler_y: RobustZScoreScaler
-    # 元信息：每段样本的 (date, stock) 索引 + 涨停 post_mask（True=可买）
+    # 元信息：每段样本的 (date, stock) 索引 + 涨停 not_limit_up_mask（True=可买）
     meta: dict = field(default_factory=dict)
 
 
-def load_pre_mask() -> pd.DataFrame:
+def load_can_buy_mask() -> pd.DataFrame:
     """(T,N) 布尔：True=参与（NOT st/suspended/new，shift(-1) 语义）。
 
     使用 alpha_shared.cleaning.mask_loader，确保与单因子评估口径一致：
-      - pre_mask = NOT(is_st[t+1] OR is_suspended[t+1] OR is_new_stock[t+1])
+      - can_buy_mask = NOT(is_st[t+1] OR is_suspended[t+1] OR is_new_stock[t+1])
       - 涨停股不过滤（留给回测系统），因为 t+1 日涨停在 t 日盘后未知。
     """
-    pre_mask, _ = load_filter_masks(
+    can_buy_mask, _ = load_filter_masks(
         combo_mask_path=config.COMBO_MASK_PATH,
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
     )
-    return pre_mask
+    return can_buy_mask
 
 
 def _segment_dates(all_dates: pd.DatetimeIndex, date_sample: int | None) -> dict[str, pd.DatetimeIndex]:
@@ -107,14 +107,14 @@ def build_dataset(
 
     # --- 1) 标签(超额) + 网格 ---
     ret = load_forward_return(HORIZON)
-    pre_mask = load_pre_mask().reindex(index=ret.index, columns=ret.columns)
-    excess = build_excess_label(ret, pre_mask)
+    can_buy_mask = load_can_buy_mask().reindex(index=ret.index, columns=ret.columns)
+    excess = build_excess_label(ret, can_buy_mask)
     all_dates = ret.index
     all_stocks = ret.columns
     seg_dates = _segment_dates(all_dates, date_sample)
 
-    # --- 2) 各段样本索引：段内日期 × pre_mask × label非NaN ---
-    pm = pre_mask.fillna(False).to_numpy(dtype=bool)
+    # --- 2) 各段样本索引：段内日期 × can_buy_mask × label非NaN ---
+    pm = can_buy_mask.fillna(False).to_numpy(dtype=bool)
     lab = excess.to_numpy(dtype=np.float32)
     date_pos = {d: i for i, d in enumerate(all_dates)}
     seg_idx = {}  # seg -> (row_pos, col_pos)
@@ -159,6 +159,6 @@ def build_dataset(
         X_train=Xtr_z, y_train=ytr_z, X_valid=Xva_z, y_valid=yva_z,
         X_test=Xte_z, y_test=yte_z, feature_cols=feat_names,
         scaler_x=sx, scaler_y=sy,
-        meta={"excess_raw": excess, "ret": ret, "pre_mask": pre_mask,
+        meta={"excess_raw": excess, "ret": ret, "can_buy_mask": can_buy_mask,
               "seg_idx": seg_idx, "all_dates": all_dates, "all_stocks": all_stocks},
     )

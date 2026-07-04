@@ -1,11 +1,11 @@
 """
-实盘推理支路：用训好的 GBDT + 训练段 scaler_x，对「所有 pre_mask 位置」打分（不过 label）
+实盘推理支路：用训好的 GBDT + 训练段 scaler_x，对「所有 can_buy_mask 位置」打分（不过 label）
 ============================================================
 评估口径（ml.run 的 test IC，卡在 label 能兑现的最后一天 2026-03-31）完全不动。
 本支路只新增一条推理路径：raw 特征 → 同一把 scaler_x(train段拟合) → model.predict，
 把预测补到「最新因子日」（默认自动取所有入选因子共同覆盖的最末日），供实盘信号导出。
 
-与评估路径的唯一区别：样本只过 pre_mask（剔 ST/停牌/新股），**不过 label 非 NaN**，
+与评估路径的唯一区别：样本只过 can_buy_mask（剔 ST/停牌/新股），**不过 label 非 NaN**，
 故候选票池是评估面板的超集；两面板在共有 (date, stock) 格子上的 ŷ 必然逐元素相等。
 
 用法：
@@ -25,7 +25,7 @@ import pandas as pd
 from loguru import logger
 
 from core import config
-from ml.dataset import discover_features, load_factor_grid, load_pre_mask
+from ml.dataset import discover_features, load_factor_grid, load_can_buy_mask
 from ml.preprocess import RobustZScoreScaler
 
 # ── 覆盖校验（C）：防「面板末日新鲜但近日大面积 NaN」静默污染信号（见 superset 前沿锁死类 bug）──
@@ -66,14 +66,14 @@ def predict_live(run_id: str = "full_gbdt", start: str = "2022-01-01", end: str 
         end = min(ends)
         logger.info(f"[live] 未指定 --end，自动取入选因子共同覆盖末日 = {pd.Timestamp(end).date()}")
 
-    # 样本网格：pre_mask 位置（剔 ST/停牌/新股），不过 label
-    pre_mask = load_pre_mask()
-    dates = pre_mask.index[(pre_mask.index >= pd.Timestamp(start)) & (pre_mask.index <= pd.Timestamp(end))]
-    pre_mask = pre_mask.loc[dates]
-    stocks = pre_mask.columns
-    pm = pre_mask.fillna(False).to_numpy(dtype=bool)
+    # 样本网格：can_buy_mask 位置（剔 ST/停牌/新股），不过 label
+    can_buy_mask = load_can_buy_mask()
+    dates = can_buy_mask.index[(can_buy_mask.index >= pd.Timestamp(start)) & (can_buy_mask.index <= pd.Timestamp(end))]
+    can_buy_mask = can_buy_mask.loc[dates]
+    stocks = can_buy_mask.columns
+    pm = can_buy_mask.fillna(False).to_numpy(dtype=bool)
     rr, cc = np.where(pm)
-    logger.info(f"[live] {run_id}: {len(dates)} 天 × pre_mask → {len(rr):,} 样本 | 因子={len(sel)} | "
+    logger.info(f"[live] {run_id}: {len(dates)} 天 × can_buy_mask → {len(rr):,} 样本 | 因子={len(sel)} | "
                 f"区间 {dates.min().date()}~{dates.max().date()}")
 
     # 逐因子读 raw（共享组装 load_factor_grid，与训练 build_dataset 同口径，杜绝 train/serve skew）

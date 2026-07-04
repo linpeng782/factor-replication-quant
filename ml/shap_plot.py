@@ -28,17 +28,17 @@ import matplotlib.pyplot as plt  # noqa: E402
 import shap  # noqa: E402
 
 from core import config  # noqa: E402
-from ml.dataset import SPLIT, discover_features, load_pre_mask  # noqa: E402
+from ml.dataset import SPLIT, discover_features, load_can_buy_mask  # noqa: E402
 from ml.predict_live import _load_scaler  # noqa: E402
 
 REPO_ML = Path(__file__).resolve().parent  # 图落 repo 内 ml/
 
 
 def build_sample(sel: list[str], n_sample: int, date_step: int) -> pd.DataFrame:
-    """在 test 区间按 date_step 抽日 → 读入选因子 → pre_mask 取值 → 再随机抽 n_sample 行（原始未标准化）。"""
+    """在 test 区间按 date_step 抽日 → 读入选因子 → can_buy_mask 取值 → 再随机抽 n_sample 行（原始未标准化）。"""
     pathmap = discover_features()
     lo, hi = SPLIT["test"]
-    pre = load_pre_mask()
+    pre = load_can_buy_mask()
     dates = pre.index[(pre.index >= pd.Timestamp(lo)) & (pre.index <= pd.Timestamp(hi))][::date_step]
     pre = pre.loc[dates]; stocks = pre.columns
     pm = pre.fillna(False).to_numpy(dtype=bool)

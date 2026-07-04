@@ -7,7 +7,7 @@
 本脚本把 ŷ 宽表（date × code）逐日按预测分降序、取 top-N 写出。
 
 两种面板来源（--source）：
-  live（默认）：pred_panel_live.parquet —— 实盘口径，只过 pre_mask，覆盖到最新因子日；
+  live（默认）：pred_panel_live.parquet —— 实盘口径，只过 can_buy_mask，覆盖到最新因子日；
   eval        ：pred_panel.parquet      —— 评估口径，过 label，止于可兑现末日(2026-03-31)。
 两种布局（--layout）：
   daily（默认）：每日一份 YYYY-MM-DD.txt（回测实盘读这个）；

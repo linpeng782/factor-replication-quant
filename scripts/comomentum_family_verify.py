@@ -79,9 +79,9 @@ def main():
     vwap = vwap.reindex(index=dates, columns=stocks)
     ret_m = vwap.loc[me].shift(-1) / vwap.loc[me] - 1
 
-    pre_mask, _ = load_filter_masks(combo_mask_path=config.COMBO_MASK_PATH,
+    can_buy_mask, _ = load_filter_masks(combo_mask_path=config.COMBO_MASK_PATH,
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH, reindex_columns=stocks)
-    pre_me = pre_mask.reindex(index=me, columns=stocks)
+    pre_me = can_buy_mask.reindex(index=me, columns=stocks)
     ind_me = pd.read_parquet(config.INDUSTRY_PANEL_ZX_PATH); ind_me.index = pd.to_datetime(ind_me.index)
     ind_me = ind_me.reindex(index=me, columns=stocks)
     mc = pd.read_parquet(config.MARKET_CAP_PANEL_PATH); mc.index = pd.to_datetime(mc.index)

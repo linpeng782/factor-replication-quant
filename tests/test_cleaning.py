@@ -81,10 +81,10 @@ def test_prepare_factor_inf_handled():
          [3.0, 4.0, 5.0, 6.0, 7.0]],
         index=dates, columns=cols,
     )
-    pre_mask = pd.DataFrame(True, index=dates, columns=cols)
-    post_mask = pd.DataFrame(True, index=dates, columns=cols)
+    can_buy_mask = pd.DataFrame(True, index=dates, columns=cols)
+    not_limit_up_mask = pd.DataFrame(True, index=dates, columns=cols)
 
-    out = prepare_factor(factor, pre_mask, post_mask, mad_n=3.0)
+    out = prepare_factor(factor, can_buy_mask, not_limit_up_mask, mad_n=3.0)
     # 第一行 inf 已变 NaN（其他列做了正常 zscore，不受 inf 污染）
     finite_first_row = out.iloc[0].dropna()
     assert len(finite_first_row) == 4  # 5 列中除 inf 那列剩 4 列
@@ -98,17 +98,17 @@ def test_prepare_factor_mask_applied():
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
         index=dates, columns=cols,
     )
-    # B 列 pre_mask=False
-    pre_mask = pd.DataFrame(
+    # B 列 can_buy_mask=False
+    can_buy_mask = pd.DataFrame(
         [[True, False, True], [True, False, True]],
         index=dates, columns=cols,
     )
-    # C 列 post_mask=False
-    post_mask = pd.DataFrame(
+    # C 列 not_limit_up_mask=False
+    not_limit_up_mask = pd.DataFrame(
         [[True, True, False], [True, True, False]],
         index=dates, columns=cols,
     )
-    out = prepare_factor(factor, pre_mask, post_mask, mad_n=3.0)
-    # B 应整列 NaN（pre_mask False），C 应整列 NaN（post_mask False，post-标准化阶段 mask 掉）
+    out = prepare_factor(factor, can_buy_mask, not_limit_up_mask, mad_n=3.0)
+    # B 应整列 NaN（can_buy_mask False），C 应整列 NaN（not_limit_up_mask False，post-标准化阶段 mask 掉）
     assert out["B"].isna().all()
     assert out["C"].isna().all()

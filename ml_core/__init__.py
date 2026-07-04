@@ -7,8 +7,8 @@ ml_core —— ml/ 与 ml_ht/ 的共享管线内核（模型无关）
   2. 底座 vs 动态切分：
        - 底座（universe + can_buy + has_label）模型/因子均无关 → ml_core.universe
        - has_factor 随因子集 + 模型完整性策略变化 → 归 features 层动态现算（不物化）
-  3. 词汇统一：用 has_factor / can_buy / has_label 取代旧 pre_mask / post_mask
-       can_buy   ≡ 旧 pre_mask = NOT(st|suspended|new)@T+1   （模型/因子无关）
+  3. 词汇统一：用 has_factor / can_buy / has_label 取代旧 can_buy_mask / not_limit_up_mask
+       can_buy   ≡ 旧 can_buy_mask = NOT(st|suspended|new)@T+1   （模型/因子无关）
        has_label = forward_return_Nd 非 NaN                  （模型/因子无关）
        has_factor= 因子完整性（MLP=全非NaN / LGBM=trivially-true）（模型策略驱动）
   4. 公共网格（列空间）= dquant instruments 全集（每日全市场的并集，含退市股，

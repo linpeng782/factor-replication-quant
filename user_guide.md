@@ -6,19 +6,17 @@
 
 ## 一、管线总览
 
-仓库里有**两条独立的 ML 选股生产线**，外加一个被两条线共用的**管线内核**：
+ML 选股管线（统一在 `ml_core/`，配置驱动，LGBM / MLP 一套切换）：
 
 | 包 | 模型 | 角色 | 入口 |
 |----|------|------|------|
-| `ml_core/` | 模型无关内核（LGBM / MLP 一套配置切换） | **推荐主线**：配置驱动训练 + 推理 | 训练 `python -m ml_core.run`、推理 `python -m ml_core.predict` |
-| `ml/` | LightGBM（两阶段：筛选 → 合成） | 旧生产线，CLI 完整（参数走命令行） | `python -m ml.run` |
-| `ml_ht/` | PyTorch FCNN（华泰人工智能系列复现） | 旧生产线，CLI 完整 | `python ml_ht/run.py` |
+| `ml_core/` | 模型无关内核（LGBM / MLP 一套配置切换） | **唯一主线**：配置驱动训练 + 推理 | 训练 `python -m ml_core.run`、推理 `python -m ml_core.predict` |
 
-> `ml_core` 现已具备**正式的训练 / 推理 CLI 入口**（不再只是库 + 验证脚本）：训练改 `ml_core/train_config.yaml`、推理改 `ml_core/predict_config.yaml`，源码零改动。两条线（LGBM / MLP）只靠配置 `model:` 一行切换。下文 §三 即此主线手册。
+> 训练改 `ml_core/train_config.yaml`、推理改 `ml_core/predict_config.yaml`，源码零改动。两条线（LGBM / MLP）只靠配置 `model:` 一行切换。下文 §三 即主线手册。
 
-### ml_core 的分层（两条线为什么能共用）
+### ml_core 的分层
 
-`ml_core` 把两条线**逐字节等价**的环节上提，分两层：
+`ml_core` 分两层：
 
 - **模型无关内核**：`universe`（底座）/ `features`（因子组装）/ `splits`（时间切分）/ `metrics`（IC）/ `signals`（信号导出）/ `pipeline`（编排）
 - **可插拔策略**（模型相关，但用策略模式收敛，正交注入）：
@@ -38,9 +36,9 @@ source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
 
 **数据后端主开关 `DATA_BACKEND`**（默认 `dquant`，一处切换消费侧数据源）：
 
-- `DATA_BACKEND=dquant`（默认）→ 读 dquant 系数据，ml_ht 产物落 `ml/ht_dquant/`
-- `DATA_BACKEND=rq` → 回退旧 rq 基准，ml_ht 产物落 `ml/ht/`
-- 细粒度仍可单独覆盖：`ALPHA158_DATA_BACKEND` / `ML_HT_BACKEND`
+- `DATA_BACKEND=dquant`（默认）→ 读 dquant 系数据
+- `DATA_BACKEND=rq` → 回退旧 rq 基准
+- 细粒度仍可单独覆盖：`ALPHA158_DATA_BACKEND` / `FUNDAMENTAL_DATA_BACKEND` / `MASK_BACKEND`
 - ⚠️ `MINUTE_DATA_BACKEND` 故意**不随**主开关（它是分钟因子的「生产隔离轴」，会重定向整个 `RAW_FACTOR_BASE`）。**默认已是 `dquant`**，无需 export；仅复现旧 rq 基线时才 `export MINUTE_DATA_BACKEND=rq`。
 
 > 下面所有命令默认 `DATA_BACKEND=dquant`（不写即默认）。所有命令均为单行，可直接复制。
@@ -186,82 +184,7 @@ python -m ml_core.predict
 
 ---
 
-## 四、旧 CLI 生产线：LGBM（`ml/`，参数走命令行）
-
-> 与 §三 的 `ml_core` 等价（同数值口径），区别只在参数从命令行传而非 yaml。新工作建议直接用 §三。
-
-### 1) 训练：全因子 → SHAP/GBDT 选 top-k → 重训 → 样本外 IC
-
-```bash
-python -m ml.run --sources alpha158-dquant --select-method shap --top-k 64 --run-id my_run
-```
-
-常用参数：
-
-- `--sources`：raw 因子源（路径分量，如 `alpha158-dquant`、`kysec-dquant/paper_27_microstructure`），可多个
-- `--neu-sources`：从 `factors/neu` 读的中性化因子源
-- `--select-method gbdt|shap`：筛选方法（gbdt=自带增益，shap=TreeExplainer）
-- `--top-k 64`：选多少因子
-- `--num-threads`：并行多实验时降线程（经验 `128 // N`）
-- `--seed`：随机种子（默认 42）
-- `--date-sample 5` / `--max-features 60`：冒烟加速
-
-**产物**（`<DATA_ROOT>/ml/`）：
-
-- `models/<run_id>/model.txt`、`selected_features.json`（含 features + sources）、`scaler_x.parquet`（train 段拟合的尺子）
-- `predictions/<run_id>/pred_panel.parquet`（评估面板）、`ic_series.parquet`
-- `ml/logs/<run_id>_<时间戳>.log`（训练全记录 + 入选因子重要性）
-
-### 2) 实盘推理：补全到最新因子日的 ŷ 面板（只过 pre_mask，不过 label）
-
-```bash
-python -m ml.predict_live --run-id my_run --start 2022-01-01
-```
-
-- `--end` 留空 → 自动取入选因子「共同覆盖」的最末交易日
-- `--strict-coverage`：任一入选因子近 10 日覆盖骤降则中止（防陈旧面板污染信号）
-- **产物**：`predictions/<run_id>/pred_panel_live.parquet`
-
-### 3) 导出回测可读信号：每日排序选股名单 txt（append-only）
-
-```bash
-python -m ml.export_signal --run-id my_run --source live --top-n 500
-```
-
-- `--source live|eval`：用实盘面板 / 评估面板
-- `--layout daily|merged`：每日一份 `YYYY-MM-DD.txt` / 单个 `signal.txt`
-- 默认 **append-only**（只补新增交易日，冻结历史）；`--rebuild` 才全段重写
-- **产物**：`signals/<run_id>/YYYY-MM-DD.txt`（每行 `YYYY-MM-DD_股票代码`，行序=选股优先级）
-
----
-
-## 五、旧 CLI 生产线：MLP（`ml_ht/`，华泰 FCNN）
-
-### 训练（存 `model.pt` + 逐年 test 报告）
-
-```bash
-python ml_ht/run.py --train
-```
-
-### 预测 + 导出信号（因子组装走 ml_core 现算，已脱离预物化长表）
-
-```bash
-python ml_ht/run.py --predict --start-date 2026-04-01 --end-date 2026-06-26
-```
-
-- `--latest-n 1`：日频增量，只跑最后 N 个交易日（cron 语义）
-- `--train --predict`：训完立即预测
-- `--out-dir`：自定义信号目录（默认 `ml/ht_dquant/signals/`）
-
-**产物**（`<DATA_ROOT>/ml/ht_dquant/`，rq 端为 `ht/`）：
-
-- `models/stock_mlp.pt`（最新指针）、`models/feature_names.json`（固化训练列序，serving 必须同序）
-- `runs/<时间戳>/model.pt` + `test_report.json`
-- `signals/YYYY-MM-DD.txt`
-
----
-
-## 六、产物目录速查
+## 四、产物目录速查
 
 | 内容 | 路径（`<DATA_ROOT>` 默认 `/nfs/ofs-prediction/peterzhenglinpeng`） |
 |------|------|
@@ -269,39 +192,35 @@ python ml_ht/run.py --predict --start-date 2026-04-01 --end-date 2026-06-26
 | **ml_core 预测面板/IC** | `ml/predictions/<run_id>/`（`pred_panel.parquet`/`ic_series.parquet`） |
 | **ml_core 回测信号** | `ml/predictions/<run_id>/signals/YYYY-MM-DD.txt` |
 | **ml_core 训练/推理日志** | `<repo>/ml_core/logs/<run_id>_<时间戳>.log`、`predict_<run_id>_<时间戳>.log` |
-| LGBM(`ml/`) 模型/尺子 | `ml/models/<run_id>/` |
-| LGBM(`ml/`) 预测面板/IC | `ml/predictions/<run_id>/` |
-| LGBM(`ml/`)/MLP 信号 | `ml/signals/<run_id>/`、`ml/ht_dquant/signals/` |
-| LGBM(`ml/`) 训练日志 | `<repo>/ml/logs/<run_id>_<时间戳>.log` |
-| MLP(`ml_ht/`) 模型/run | `ml/ht_dquant/{models,runs}/` |
 
 ---
 
-## 七、复现示例：`a158_p27_shap_dquant_nocxl`
+## 五、复现示例：`a158_p27_shap_dquant_nocxl`
 
 该模型 = alpha158-dquant + 微结构因子（paper_27），SHAP 选 top-64，dquant 后端。原始训练日志见 `ml/logs/a158_p27_shap_dquant_nocxl_20260629_191634.log`（结果：64 因子，样本外 IC=+0.1184 ICIR=+1.182）。
 
 复现训练（LGBM 设了 `deterministic=True` + `seed=42` + `num_threads=64`，同数据应可复现）：
 
+改 `ml_core/train_config.yaml`：`run_id: a158_p27_shap_dquant_nocxl_repro`、`model: lgbm`、`sources: [alpha158-dquant, kysec-dquant/paper_27_microstructure]`、`select_method: shap`、`top_k: 64`，然后：
+
 ```bash
-python -m ml.run --sources alpha158-dquant kysec-dquant/paper_27_microstructure --select-method shap --top-k 64 --run-id a158_p27_shap_dquant_nocxl_repro
+python -m ml_core.run
 ```
 
-> 用了 `_repro` 后缀，避免覆盖原产物，便于和原模型逐项对照。出信号接 §四 的 `predict_live` → `export_signal`（`--run-id a158_p27_shap_dquant_nocxl_repro`），或用 §三 `ml_core.predict`（`model_run_id` 填该 run_id）。
+> 用了 `_repro` 后缀，避免覆盖原产物，便于和原模型逐项对照。出信号接 §三 `ml_core.predict`（`model_run_id` 填该 run_id）。
 
 ---
 
-## 八、零漂移验证脚本（`ml_core/verify_*`）
+## 六、零漂移验证脚本（`ml_core/verify_*`）
 
 重构等价性自检（不碰生产产物，走隔离命名空间）：
 
 ```bash
-python -m ml_core.verify_e2e_lgbm
-```
-```bash
 python -m ml_core.verify_train_smoke
 ```
+```bash
+python -m ml_core.verify_features
+```
 
-- `verify_e2e_lgbm`：同进程同数据下，`ml_core.predict_live` 与 `ml.predict_live` 逐元素比对 ŷ（应 max_abs=0）+ 比信号名单
 - `verify_train_smoke`：`run_train` 跑通 LGBM(回归) + MLP(二分类) 两条路径（date_sample 加速，只验方向）
-- 其余：`verify_features` / `verify_universe` / `verify_strategies`
+- `verify_features`：discover + has_factor 策略 + 抽样因子值逐元素对照

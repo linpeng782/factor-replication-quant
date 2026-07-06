@@ -215,30 +215,11 @@ ml_ht/               华泰人工智能系列复现（独立，不碰 ml/ 和 co
 
 ---
 
-## 10. ml_ht — 华泰人工智能系列复现
+## 10. ml_core — ML 选股管线内核
 
-> 独立目录，复现华泰证券研报中的 ML 选股模型。与现有 `ml/`（LightGBM）和 `core/`（因子评估）完全隔离。
-
-### 项目背景
-
-复现华泰 2017 年研报《人工智能选股之全连接神经网络》，使用 alpha158（158 个技术因子）作为特征，PyTorch FCNN 做二分类选股，输出日频信号对接外部回测系统。
-
-### 代码位置
-
-```
-ml_ht/                           # 全新目录，不碰 ml/ 和 core/
-  __init__.py
-  build_long_table.py            # alpha158 长表构建 + can_train 过滤
-  (后续: dataset.py, model.py, train.py, predict.py, export_signal.py, run.py)
-```
-
-### 数据位置
-
-```
-/nfs/ofs-prediction/peterzhenglinpeng/ml/ht/
-  alpha158_long.parquet          # 长表 (date, stock) × [158 因子 + mask 列]
-  build_stats.txt                # 过滤漏斗统计
-```
+> 统一的 ML 选股管线内核，配置驱动，LGBM / MLP 一套切换。
+> 训练 `python -m ml_core.run`（改 `ml_core/train_config.yaml`）、推理 `python -m ml_core.predict`（改 `ml_core/predict_config.yaml`）。
+> 详见 `user_guide.md`。
 
 ### can_train 过滤器设计
 
@@ -269,43 +250,3 @@ alpha158 因子存在 NaN 不一致性（111/158 个因子的 NaN 位置与 KMID
 - 中位数 NaN 因子数 = 4，75 分位 = 10
 - 提议：NaN ≤ 5 个的行用截面中位数填充（救回 ~70% 行），> 5 个的丢弃
 - 当前先用严格过滤推进，后续迭代时再加填充逻辑
-
-### 当前状态（2026-06-28）
-
-- ✅ 整条流水线已跑通：`dataset.py` / `model.py` / `train.py` / `predict.py` / `export_signal.py` / `run.py`
-- ✅ **rq 基线训练** run `20260627_123851`：val IC=0.1556 / ICIR=1.69，test IC=0.1322 / ICIR=1.19，L-S=0.0344（7 年逐年 IC 0.118~0.147）
-- ✅ **dquant 端训练** run `20260628_154915`：val IC=0.1556 / ICIR=1.71，test IC=0.1331 / ICIR=1.18，L-S=0.0341
-- ✅ **rq vs dquant 等价验证**：test 集样本量完全相同（6,451,168），IC Δ=+0.0009（噪声级），best val_loss 等价 4 位小数（0.6836 vs 0.6837）
-- ✅ 1511 个日频信号文件已导出（`ml/ht/signals/` 和 `ml/ht_dquant/signals/`，两端各自隔离）
-- ✅ 详见对照报告 `ml_ht/docs_rq_vs_dquant.md`
-
-#### 路径隔离（rq/dquant 后端开关）
-
-env `ML_HT_BACKEND=rq`（默认）→ `ml/ht/`；`ML_HT_BACKEND=dquant` → `ml/ht_dquant/`。
-**rq 产物一字不动**，dquant 走完全平级的独立目录。代码改动 4 文件：`core/config.py`（加开关）+ `build_long_table.py`+`dataset.py`+`run.py`（改用 `config.ML_HT_BASE`）。
-
-### 下一步（待决策）
-
-**阶段 B：模型调参 grid（可选,看用户决定是否进）**
-- lr grid {5e-4, 1e-3, 3e-3} × dropout {0.1, 0.3, 0.5} × hidden {(80,20),(120,30),(60,15)} × weight_decay {1e-5, 1e-4}
-- ~16 个组合 × 5 分钟 = 80 分钟，默认在 dquant 端跑，rq 基线作对照
-- 目标：当前 test overall IC=0.133、L-S=0.034，研报给出 IC~0.10 水平，是否进一步上调
-
-**阶段 C：因子筛选/SHAP 探索**
-- 参考 `ml/select.py` 同样的 SHAP + GBDT pipeline，按 importanceselect top-N 因子再训
-- 或保留全 158 不筛（MLP 本身有能力分配权重）
-
-### 关键设计决策（已确认）
-
-| 决策 | 选择 | 原因 |
-|------|------|------|
-| 因子集 | alpha158（158 个技术因子） | 用户选择 |
-| 框架 | PyTorch | 用户选择 |
-| 代码结构 | 独立 `ml_ht/` 目录 | 不污染现有 ml/ 和 core/ |
-| 标签 | 二分类（> 截面中位数 → 1） | 简化实现 |
-| 时间切分 | 2010-2017 / 2018-2019 / 2020-2025 | embargo 2017-12（21天 > 20天 horizon） |
-| 验证切分 | 时间切分 + embargo | 业界标准，防泄露 |
-| 信号频率 | 日频 | 对接外部日频回测系统 |
-| 涨停处理 | 不过滤 | 因子和标签均可观测 |
-| has_factor | all（158 因子全部非 NaN） | MLP 需要完整输入 |
-| 后端隔离 | `ML_HT_BACKEND` env 切换 `ht/`↔`ht_dquant/` | rq 基线保护 |

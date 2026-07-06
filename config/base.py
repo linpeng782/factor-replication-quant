@@ -24,7 +24,6 @@ from pathlib import Path
 __all__ = [
     "DATA_BACKEND",
     "ALPHA158_BACKEND",
-    "ML_HT_BACKEND",
     "FUNDAMENTAL_BACKEND",
     "MASK_BACKEND",
     "MINUTE_BACKEND",
@@ -51,8 +50,6 @@ DATA_BACKEND = os.environ.get("DATA_BACKEND", "dquant")
 # —— 消费轴子开关（缺省继承主开关；显式 env 覆盖，勿再各自读 os.environ）——
 # alpha158 原料后端：rq → rq OHLCV + rq 复权因子；dquant → jy/dquant OHLCV + jy 复权（已投产，默认）
 ALPHA158_BACKEND = os.environ.get("ALPHA158_DATA_BACKEND", DATA_BACKEND)
-# ml_ht 训练流水线后端：rq → 读 alpha158/ 产 ht/；dquant → 读 alpha158-dquant/ 产 ht_dquant/（默认）
-ML_HT_BACKEND = os.environ.get("ML_HT_BACKEND", DATA_BACKEND)
 # 基本面后端：rq → fundamentals/ + rqdatac 行业/universe；dquant → fundamentals-dquant/ + 本地行业(零 rqdatac)
 FUNDAMENTAL_BACKEND = os.environ.get("FUNDAMENTAL_DATA_BACKEND", DATA_BACKEND)
 # mask 后端：rq → market-data/masks/（历史基准）；dquant → backtest_engine/cache_dir_dquant/（日更）

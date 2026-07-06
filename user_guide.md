@@ -41,7 +41,7 @@ source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
 - `DATA_BACKEND=dquant`（默认）→ 读 dquant 系数据，ml_ht 产物落 `ml/ht_dquant/`
 - `DATA_BACKEND=rq` → 回退旧 rq 基准，ml_ht 产物落 `ml/ht/`
 - 细粒度仍可单独覆盖：`ALPHA158_DATA_BACKEND` / `ML_HT_BACKEND`
-- ⚠️ `MINUTE_DATA_BACKEND` 故意**不随**主开关（它是分钟因子的「生产隔离轴」，会重定向整个 `RAW_FACTOR_BASE`），分钟因子生产需单独 `export MINUTE_DATA_BACKEND=dquant`。
+- ⚠️ `MINUTE_DATA_BACKEND` 故意**不随**主开关（它是分钟因子的「生产隔离轴」，会重定向整个 `RAW_FACTOR_BASE`）。**默认已是 `dquant`**，无需 export；仅复现旧 rq 基线时才 `export MINUTE_DATA_BACKEND=rq`。
 
 > 下面所有命令默认 `DATA_BACKEND=dquant`（不写即默认）。所有命令均为单行，可直接复制。
 
@@ -65,7 +65,7 @@ ml_core 通过 `discover_features(sources=[...])` 从 `factors/raw/<source>/` �
 
 > ⚠️ **两套 dquant 目录别混淆**：
 > - **消费轴** `factors/raw/<source>-dquant/`（上面这些）—— ml_core 训练/推理读这里，由 `DATA_BACKEND=dquant` 驱动。
-> - **生产隔离轴** `factors/raw-dquant/<source>/`（分钟因子生产落这里）—— 由 `MINUTE_DATA_BACKEND=dquant` 驱动，与消费轴独立，ml_core 默认不读。
+> - **生产隔离轴** `factors/raw-dquant/<source>/`（分钟因子生产落这里）—— 由 `MINUTE_DATA_BACKEND` 驱动（**默认 dquant**，无需 export），与消费轴独立，ml_core 默认不读。
 
 ### 日更：把因子更新到最新（推理前置）
 
@@ -89,13 +89,13 @@ PYTHONPATH=. python data_fetching/minute_ohlcv_dquant.py --workers 64
 PYTHONPATH=. python alpha158/daily_update.py
 ```
 
-**③ p27 微结构因子（分钟线，必须 `MINUTE_DATA_BACKEND=dquant`；先刷 superset 再批量 L3）**
+**③ p27 微结构因子（分钟线，默认 `MINUTE_DATA_BACKEND=dquant`，无需 export；先刷 superset 再批量 L3）**
 
 ```bash
-MINUTE_DATA_BACKEND=dquant PYTHONPATH=. python pipeline/refresh_supersets.py --cache-key prv_v3
+PYTHONPATH=. python pipeline/refresh_supersets.py --cache-key prv_v3
 ```
 ```bash
-MINUTE_DATA_BACKEND=dquant PYTHONPATH=. python pipeline/refresh_factors_batch.py --factor-glob 'sources/kysec/paper_27_microstructure/specs/*'
+PYTHONPATH=. python pipeline/refresh_factors_batch.py --factor-glob 'sources/kysec/paper_27_microstructure/specs/*'
 ```
 
 **④ 验证末日（两套都应 = 最新交易日）**
@@ -104,9 +104,9 @@ MINUTE_DATA_BACKEND=dquant PYTHONPATH=. python pipeline/refresh_factors_batch.py
 PYTHONPATH=. python -c "import pandas as pd; from core import config as c; f=lambda p: pd.to_datetime(pd.read_parquet(p, columns=[]).index).max().date(); print('a158', f(c.ALPHA158_RAW_BASE/'rolling/MAX60.parquet')); print('p27', f(c.RAW_FACTOR_BASE/'kysec-dquant/paper_27_microstructure/peak_minute_count.parquet'))"
 ```
 
-> ⚠️ 后端要点：alpha158 认 `ALPHA158_DATA_BACKEND`（默认 dquant）→ 写 `alpha158-dquant`；p27 分钟因子认 `MINUTE_DATA_BACKEND`，**必须显式 `=dquant`**，否则写到 rq 目录、模型读不到。两者是独立轴。
+> ⚠️ 后端要点：alpha158 认 `ALPHA158_DATA_BACKEND`（默认 dquant）→ 写 `alpha158-dquant`；p27 分钟因子认 `MINUTE_DATA_BACKEND`，**默认已是 dquant**，无需显式 export，产物落 `factors/*-dquant/` + `output-dquant/`，模型可直接读到。仅复现旧 rq 基线时才 `export MINUTE_DATA_BACKEND=rq`。两者是独立轴。
 > 细节与全链路（掩码/信号/回测）见 `docs/server_daily_production.md`；alpha158 线总览见 `alpha158/README.md`。
-> `pipeline/daily_update.sh` 是 **rq 分钟线**编排器；dquant 分钟/p27 目前按上面手动跑（带 `MINUTE_DATA_BACKEND=dquant`）。
+> `pipeline/daily_update.sh` 是日更编排器（不设 `MINUTE_DATA_BACKEND`，跟随默认）；**默认翻转后它现在也产 dquant 分钟/p27**。要用它跑旧 rq 基线，需先 `export MINUTE_DATA_BACKEND=rq` 再执行。
 
 ---
 

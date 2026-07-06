@@ -1,41 +1,33 @@
 """
-[第 2 层｜因子生产] 因子产线的原料输入 + 三阶段产物 + 评估输出。
+[第 2 层｜因子原料] 因子产线的输入数据：日频行情 / 复权因子 / 基本面 PIT / 分钟数据。
 
-分两块：
-  (A) 原料：逐股原始日频行情 / 复权因子 / 基本面 PIT / 分钟数据（factor 计算的输入）
-  (B) 产物：raw→cleaned→neu 三阶段基址 + alpha158 + OUTPUT_DIR（factor 计算的产出）
+数据流：原料（本文件）→ 算子图算因子 → 产物（factors_output.py）。
+按数据流顺序排列：日频 → 基本面 → 分钟。
 
-⚠️【生产隔离轴】MINUTE=dquant 时，三阶段产物 + output 整体重定向到并行 -dquant 目录
-   （隔离，不污染 rq 基线）。见 base.py 开关说明。
+后端归属：
+  日频行情   随 ALPHA158_BACKEND（消费轴）
+  基本面     随 FUNDAMENTAL_BACKEND（消费轴）
+  分钟       随 MINUTE_BACKEND（生产隔离轴）
 """
 
 from .base import (
     _DATA_ROOT,
     _MKT,
-    _FACTORS,
-    _REPO_ROOT,
     ALPHA158_BACKEND,
     FUNDAMENTAL_BACKEND,
     _IS_MINUTE_DQUANT,
 )
 
 __all__ = [
-    # (B) 因子三阶段产物 + 评估输出
-    "RAW_FACTOR_BASE",
-    "CLEANED_FACTOR_BASE",
-    "NEU_FACTOR_BASE",
-    "ALPHA158_RAW_BASE",
-    "RET20_PANEL_PATH",
-    "OUTPUT_DIR",
-    # (A) 原料：逐股日频行情
+    # 日频行情原料
     "RAW_OHLCV_DIR",
     "EX_FACTORS_DIR",
     "INSTRUMENTS_INFO_PATH",
     "TRADING_CALENDAR_PATH",
-    # (A) 原料：基本面
+    # 基本面原料
     "FUNDAMENTALS_DIR",
     "INDUSTRY_PANEL_ZX_DQUANT_PATH",
-    # (A) 原料：分钟
+    # 分钟原料
     "MINUTE_DATA_DIR",
     "MINUTE_RAW_DIR",
     "MINUTE_EX_FACTORS_DIR",
@@ -43,32 +35,7 @@ __all__ = [
 ]
 
 # ============================================================
-# (B) 因子三阶段产物 <stage>/<source>/<group>/ + 评估输出
-# ============================================================
-# 按阶段(raw/cleaned/neu) × 来源(cxl/kysec/founder/...) × 分组分桶；
-# namespace=<source>/<group> 由 spec 路径推导（见 spec_resolver.resolve_namespace）。
-# ⚠️【生产隔离轴】MINUTE=dquant 时整体重定向到并行 -dquant 目录。
-RAW_FACTOR_BASE = _FACTORS / ("raw-dquant" if _IS_MINUTE_DQUANT else "raw")
-CLEANED_FACTOR_BASE = _FACTORS / ("cleaned-dquant" if _IS_MINUTE_DQUANT else "cleaned")
-NEU_FACTOR_BASE = _FACTORS / ("neu-dquant" if _IS_MINUTE_DQUANT else "neu")
-
-# alpha158 raw 产物（消费轴，随 ALPHA158_BACKEND）：
-#   dquant → factors/raw-dquant/alpha158-dquant/（与分钟轴产物同住 raw-dquant/，物理隔离 rq 基线）
-#   rq     → factors/raw/alpha158/
-ALPHA158_RAW_BASE = (
-    _FACTORS / "raw-dquant" / "alpha158-dquant" if ALPHA158_BACKEND == "dquant"
-    else _FACTORS / "raw" / "alpha158"
-)
-# 辅助面板（跨因子共享，不属三阶段产物，存 helpers/ 下）
-# Ret20：20日后复权收益面板（宽表），APM 截面回归去动量用（scripts/build_ret20_panel.py 产出）
-RET20_PANEL_PATH = _FACTORS / "helpers" / "ret20_panel.parquet"
-
-# 项目内输出目录（相对项目代码，不受 _DATA_ROOT 影响）：报告、图片等评估输出。
-# ⚠️【生产隔离轴】MINUTE=dquant 时改用 output-dquant/
-OUTPUT_DIR = _REPO_ROOT / ("output-dquant" if _IS_MINUTE_DQUANT else "output")
-
-# ============================================================
-# (A) 原料：逐股原始日频行情（alpha158 生产原料 + 复权因子，消费轴随 ALPHA158_BACKEND）
+# 日频行情原料（alpha158 生产原料 + 复权因子，消费轴随 ALPHA158_BACKEND）
 # ============================================================
 # 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权读时实时算（core.producers.alpha158.loader）。
 # 由 data_fetching/ 产出/日更。daily/ 与 minute/ 对称。
@@ -84,7 +51,7 @@ INSTRUMENTS_INFO_PATH = _RAW_OHLCV_ROOT / "instruments_info.parquet"   # 股票�
 TRADING_CALENDAR_PATH = _RAW_OHLCV_ROOT / "trading_calendar.parquet"   # 交易日历（待补）
 
 # ============================================================
-# (A) 原料：基本面 PIT 基础数据（cxl 生产原料，消费轴随 FUNDAMENTAL_BACKEND）
+# 基本面 PIT 基础数据（cxl 生产原料，消费轴随 FUNDAMENTAL_BACKEND）
 # ============================================================
 # get_factor 点位字段（mrq/ttm/估值）每日快照，按字段 WIDE(date×stock)；
 # 每日 append 当天快照、历史永不改写 = as-first-reported 冻结 PIT（防漂移/前视）。
@@ -98,7 +65,7 @@ FUNDAMENTALS_DIR = _MKT / ("fundamentals-dquant" if FUNDAMENTAL_BACKEND == "dqua
 INDUSTRY_PANEL_ZX_DQUANT_PATH = _MKT / "industry-dquant/industry_panel_zx_dquant.parquet"
 
 # ============================================================
-# (A) 原料：分钟级因子数据（生产隔离轴，随 MINUTE_BACKEND）
+# 分钟级因子数据（生产隔离轴，随 MINUTE_BACKEND）
 # ============================================================
 # 后复权 per-stock 1m parquet 目录（旧版，烤死复权；迁移期保留作对齐基准）
 MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"

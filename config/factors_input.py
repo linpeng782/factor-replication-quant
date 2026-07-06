@@ -36,7 +36,7 @@ __all__ = [
 # ============================================================
 # 日频行情原料（alpha158 生产原料 + 复权因子，消费轴随 ALPHA158_BACKEND）
 # ============================================================
-# 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权读时实时算（core.producers.alpha158.loader）。
+# 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权读时实时算（core.data.adjusted_panels）。
 # 由 data_fetching/ 产出/日更。daily/ 与 minute/ 对称。
 if ALPHA158_BACKEND == "dquant":
     _RAW_OHLCV_ROOT = _MKT / "daily-dquant"

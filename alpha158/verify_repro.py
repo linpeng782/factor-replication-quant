@@ -1,11 +1,11 @@
 """
 Alpha158 抽取复现校验
 ============================================================
-目的：证明从 my-alpha-engine 抽到 core/producers/alpha158/ 的计算逻辑，
+目的：证明从 my-alpha-engine 抽到 alpha158/engine/ 的计算逻辑，
       用本地 raw meta 重算后与现有 market-data/alpha158/*.parquet 数值一致。
 
 做法（不写盘）：
-  1. core.producers.alpha158.loader 加载后复权宽表面板（含 vwap）
+  1. core.data.adjusted_panels 加载后复权宽表面板（含 vwap）
   2. Alpha158Panel.compute_all 重算指定因子（默认一组覆盖各家族的代表）
   3. 对每个因子 reindex 到现有面板的 (date×stock) 网格，比对：
      max/mean 绝对差、相关系数、float32 容差内匹配率
@@ -28,8 +28,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import config
-from core.producers.alpha158 import Alpha158Panel
-from core.producers.alpha158 import adjusted_panels
+from alpha158.engine import Alpha158Panel
+from core.data import adjusted_panels
 
 # ── 参数区 ──
 EXISTING_DIR = config._MKT / "alpha158"          # 现有成品面板目录

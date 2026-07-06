@@ -54,7 +54,7 @@ def weighted_rank_sum(sort_key: np.ndarray, ind_ret: np.ndarray, n: int, largest
 
 def build_cmc_panel(start=START, end=END):
     """全市场逐日 CMC 面板 (T×N) + close（回测算月度收益用）。算法调算子 compute_factor。"""
-    from core.producers.alpha158.adjusted_panels import load_adjusted_panels
+    from core.data.adjusted_panels import load_adjusted_panels
     logger.info(f"加载后复权面板 {start}~{end} …")
     p = load_adjusted_panels(start=start, end=end, fields=("close", "volume"))
     close, volume = p["close"], p["volume"]

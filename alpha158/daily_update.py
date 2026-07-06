@@ -34,8 +34,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import config
-from core.producers.alpha158 import Alpha158Panel
-from core.producers.alpha158.groups import factor_group
+from alpha158.engine import Alpha158Panel
+from alpha158.engine.groups import factor_group
 
 RAW_DIR = config.RAW_OHLCV_DIR
 EX_DIR = config.EX_FACTORS_DIR

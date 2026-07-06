@@ -52,7 +52,7 @@ def rankic(fac_me, ret_me):
 
 
 def main():
-    from core.producers.alpha158.adjusted_panels import load_adjusted_panels
+    from core.data.adjusted_panels import load_adjusted_panels
     logger.info(f"加载后复权面板 {START}~{END} …")
     p = load_adjusted_panels(start=START, end=END, fields=("close", "volume"))
     close, volume = p["close"], p["volume"]

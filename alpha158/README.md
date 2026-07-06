@@ -2,7 +2,7 @@
 
 > alpha158 = 158 个量价技术因子（9 K线 + 4 价格 + 23×5 rolling + 6×5 量）。
 > 本目录收敛 alpha158 的**全部操作脚本**（业务全量线 + 增量日更线 + 对账 + 出图）。
-> **算子引擎**因被 core 算子共享，留在 `core/producers/alpha158/`（见下）。
+> **算子引擎**在 `alpha158/engine/`（本目录子目录，自包含）。
 
 ---
 
@@ -16,9 +16,9 @@
 | `verify_repro.py` | **复现校验**：重算 vs 参考面板逐格比（max_rel / 相关 / 容差匹配率） | 改动后 |
 | `plot.py` | **评估出图**：直读 cleaned/neu → IC/分层/单调 + 2×2 报告 PNG | 按需 |
 
-引擎（**不在这**，勿找）：`core/producers/alpha158/`
-- `factors.py` 158 因子定义 · `groups.py` 分组(kline/price/rolling/volume) ·
-  `adjusted_panels.py` 读时后复权（**被 `core/operators/industry_co_momentum.py` 共享**，故留在 core）· `panel_operators.py` 宽表算子。
+引擎：`alpha158/engine/`
+- `factors.py` 158 因子定义 · `groups.py` 分组(kline/price/rolling/volume) · `panel_operators.py` 宽表算子。
+- 后复权加载：`core/data/adjusted_panels.py`（通用基础设施，非 alpha158 专属，被 `core/operators/industry_co_momentum.py` 共享）。
 
 ---
 
@@ -28,9 +28,9 @@
 数据线（data_fetching/，拉原始 OHLCV + 复权因子）
    dquant: raw_ohlcv_dquant.py + ex_factors_jy.py → market-data/daily_dquant/{stock-ohlcv-dquant, stock-ex-factors-jy}
    rq    : raw_ohlcv.py       + ex_factors.py     → market-data/daily/{stock-ohlcv, stock-ex-factors}
-        │  读时后复权（价×ffill(cum)，量÷cum）：core/producers/alpha158/adjusted_panels.py
+        │  读时后复权（价×ffill(cum)，量÷cum）：core/data/adjusted_panels.py
         ▼
-引擎 core/producers/alpha158/  →  build.py（全量）/ daily_update.py（增量）
+引擎 alpha158/engine/  →  build.py（全量）/ daily_update.py（增量）
         ▼
 因子面板 config.ALPHA158_RAW_BASE/<group>/<factor>.parquet
    dquant → factors/raw/alpha158-dquant/     rq → factors/raw/alpha158/

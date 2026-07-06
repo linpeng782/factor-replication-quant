@@ -4,7 +4,7 @@ Alpha158 全量生产：读后复权面板 → 算 158 因子 → 落 factors/ra
 内存安全：alpha158 所有算子逐列(逐股)独立(无横截面算子)，故按股票分块计算 = 与整体等价。
   外层遍历因子、内层按股票块算再拼列、直接写最终面板 → 峰值内存 ~5GB（16GB Mac 安全），无 temp。
 
-group ∈ {kline, price, rolling, volume}（见 core.producers.alpha158.groups）。落盘 float32。
+group ∈ {kline, price, rolling, volume}（见 alpha158.engine.groups）。落盘 float32。
 
 用法：python alpha158/build.py            # 增量：只算缺的
       python alpha158/build.py --full     # 全量重算覆盖
@@ -26,8 +26,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import config
-from core.producers.alpha158 import Alpha158Panel, adjusted_panels
-from core.producers.alpha158.groups import factor_group
+from alpha158.engine import Alpha158Panel
+from alpha158.engine.groups import factor_group
+from core.data import adjusted_panels
 
 WINDOWS = [5, 10, 20, 30, 60]
 CHUNK_COLS = 1200                                          # 每块股票数（控内存）

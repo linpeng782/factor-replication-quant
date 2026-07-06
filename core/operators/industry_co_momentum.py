@@ -23,7 +23,7 @@ import pandas as pd
 from loguru import logger
 
 import config
-from core.producers.alpha158.adjusted_panels import load_adjusted_panels
+from core.data.adjusted_panels import load_adjusted_panels
 
 from . import Context, OpRegistry
 

@@ -52,10 +52,11 @@ RAW_FACTOR_BASE = _FACTORS / ("raw-dquant" if _IS_MINUTE_DQUANT else "raw")
 CLEANED_FACTOR_BASE = _FACTORS / ("cleaned-dquant" if _IS_MINUTE_DQUANT else "cleaned")
 NEU_FACTOR_BASE = _FACTORS / ("neu-dquant" if _IS_MINUTE_DQUANT else "neu")
 
-# alpha158 raw 产物（消费轴，随 ALPHA158_BACKEND）：dquant 期写并行目录 alpha158-dquant/，
-# 避免覆盖 rq 基准（验毕迁移后可改回 alpha158/）
+# alpha158 raw 产物（消费轴，随 ALPHA158_BACKEND）：
+#   dquant → factors/raw-dquant/alpha158-dquant/（与分钟轴产物同住 raw-dquant/，物理隔离 rq 基线）
+#   rq     → factors/raw/alpha158/
 ALPHA158_RAW_BASE = (
-    _FACTORS / "raw" / "alpha158-dquant" if ALPHA158_BACKEND == "dquant"
+    _FACTORS / "raw-dquant" / "alpha158-dquant" if ALPHA158_BACKEND == "dquant"
     else _FACTORS / "raw" / "alpha158"
 )
 # 辅助面板（跨因子共享，不属三阶段产物，存 helpers/ 下）

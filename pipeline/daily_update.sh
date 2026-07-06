@@ -71,7 +71,7 @@ step "7c/8 alpha158 L3 增量（无 spec，独立脚本；读本地 raw_ohlcv，
 # ⚠️ alpha158 没有 spec，glob 扫不到，必须独立调用，否则 alpha158 永不更新、下游信号被其旧日期卡死。
 (PYTHONPATH=. python alpha158/daily_update.py) || echo "  ⚠️ alpha158 失败（非阻塞）"
 
-step "8/8 labels 回填"
-(cd "$REPO" && PYTHONPATH=. python ml/labels.py) || echo "  ⚠️ labels 跳过（增量回填待补，非阻塞）"
+step "8/8 vwap_panel + labels 增量（读本地 raw_ohlcv，零 API，失败仅告警）"
+(PYTHONPATH=. python data_fetching/update_labels.py) || echo "  ⚠️ labels 增量失败（非阻塞）"
 
 echo ""; echo "✅ daily_update 完成"

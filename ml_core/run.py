@@ -168,7 +168,56 @@ def _run(c: dict) -> None:
     pred_dir.mkdir(parents=True, exist_ok=True)
     pred_panel.to_parquet(pred_dir / "pred_panel.parquet")
     ic.to_frame("ic").to_parquet(pred_dir / "ic_series.parquet")
-    logger.success(f"=== 完成。模型={model_dir} | 预测={pred_dir} ===")
+    logger.success(f"=== 训练完成。模型={model_dir} | 预测={pred_dir} ===")
+
+    # ── 训练后自动推理 + 导信号（对齐 run_rolling.py 的一步到位）──
+    pc = c.get("predict") or {}
+    if pc.get("after_train"):
+        _predict_after_train(c, res, model_dir, pred_dir, run_id)
+
+
+def _predict_after_train(
+    c: dict, res: dict, model_dir: Path, pred_dir: Path, run_id: str
+) -> None:
+    """训完 reload 磁盘模型 → predict_live → export_panel（与 run_rolling.py 同口径）。"""
+    from ml_core.pipeline import predict_live as _predict_live
+    from ml_core.signals import export_panel
+
+    pc = c["predict"]
+    start = pc.get("start")
+    end = pc.get("end")
+    top_n = pc.get("top_n", 500)
+    rebuild = pc.get("rebuild", True)
+
+    logger.info(f"[run {run_id}] === 训练后推理：reload 模型 → predict_live → 导信号 ===")
+
+    # reload 磁盘模型（确保和实盘一致，不直接用内存里的 adapter）
+    model = c["model"]
+    if model == "lgbm":
+        from ml_core.model import LGBMAdapter
+        from ml_core.scaling import WholeSetRobustZ
+        adapter = LGBMAdapter().load(model_dir)
+        sx = WholeSetRobustZ.load(model_dir / "scaler_x.parquet", res["feature_names"])
+    else:
+        from ml_core.model import MLPAdapter
+        from ml_core.scaling import DailyCrossSectionMAD
+        adapter = MLPAdapter().load(model_dir)
+        sx = DailyCrossSectionMAD()
+
+    cfg = PipelineConfig(
+        sources=c["sources"],
+        neu_sources=c.get("neu_sources"),
+        has_factor_policy=HasFactorPolicy.NONE if c["model"] == "lgbm" else HasFactorPolicy.ALL,
+        horizon=c["horizon"],
+        feature_order=res["feature_names"],
+        exclude_features=c.get("exclude_features"),
+    )
+    panel = _predict_live(model_dir, adapter, sx, cfg, start=start, end=end)
+    panel.to_parquet(pred_dir / "pred_panel_live.parquet")
+    logger.info(f"[run {run_id}] 推理面板 → {pred_dir / 'pred_panel_live.parquet'}")
+
+    export_panel(panel, pred_dir / "signals", top_n=top_n, rebuild=rebuild)
+    logger.success(f"[run {run_id}] === 信号导出完成 → {pred_dir / 'signals'} ===")
 
 
 def main() -> None:

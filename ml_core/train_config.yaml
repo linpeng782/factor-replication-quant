@@ -1,9 +1,10 @@
 # ml_core 实验配置 —— 只改这个文件，然后 python -m ml_core.run
 # ============================================================
 # 重活全在 ml_core.pipeline.run_train；run.py 读本文件 → 配模型/选策略 → 训练 → 落盘 → 报 IC。
+# 训完可选自动推理+导信号（predict.after_train=true），一步到位，不用再跑 ml_core.predict。
 
-run_id: mlp_a158_p27_top178                 # null → 用启动时间戳（复用名字也不会覆盖日志）
-model: mlp                   # lgbm | mlp  ← 换模型只改这一行（超参各自见下方 lgbm:/mlp: 段）
+run_id: lgbm_a158_p27_shap_dqlabels    # dquant labels 重构后重训（对比 rq labels 差异）
+model: lgbm                         # lgbm | mlp  ← 换模型只改这一行（超参各自见下方 lgbm:/mlp: 段）
 
 # ── 数据与因子 ──
 sources:
@@ -15,26 +16,34 @@ horizon: 20                  # 远期收益天数
 # ── 因子剔除（has_factor=ALL 专用）──
 # 这 3 个 p27 因子依赖「峰/岭/谷」分钟喷发判定，天然稀疏（覆盖仅 ~22%），
 # 塞进 has_factor=ALL 的 MLP 会剔除 78% 样本。排除后保留率 22% → 87%，样本 295万 → 1166万。
-# （LGBM 走 has_factor=NONE 不受影响，但留着也无害——LGBM 原生吃 NaN。）
-exclude_features:
-  - peak_ridge_price_ratio
-  - valley_ridge_price_ratio
-  - ridge_relative_vwap
+# （LGBM 走 has_factor=NONE 不受影响，不需要剔除；MLP 走 has_factor=ALL 时才需要。）
+# exclude_features:
+#   - peak_ridge_price_ratio
+#   - valley_ridge_price_ratio
+#   - ridge_relative_vwap
+exclude_features: null
 
 # ── 两阶段选因子 ──
 # 内部都用 GBDT 选 top_k：对 LGBM 是经典「筛选→合成」；
 # 对 MLP 同样有益（MLP 自身不选因子，先用 GBDT 降维去噪再喂 MLP）。
-# 本次口径：178 因子直喂 MLP（158 alpha158-dquant + 20 p27，剔除 3 个稀疏），不做筛选。
-select_method: null          # null=单阶段全特征 | shap | gbdt
+select_method: shap          # null=单阶段全特征 | shap | gbdt
 top_k: 64                    # 入选因子数（select_method=null 时忽略）
 
 # ── 时间切分（embargo 月不落入任何段；[起, 止]，null 表示开口）──
 split:
   train: [null, "2017-11-30"]
   valid: ["2018-01-01", "2019-11-30"]
-  test:  ["2020-01-01", null]
+  test:  ["2020-01-01", null]   # end=null → 自动到入选因子共同覆盖末日
 
 date_sample: null            # 冒烟用：每 k 个交易日取 1（null=全量）
+
+# ── 训练后自动推理 + 导信号（一步到位，省去再跑 ml_core.predict）──
+predict:
+  after_train: true          # true=训完自动 reload 模型 → predict_live → export_panel
+  start: "2020-01-01"        # 推理起始日（通常 = test 段起点）
+  end: null                  # null → 自动到入选因子共同覆盖末日
+  top_n: 500                 # 每日取预测分 top-N（回测只用排序，不用分数）
+  rebuild: true              # true=全段重写信号（新模型覆盖旧信号）；false=append-only
 
 # ── 模型超参（只有 model 选中的那段生效；缺省键走代码默认）──
 lgbm:                        # 覆盖 LGBM_DEFAULT_PARAMS 的子集

@@ -5,14 +5,14 @@
 #   time  —— 新：标准时间滚动，最近 N 月做 valid 早停（对齐 run_train 范式：
 #            选因子 + 一次带早停训练，早停后直接用该模型，不再全量重训）。
 
-run_id: lgbm_rolling_time_2025_v2  # valid 扩到 24 月 + train 往前加 1 年实验
+run_id: lgbm_rolling_2025_repro  # 对齐 stock 模式复现日志
 
 # ── 切分模式 ──
-split_mode: time                   # stock（旧）| time（新，方案1+2）
+split_mode: stock                  # stock（旧）| time（新，方案1+2）
 
 # ── 滚动参数 ──
 year: 2025                          # 训练截止年，预测 year+1（2026）
-train_years_back: 11               # 往前推 11 年（训练 2014-01 ~ 2025-11，补偿 valid 扩 1 年）
+train_years_back: 10               # 往前推 10 年（训练 2015-01 ~ 2025-11，对齐日志）
 seed: 42                           # 随机种子（切分/选因子可复现）
 
 # ── split_mode=stock 专用 ──

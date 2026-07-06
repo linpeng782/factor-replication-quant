@@ -10,7 +10,6 @@ from .base import _DATA_ROOT, _MKT, MASK_BACKEND
 __all__ = [
     "COMBO_MASK_PATH",
     "NEW_STOCK_MASK_PATH",
-    "VWAP_POST_PATH",
     "VWAP_PANEL_PATH",
     "LABELS_DIR",
     "INDUSTRY_PANEL_ZX_PATH",
@@ -28,9 +27,9 @@ _MASK_DIR = (
 COMBO_MASK_PATH = _MASK_DIR / "combo_mask_long.parquet"
 NEW_STOCK_MASK_PATH = _MASK_DIR / "new_stock_mask_long.parquet"
 
-VWAP_POST_PATH = _MKT / "prices/vwap_post.parquet"
-# PIT canonical vwap 宽表面板（build_labels.py 副产）；取代 VWAP_POST_PATH 作 forward_returns 源
-VWAP_PANEL_PATH = _MKT / "prices/vwap_panel.parquet"
+# PIT canonical vwap 宽表面板（build_labels.py 副产）；forward_returns 的价格源
+# 评估 fallback：缺失 horizon 时从 vwap_panel 现算 forward_return
+VWAP_PANEL_PATH = _MKT / "labels/vwap_panel.parquet"
 # 预算的 forward_return_{N}d.parquet；评估直读，缺失 horizon 回退 vwap_panel 现算
 LABELS_DIR = _MKT / "labels"
 

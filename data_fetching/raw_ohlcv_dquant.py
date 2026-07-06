@@ -7,7 +7,7 @@ A 股原始 OHLCV(dquant 源)全量回填 + 增量日更
 设计见 docs/alpha158_dquant_migration_progress.md · T2。
 
 输出目录:
-  /nfs/ofs-prediction/peterzhenglinpeng/market-data/daily_dquant/
+  /nfs/ofs-prediction/peterzhenglinpeng/market-data/daily-dquant/
     per-day/                 单日 parquet 长表
     stock-ohlcv-dquant/      逐股 parquet (index=date, 列=open/high/low/close/volume/total_turnover, float32)
 
@@ -49,7 +49,7 @@ from data_fetching.dquant_source import get_ohlcv_for_day, get_trading_days, lat
 FULL_START = "2005-01-04"
 NUM_WORKERS = 64   # fork 进程数(128 核机器留余量给 IO)
 
-OUT_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/market-data/daily_dquant")
+OUT_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/market-data/daily-dquant")
 PER_DAY_DIR = OUT_BASE / "per-day"
 PER_STOCK_DIR = OUT_BASE / "stock-ohlcv-dquant"
 

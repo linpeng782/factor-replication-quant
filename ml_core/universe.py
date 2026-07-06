@@ -56,7 +56,7 @@ def dquant_grid() -> tuple[pd.DatetimeIndex, pd.Index]:
     stock_dir = config.RAW_OHLCV_DIR                      # 后端感知：dquant→stock-ohlcv-dquant
     stocks = pd.Index(sorted(p.stem for p in stock_dir.glob("*.parquet")))
 
-    per_day_dir = stock_dir.parent / "per-day"            # daily_dquant/per-day
+    per_day_dir = stock_dir.parent / "per-day"            # daily-dquant/per-day
     if per_day_dir.exists():
         dates = pd.DatetimeIndex(sorted(pd.Timestamp(p.stem) for p in per_day_dir.glob("*.parquet")))
     else:

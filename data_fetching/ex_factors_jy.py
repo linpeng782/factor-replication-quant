@@ -59,7 +59,7 @@ from data_fetching.dquant_source import (
 FULL_START = "2005-01-04"
 NUM_WORKERS = 64
 
-OUT_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/market-data/daily_dquant")
+OUT_BASE = Path("/nfs/ofs-prediction/peterzhenglinpeng/market-data/daily-dquant")
 PER_DAY_DIR = OUT_BASE / "per-day-change"     # 逐日"变化记录"
 PER_STOCK_DIR = OUT_BASE / "stock-ex-factors-jy"   # 逐股稀疏宽表
 

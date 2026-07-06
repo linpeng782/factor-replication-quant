@@ -39,7 +39,7 @@ __all__ = [
 # 磁盘只存「原始价(不复权) + 稀疏 cum_factor」，复权读时实时算（core.producers.alpha158.loader）。
 # 由 data_fetching/ 产出/日更。daily/ 与 minute/ 对称。
 if ALPHA158_BACKEND == "dquant":
-    _RAW_OHLCV_ROOT = _MKT / "daily_dquant"
+    _RAW_OHLCV_ROOT = _MKT / "daily-dquant"
     RAW_OHLCV_DIR = _RAW_OHLCV_ROOT / "stock-ohlcv-dquant"     # 逐股原始日频 OHLCV (dquant/jy 源)
     EX_FACTORS_DIR = _RAW_OHLCV_ROOT / "stock-ex-factors-jy"   # 逐股稀疏复权因子 (jy adjfactor)
 else:
@@ -73,7 +73,7 @@ MINUTE_RAW_DIR = (_MKT / "minute-dquant" / "raw") if _IS_MINUTE_DQUANT else (_MK
 # 分钟读时复权因子：dquant 用 jy adjfactor（与 alpha158-dquant 同源），rq 用 rq ex_cum_factor。
 # 独立于全局 EX_FACTORS_DIR（受 ALPHA158_BACKEND 控制），使分钟复权口径不被 alpha158 后端牵连。
 MINUTE_EX_FACTORS_DIR = (
-    _MKT / "daily_dquant" / "stock-ex-factors-jy" if _IS_MINUTE_DQUANT
+    _MKT / "daily-dquant" / "stock-ex-factors-jy" if _IS_MINUTE_DQUANT
     else _MKT / "daily" / "stock-ex-factors"
 )
 # 分钟→日频特征中间缓存（可再生；superset 缓存身份 hash 不含数据后端 → dquant 必须并行目录防覆盖 golden）

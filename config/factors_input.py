@@ -28,7 +28,6 @@ __all__ = [
     "FUNDAMENTALS_DIR",
     "INDUSTRY_PANEL_ZX_DQUANT_PATH",
     # 分钟原料
-    "MINUTE_DATA_DIR",
     "MINUTE_RAW_DIR",
     "MINUTE_EX_FACTORS_DIR",
     "INTERMEDIATE_CACHE_DIR",
@@ -67,8 +66,6 @@ INDUSTRY_PANEL_ZX_DQUANT_PATH = _MKT / "industry-dquant/industry_panel_zx_dquant
 # ============================================================
 # 分钟级因子数据（生产隔离轴，随 MINUTE_BACKEND）
 # ============================================================
-# 后复权 per-stock 1m parquet 目录（旧版，烤死复权；迁移期保留作对齐基准）
-MINUTE_DATA_DIR = _MKT / "minute" / "stock_data_1m_post"
 # 分钟原始（不复权）按日分片：minute/raw/<YYYY-MM-DD>.parquet（全股一日一文件），复权读时实时算
 # （core.minute_data.load_adjusted_minute_window）。dquant 端用平行 minute-dquant/ 树
 # （连 minute_first_appearance.parquet 一并隔离）。见 docs/minute_incremental_design.md

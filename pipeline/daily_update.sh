@@ -24,16 +24,16 @@ step() { echo ""; echo "========== $* =========="; }
 die()  { echo "❌ 失败于: $*"; exit 1; }
 
 # ── 数据线（增量，fail-fast）──
-step "1/8 ex_factors";   (cd "$FETCH" && python ex_factors.py)   || die "ex_factors"
-step "2/8 raw_ohlcv";    (cd "$FETCH" && python raw_ohlcv.py)    || die "raw_ohlcv"
-step "3/8 minute_ohlcv"; (cd "$FETCH" && python minute_ohlcv.py) || die "minute_ohlcv"
-step "3b minute --full(幂等补缺)"; (cd "$FETCH" && python minute_ohlcv.py --full) || die "minute --full"
-step "4/8 industry";     (cd "$FETCH" && python industry.py)     || die "industry"
-step "5/8 market_cap";   (cd "$FETCH" && python market_cap.py)   || die "market_cap"
+step "1/8 ex_factors";   (cd "$FETCH" && python ex_factors_jy.py)   || die "ex_factors"
+step "2/8 raw_ohlcv";    (cd "$FETCH" && python raw_ohlcv_dquant.py)    || die "raw_ohlcv"
+step "3/8 minute_ohlcv"; (cd "$FETCH" && python minute_ohlcv_dquant.py) || die "minute_ohlcv"
+step "3b minute --full(幂等补缺)"; (cd "$FETCH" && python minute_ohlcv_dquant.py --full) || die "minute --full"
+step "4/8 industry";     (cd "$FETCH" && python industry_dquant.py)     || die "industry"
+step "5/8 market_cap";   (cd "$FETCH" && python market_cap_dquant.py)   || die "market_cap"
 # 基本面 PIT 基础层（cxl 因子线读本地，必须在因子线之前 append 到最新）。见 docs/cxl_fundamental_incremental_design.md
-step "5b fundamentals（基本面 PIT 快照 append）"; (cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals.py) || die "fundamentals"
+step "5b fundamentals（基本面 PIT 快照 append）"; (cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals_dquant.py) || die "fundamentals"
 # 重述审计：比对本地冻结快照 vs API 当前，只告警绝不覆盖（监控财报重述）。非阻塞。
-(cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals.py --audit) || echo "  ⚠️ 重述审计跳过（非阻塞）"
+(cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals_dquant.py --audit) || echo "  ⚠️ 重述审计跳过（非阻塞）"
 
 # ── 因子线 ──
 step "6/8 refresh_supersets（刷新 ${SUPERSET_KEY:-全部} superset 到最新）"

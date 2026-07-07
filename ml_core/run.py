@@ -69,13 +69,18 @@ def _strategy(c: dict):
 
 
 def _selector(c: dict):
-    """按 select_method 注入 Stage-1 选因子；null 则单阶段。"""
+    """按 select_method 注入 Stage-1 选因子；null 则单阶段。
+    lgbm 线把超参段透传给 Stage-1 GBDT（seed 随 config 变，支持多 seed 集成去相关；
+    默认配置 seed=42 与旧行为 bit 级等价）。"""
     sm = c.get("select_method")
     if sm is None:
         return None
     if sm not in _SELECTORS:
         raise ValueError(f"未知 select_method={sm!r}（仅 shap/gbdt 或 null）")
-    return partial(_SELECTORS[sm], top_k=c["top_k"])
+    kw = {"top_k": c["top_k"]}
+    if c["model"] == "lgbm":
+        kw["params"] = c.get("lgbm") or {}
+    return partial(_SELECTORS[sm], **kw)
 
 
 def _split(c: dict) -> SplitConfig:

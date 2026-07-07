@@ -34,7 +34,8 @@ VWAP_PANEL_PATH = _MKT / "labels/vwap_panel.parquet"
 LABELS_DIR = _MKT / "labels"
 
 # 行业 + 市值面板（中性化用，data_fetching/ 产出）
-INDUSTRY_PANEL_ZX_PATH = _MKT / "industry/industry_panel_zx.parquet"
+# dquant 版中信一级行业（新版分类，如"电子"而非旧版"电子元器件"）；industry_dquant.py 产出
+INDUSTRY_PANEL_ZX_PATH = _MKT / "industry-dquant/industry_panel_zx_dquant.parquet"
 MARKET_CAP_PANEL_PATH = _MKT / "market_cap/market_cap_panel.parquet"
 # 中信一级行业指数日收益面板（T×33；联合动量因子用，data_fetching/industry_index.py 产出）
 INDUSTRY_INDEX_RETURN_PATH = _MKT / "industry/industry_index_return.parquet"

@@ -56,6 +56,13 @@ def _use_next_day_status(wide: pd.DataFrame) -> pd.DataFrame:
     「周三停不停牌 / 涨不涨停」，所以把周三的状态搬到周二行。
     末行没有明日数据 → 保守置 False（不可交易）。
 
+    ⚠️ 已知语义 bug（2026-07 发现，暂不修待回归验证窗口）：
+    末行置 False 是置在「状态」（is_st/is_suspended/…）上，下游 ~(...) 取反后
+    末日 can_buy 反而变成【全市场 True】（含 ST/停牌/退市股）——与上面注释的
+    "保守不可交易"意图正好相反。影响面：仅 mask 面板最后一天。
+    ==> 任何推理/信号链路【禁止】依赖末日的 can_buy / not_limit_up；
+        T 日推理请改用 load_eligible_today_mask（T 日状态，无 shift、无此坑）。
+
     前提：行索引必须升序且无重复（按行位置位移，日期缺失/乱序会静默错位一天，
     时序错一天整个回测就全错）——进函数先校验，坏数据当场报错。
     """
@@ -176,3 +183,73 @@ def load_filter_masks(
     )
 
     return can_buy_mask, not_limit_up_mask
+
+
+def load_eligible_today_mask(
+    combo_mask_path: Union[str, Path],
+    new_stock_mask_path: Union[str, Path],
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    reindex_columns: Optional[pd.Index] = None,
+) -> pd.DataFrame:
+    """
+    加载 T 日当天资格掩码（无 shift，纯 T 日已实现信息）。
+
+    eligible_today (T, N) bool: True = T 日因子值可信、可进信号池
+        = NOT is_st(T) AND NOT is_suspended(T) AND NOT is_new_stock(T)
+
+    与 load_filter_masks 的 can_buy_mask 的关键区别（信息集不同，勿混用）：
+        can_buy_mask[T]   = T+1 日状态（shift(-1)）→ 回答「明天能不能买」，
+                            含未来信息，仅供训练侧做 label 可实现性过滤；
+        eligible_today[T] = T 日状态（无 shift）  → 回答「今天的因子值得不得信」，
+                            T 日盘后 100% 已知，推理/信号生成必须用这个。
+
+    动机（2026-07 实证，见 000656.XSHE 案例）：
+        T 日停牌的股票价格冻结、volume=0，alpha158 类因子全为废值
+        （VMA/VSTD 除零爆到 1e19、ROC=1、STD=0）；若因 T+1 复牌/摘帽被
+        can_buy 提前纳入，废值样本会进训练/推理池。训练侧模型曾从 2015
+        停牌潮学到「停牌指示器→复牌补涨」的不可泛化模式。
+
+    T+1 的突发停牌/涨停由执行端兜底（回测候选池补位跳过），信号层不预测明天。
+
+    参数与 load_filter_masks 一致；缺记录格子（未上市/退市）= False（不进池）。
+    """
+    combo_path = Path(combo_mask_path)
+    new_stock_path = Path(new_stock_mask_path)
+    if not combo_path.exists():
+        raise FileNotFoundError(f"combo_mask 文件不存在: {combo_path}")
+    if not new_stock_path.exists():
+        raise FileNotFoundError(f"new_stock_mask 文件不存在: {new_stock_path}")
+
+    combo = pd.read_parquet(
+        combo_path, columns=["order_book_id", "datetime", "is_st", "is_suspended"]
+    )
+    combo["datetime"] = pd.to_datetime(combo["datetime"])
+    combo = combo.set_index(["datetime", "order_book_id"])
+
+    new_stock = pd.read_parquet(
+        new_stock_path, columns=["order_book_id", "datetime", "is_new_stock"]
+    )
+    new_stock["datetime"] = pd.to_datetime(new_stock["datetime"])
+    new_stock = new_stock.set_index(["datetime", "order_book_id"])
+
+    # T 日当天状态，不做任何时序位移（_long_to_wide 缺格补 True=状态未知即阻断）
+    is_st = _long_to_wide(combo, "is_st")
+    is_suspended = _long_to_wide(combo, "is_suspended")
+    is_new_stock = _long_to_wide(new_stock, "is_new_stock").reindex(
+        index=is_st.index, columns=is_st.columns, fill_value=False
+    )
+
+    eligible_today = ~(is_st | is_suspended | is_new_stock)
+
+    if start is not None or end is not None:
+        eligible_today = eligible_today.loc[start:end]
+    if reindex_columns is not None:
+        eligible_today = eligible_today.reindex(columns=reindex_columns, fill_value=False)
+
+    logger.info(
+        f"[filters] eligible_today 加载完成: shape={eligible_today.shape}, "
+        f"区间={eligible_today.index.min().date()} ~ {eligible_today.index.max().date()}, "
+        f"通过率={eligible_today.values.mean():.2%} (T日 非ST/非停牌/非新股，无shift)"
+    )
+    return eligible_today

@@ -3,7 +3,7 @@
 # 重活全在 ml_core.pipeline.run_train；run.py 读本文件 → 配模型/选策略 → 训练 → 落盘 → 报 IC。
 # 训完可选自动推理+导信号（predict.after_train=true），一步到位，不用再跑 ml_core.predict。
 
-run_id: lgbm_a158_p27_shap_dqlabels    # dquant labels 重构后重训（对比 rq labels 差异）
+run_id: lgbm_a158_p27_shap_dq_pool2    # 池口径 v2（eligible_today）重训，A/B 对照 dqlabels
 model: lgbm                         # lgbm | mlp  ← 换模型只改这一行（超参各自见下方 lgbm:/mlp: 段）
 
 # ── 数据与因子 ──

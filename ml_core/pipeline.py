@@ -3,9 +3,14 @@ ml_core.pipeline —— 串联底座→特征→标签→切分→标准化→�
 ============================================================
 两个编排入口，模型/标签/标准化/has_factor 策略全部由参数注入：
 
-  predict_live(...)  实盘推理：预测池=can_buy（不要 label），加载既有模型+尺子 → ŷ 面板。
+  predict_live(...)  实盘推理：预测池=eligible_today（纯T日信息，零未来函数；不要 label），
+                     加载既有模型+尺子 → ŷ 面板。
                      模型无关（LGBM 给 WholeSetRobustZ+NONE；MLP 给 DailyCrossSectionMAD+ALL）。
   run_train(...)     训练编排：底座→特征(has_factor策略)→标签→切分→train段fit尺子→模型.fit。
+
+池口径（信息集分层，2026-07 引入，详见 universe.py 模块注释）：
+  推理池 = eligible_today                       （T日非ST/停牌/新股，盘后100%已知）
+  训练池 = eligible_today & can_buy & has_label （can_buy=T+1可成交=label可实现性）
 
 predict_live 与训练共用 build_universe / build_feature_matrix（组装口径唯一）→ 杜绝 train/serve skew。
 """
@@ -56,15 +61,18 @@ def predict_live(
     start: str | None = None,
     end: str | None = None,
 ) -> pd.DataFrame:
-    """实盘推理：预测池=can_buy（不过 label）→ ŷ 面板 (date×stock)。
+    """实盘推理：预测池=eligible_today（纯T日信息，不过 label）→ ŷ 面板 (date×stock)。
 
     adapter 须已 load 好；standardizer 须已 load（有状态）或实例化（无状态）。
     cfg.feature_order 决定喂入模型的因子顺序（与尺子/模型列序一致）。
+    ⚠️ 禁止改回 u.can_buy：那是 T+1 状态（shift(-1)），实盘 T 日盘后不可知（未来函数），
+       且会把「T日停牌/ST 但 T+1 恢复」的废因子样本放进池（见 000656.XSHE 案例）。
+       T+1 的突发停牌/涨停由执行端兜底过滤。
     """
     u = build_universe(horizon=cfg.horizon, start=start, end=end)
-    base = u.can_buy                                  # 预测池：只过 can_buy，不要 label
+    base = u.eligible_today                           # 预测池：T日资格，零未来函数
     rr = int(base.sum())
-    logger.info(f"[pipeline.live] 网格 {u.shape} | 预测池 can_buy={rr:,} | "
+    logger.info(f"[pipeline.live] 网格 {u.shape} | 预测池 eligible_today={rr:,} | "
                 f"区间 {u.dates.min().date()}~{u.dates.max().date()}")
 
     fm = build_feature_matrix(
@@ -102,8 +110,8 @@ def run_train(
     u = build_universe(horizon=cfg.horizon)
     ret = _ret_on_grid(u)
 
-    # 训练候选池 = can_buy & has_label；features 施加 has_factor 策略
-    base = u.can_buy & u.has_label
+    # 训练候选池 = eligible_today(T日因子有效) & can_buy(T+1可成交=label可实现) & has_label
+    base = u.eligible_today & u.can_buy & u.has_label
     if date_sample and date_sample > 1:
         keep_day = np.zeros(len(u.dates), dtype=bool)
         keep_day[::date_sample] = True
@@ -121,7 +129,8 @@ def run_train(
     ri = np.array([didx[pd.Timestamp(d)] for d in fm.dates])
     ci = np.array([sidx[s] for s in fm.stocks])
     sample_mask[ri, ci] = True
-    target_panel = label.build_panel(ret, u.can_buy, sample_mask)
+    # demean 市场基准池 = eligible_today & can_buy（与训练投资域同口径，剔除T日停牌废样本）
+    target_panel = label.build_panel(ret, u.eligible_today & u.can_buy, sample_mask)
     y = target_panel[ri, ci]
 
     # 时间切分

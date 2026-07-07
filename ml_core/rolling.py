@@ -101,12 +101,13 @@ def run_rolling_train_time(cfg: RollingConfig) -> dict:
     start, end = _train_window(cfg.year, cfg.train_years_back)
     logger.info(f"[rolling-time] year={cfg.year} | 训练区间 {start} ~ {end} | 预测 {cfg.year + 1}")
 
-    # 1. 底座：universe（现算 can_buy / has_label）
+    # 1. 底座：universe（现算 eligible_today / can_buy / has_label）
     u = build_universe(horizon=cfg.horizon, start=start, end=end)
 
     # 2. 特征矩阵（全特征，选因子后再定；LGBM 原生吃 NaN）
+    #    训练池 = eligible_today(T日因子有效) & can_buy(label可实现) & has_label，同 run_train
     fm = build_feature_matrix(
-        u, u.can_buy & u.has_label,
+        u, u.eligible_today & u.can_buy & u.has_label,
         sources=cfg.sources, neu_sources=cfg.neu_sources,
         has_factor_policy=HasFactorPolicy.NONE, feature_order=None,
         exclude_features=cfg.exclude_features,
@@ -121,7 +122,8 @@ def run_rolling_train_time(cfg: RollingConfig) -> dict:
     ci = np.array([sidx[s] for s in fm.stocks])
     sample_mask = np.zeros(u.shape, dtype=bool)
     sample_mask[ri, ci] = True
-    y = ExcessReturn().build_panel(ret, u.can_buy, sample_mask)[ri, ci]
+    # demean 市场基准池 = eligible_today & can_buy（与训练投资域同口径，同 run_train）
+    y = ExcessReturn().build_panel(ret, u.eligible_today & u.can_buy, sample_mask)[ri, ci]
 
     # 4. 时间切分（仿照 run_train：assign_segments + SplitConfig，段间留 embargo 空档）
     #    valid = 训练窗最近 valid_months 个月（最贴近预测年）；train 与 valid 之间空出
@@ -198,8 +200,8 @@ def run_rolling_train(cfg: RollingConfig) -> dict:
     u = build_universe(horizon=cfg.horizon, start=start, end=end)
     ret = load_forward_return(cfg.horizon).reindex(index=u.dates, columns=u.stocks).to_numpy(dtype=np.float32)
 
-    # 2. 候选池 = can_buy & has_label
-    base = u.can_buy & u.has_label
+    # 2. 候选池 = eligible_today(T日因子有效) & can_buy(label可实现) & has_label
+    base = u.eligible_today & u.can_buy & u.has_label
 
     # 3. 按股票随机切分
     train_mask, valid_mask = _split_by_stock(u, base, cfg.train_sample_ratio, cfg.seed)
@@ -212,8 +214,8 @@ def run_rolling_train(cfg: RollingConfig) -> dict:
         exclude_features=cfg.exclude_features,
     )
 
-    # 5. 标签：全市场 can_buy 算 demean（不受股票切分影响）
-    target_panel = ExcessReturn().build_panel(ret, u.can_buy, base)
+    # 5. 标签：demean 池 = eligible_today & can_buy（与训练投资域同口径，不受股票切分影响）
+    target_panel = ExcessReturn().build_panel(ret, u.eligible_today & u.can_buy, base)
     didx = {d: i for i, d in enumerate(u.dates)}
     sidx = {s: i for i, s in enumerate(u.stocks)}
     ri = np.array([didx[pd.Timestamp(d)] for d in fm.dates])

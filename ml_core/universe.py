@@ -1,11 +1,18 @@
 """
 ml_core.universe —— 管线底座层（模型无关、因子无关）
 ============================================================
-只回答一件事："哪些 (日期, 股票) 格子是合法样本候选"。由三件相互独立的事拼出：
+只回答一件事："哪些 (日期, 股票) 格子是合法样本候选"。由四件相互独立的事拼出：
 
-  universe   公共网格列空间 = dquant instruments 全集（每日全市场快照的并集）
-  can_buy    T+1 非 ST/停牌/新股 —— masks 派生（shift(-1) 语义），即旧 can_buy_mask
-  has_label  forward_return_Nd 非 NaN —— labels 派生（依赖 horizon）
+  universe        公共网格列空间 = dquant instruments 全集（每日全市场快照的并集）
+  eligible_today  T 日当天 非 ST/停牌/新股（无 shift，纯 T 日信息集）—— 因子有效性
+  can_buy         T+1 非 ST/停牌/新股（shift(-1) 语义，含未来信息）—— label 可实现性
+  has_label       forward_return_Nd 非 NaN —— labels 派生（依赖 horizon）
+
+信息集纪律（2026-07 引入，见 mask_loader.load_eligible_today_mask 注释）：
+  推理池 = eligible_today                      —— T 日盘后全部已知，零未来函数
+  训练池 = eligible_today & can_buy & has_label —— can_buy 用 T+1 信息过滤
+           「label 不可实现」的样本（T+1 停牌买不进 → 纸面收益），这是历史样本
+           合法性筛选、不是把未来信息喂给特征，合法；推理侧【禁止】用 can_buy。
 
 **不含 has_factor**：那是随因子集 + 模型完整性策略变化的动态量，归 features 层现算，
 不进底座（避免像 ml_ht 长表那样把动态量焊死进静态产物 → 加因子就过期）。
@@ -19,6 +26,7 @@ ml_core.universe —— 管线底座层（模型无关、因子无关）
 底座的"固定不变"体现在：它只依赖 masks + labels + instruments，而这三者本就在日更 cron 上；
 所以无需单独物化一个会过期的底座文件——以一个权威函数 + 已日更的输入为真相源即可。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,19 +35,25 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from alpha_shared.cleaning.mask_loader import load_filter_masks
+from alpha_shared.cleaning.mask_loader import (
+    load_eligible_today_mask,
+    load_filter_masks,
+)
 import config
 
 
 @dataclass
 class Universe:
-    """管线底座：公共网格 + 两个模型/因子无关的样本谓词。"""
+    """管线底座：公共网格 + 三个模型/因子无关的样本谓词。"""
 
-    dates: pd.DatetimeIndex   # 公共网格行空间（交易日历）
-    stocks: pd.Index          # 公共网格列空间（dquant 全集）
-    can_buy: np.ndarray       # (T, N) bool —— T+1 可买入（旧 can_buy_mask）
-    has_label: np.ndarray     # (T, N) bool —— 远期收益可计算
-    horizon: int = 20         # has_label 对应的远期收益期数
+    dates: pd.DatetimeIndex  # 公共网格行空间（交易日历）
+    stocks: pd.Index  # 公共网格列空间（dquant 全集）
+    can_buy: np.ndarray  # (T, N) bool —— T+1 可买入（shift(-1)，含未来信息，仅训练用）
+    has_label: np.ndarray  # (T, N) bool —— 远期收益可计算
+    eligible_today: np.ndarray = (
+        None  # (T, N) bool —— T日 非ST/停牌/新股（无shift，推理池口径）
+    )
+    horizon: int = 20  # has_label 对应的远期收益期数
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -53,15 +67,19 @@ def dquant_grid() -> tuple[pd.DatetimeIndex, pd.Index]:
     dates  = per-day 快照目录的交易日（文件名即日期）。
     两者都只 listdir、不读 parquet 内容 → instant，且是 dquant instruments 的权威口径。
     """
-    stock_dir = config.RAW_OHLCV_DIR                      # 后端感知：dquant→stock-ohlcv-dquant
+    stock_dir = config.RAW_OHLCV_DIR  # 后端感知：dquant→stock-ohlcv-dquant
     stocks = pd.Index(sorted(p.stem for p in stock_dir.glob("*.parquet")))
 
-    per_day_dir = stock_dir.parent / "per-day"            # daily-dquant/per-day
+    per_day_dir = stock_dir.parent / "per-day"  # daily-dquant/per-day
     if per_day_dir.exists():
-        dates = pd.DatetimeIndex(sorted(pd.Timestamp(p.stem) for p in per_day_dir.glob("*.parquet")))
+        dates = pd.DatetimeIndex(
+            sorted(pd.Timestamp(p.stem) for p in per_day_dir.glob("*.parquet"))
+        )
     else:
         # 回退：无 per-day 快照（如 rq 后端）时，用标签的日期作交易日历
-        ref = pd.read_parquet(config.LABELS_DIR / "forward_return_20d.parquet", columns=[])
+        ref = pd.read_parquet(
+            config.LABELS_DIR / "forward_return_20d.parquet", columns=[]
+        )
         dates = pd.DatetimeIndex(pd.to_datetime(ref.index)).sort_values()
     return dates, stocks
 
@@ -103,7 +121,20 @@ def build_universe(
         new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
     )
     can_buy = (
-        can_buy_mask.reindex(index=dates, columns=stocks).fillna(False).to_numpy(dtype=bool)
+        can_buy_mask.reindex(index=dates, columns=stocks)
+        .fillna(False)
+        .to_numpy(dtype=bool)
+    )
+
+    # eligible_today = NOT(st|suspended|new)@T日当天（无shift）；缺格补 False（不进池）
+    eligible_mask = load_eligible_today_mask(
+        combo_mask_path=config.COMBO_MASK_PATH,
+        new_stock_mask_path=config.NEW_STOCK_MASK_PATH,
+    )
+    eligible_today = (
+        eligible_mask.reindex(index=dates, columns=stocks)
+        .fillna(False)
+        .to_numpy(dtype=bool)
     )
 
     # has_label = forward_return_{horizon}d 非 NaN；缺格 → False（无标签）
@@ -113,8 +144,14 @@ def build_universe(
     logger.info(
         f"[universe] 网格 {len(dates)}×{len(stocks)} "
         f"({dates.min().date()}~{dates.max().date()}) | "
-        f"can_buy={can_buy.sum():,} | has_label(h={horizon})={int(has_label.sum()):,}"
+        f"eligible_today={eligible_today.sum():,} | can_buy={can_buy.sum():,} | "
+        f"has_label(h={horizon})={int(has_label.sum()):,}"
     )
     return Universe(
-        dates=dates, stocks=stocks, can_buy=can_buy, has_label=has_label, horizon=horizon
+        dates=dates,
+        stocks=stocks,
+        can_buy=can_buy,
+        has_label=has_label,
+        eligible_today=eligible_today,
+        horizon=horizon,
     )

@@ -138,6 +138,9 @@ def _run(c: dict) -> None:
                 "select_method": c.get("select_method"),
                 "feature_order": res["feature_names"],
                 "exclude_features": c.get("exclude_features"),
+                # 池口径溯源（2026-07 起）：训练/推理池语义，见 pipeline.py 模块注释
+                "sample_pool": "train: eligible_today & can_buy & has_label | "
+                               "predict: eligible_today",
             },
             ensure_ascii=False,
             indent=2,

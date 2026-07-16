@@ -30,6 +30,7 @@ step "3/8 minute_ohlcv"; (cd "$FETCH" && python minute_ohlcv_dquant.py) || die "
 step "3b minute --full(幂等补缺)"; (cd "$FETCH" && python minute_ohlcv_dquant.py --full) || die "minute --full"
 step "4/8 industry";     (cd "$FETCH" && python industry_dquant.py)     || die "industry"
 step "5/8 market_cap";   (cd "$FETCH" && python market_cap_dquant.py)   || die "market_cap"
+step "5a/8 ln_market_cap（读 market_cap_panel，log 变换，零 API）"; (cd "$REPO" && PYTHONPATH=. python data_fetching/style_ln_market_cap.py) || echo "  ⚠️ ln_market_cap 失败（非阻塞）"
 # 基本面 PIT 基础层（cxl 因子线读本地，必须在因子线之前 append 到最新）。见 docs/cxl_fundamental_incremental_design.md
 step "5b fundamentals（基本面 PIT 快照 append）"; (cd "$REPO" && PYTHONPATH=. python data_fetching/fundamentals_dquant.py) || die "fundamentals"
 # 重述审计：比对本地冻结快照 vs API 当前，只告警绝不覆盖（监控财报重述）。非阻塞。

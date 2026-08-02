@@ -3,14 +3,22 @@
 # 重活全在 ml_core.pipeline.run_train；run.py 读本文件 → 配模型/选策略 → 训练 → 落盘 → 报 IC。
 # 训完可选自动推理+导信号（predict.after_train=true），一步到位，不用再跑 ml_core.predict。
 
-run_id: lgbm_a158_p27_style_shap_dq  # 精简三源：alpha158 + p27 微结构 + style ln_market_cap（大小盘 regime 暴露）
+run_id: lgbm_shap128_csrank5_dq     # 同 lgbm_shap128_csrank_dq，唯一差异：clip 3 → 5
 model: lgbm                         # lgbm | mlp  ← 换模型只改这一行（超参各自见下方 lgbm:/mlp: 段）
+
+# ── 标签口径（仅 lgbm 线生效；mlp 固定 BinaryMedian）──
+# excess_return         ：截面 demean 超额 + 全集 RobustZ（旧口径）
+# csrank_normcdf_robust ：逐日 秩→正态分位→稳健Z→clip±3（日内排序等价，只改 L2 样本权重）
+label: csrank_normcdf_robust
+label_clip: 5.0              # csrank 系专用：截尾阈值；3=尾部压得狠，5=保留头部分辨率（每天 top~0.1% 的区分度）
 
 # ── 数据与因子 ──
 sources:
   - alpha158-dquant
   - kysec-dquant/paper_27_microstructure
   - style-dquant/size
+  - kysec-dquant/paper_67_long_momentum
+  - htsec/paper_04_momentum
 neu_sources: null            # 从 factors/neu 读的因子源（与 sources 互补）；null=不用
 horizon: 20                  # 远期收益天数
 
@@ -27,8 +35,8 @@ exclude_features: null
 # ── 两阶段选因子 ──
 # 内部都用 GBDT 选 top_k：对 LGBM 是经典「筛选→合成」；
 # 对 MLP 同样有益（MLP 自身不选因子，先用 GBDT 降维去噪再喂 MLP）。
-select_method: shap          # null=单阶段全特征 | shap | gbdt
-top_k: 64                    # 入选因子数（select_method=null 时忽略）
+select_method: shap           # null=单阶段全特征 | shap | gbdt
+top_k: 128                   # 入选因子数（select_method=null 时忽略）
 
 # ── 时间切分（embargo 月不落入任何段；[起, 止]，null 表示开口）──
 split:

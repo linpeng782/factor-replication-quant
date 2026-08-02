@@ -30,7 +30,7 @@ from loguru import logger
 
 import config
 from ml_core.features import HasFactorPolicy
-from ml_core.labels import BinaryMedian, ExcessReturn
+from ml_core.labels import BinaryMedian, CSRankNormCDFRobust, ExcessReturn
 from ml_core.metrics import model_ic_panel
 from ml_core.model import LGBMAdapter, MLPAdapter
 from ml_core.pipeline import PipelineConfig, run_train
@@ -48,12 +48,22 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+_LABELS = {                                   # train_config.yaml 的 label 键 → 标签策略
+    "excess_return": ExcessReturn,
+    "csrank_normcdf_robust": CSRankNormCDFRobust,
+}
+
+
 def _strategy(c: dict):
     """按 model 选「标签 / 标准化 / 模型适配器 / has_factor 策略」四件套，超参取对应段。"""
     model = c["model"]
     if model == "lgbm":
+        label_key = c.get("label") or "excess_return"     # lgbm 线标签可切换（默认沿用旧口径）
+        if label_key not in _LABELS:
+            raise ValueError(f"未知 label={label_key!r}（可选 {list(_LABELS)}）")
+        kw = {} if label_key == "excess_return" else {"clip": c.get("label_clip") or 3.0}
         return (
-            ExcessReturn(),
+            _LABELS[label_key](**kw),
             WholeSetRobustZ(),
             LGBMAdapter(params=c.get("lgbm") or {}),
             HasFactorPolicy.NONE,
@@ -131,6 +141,8 @@ def _run(c: dict) -> None:
         json.dumps(
             {
                 "model": c["model"],
+                "label": label.name,
+                "label_clip": getattr(label, "clip", None),
                 "sources": c["sources"],
                 "neu_sources": c.get("neu_sources"),
                 "has_factor_policy": policy.value,

@@ -106,7 +106,8 @@ def run_train(
       (X_train, y_train, X_valid, y_valid, feature_names) → (selected: list[str], scores: pd.Series)。
       尺子(standardizer)仍按【全特征】train 段拟合并返回（与 ml.run 一致：实盘按 feature_order 子集对齐）。
     """
-    scale_label = label.is_regression if scale_label is None else scale_label
+    if scale_label is None:                                   # 自带标准化的标签（如 csrank）不再叠加
+        scale_label = label.is_regression and label.needs_y_scaling
     u = build_universe(horizon=cfg.horizon)
     ret = _ret_on_grid(u)
 

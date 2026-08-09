@@ -69,7 +69,7 @@ python ml/labels.py                            # 8. labels 回填(末N+1天)    
 | L2 superset 增量（懒触发） | ✅ 引擎已实现 + bit 验证（append-only / 前沿=max / warmup overlap） |
 | L3 因子 | ✅ `run.py <因子>` 可跑（cache-hit superset；**全量重算非增量**，但便宜） |
 | **① 独立刷 superset 入口** | ✅ 已建 `pipeline/refresh_supersets.py`（扫 spec→去重 (action,cache_key,params)→各 refresh；`--dry-run` 可列出在用 superset） |
-| **② 编排器** | ✅ 已建 `pipeline/daily_update.sh`（fail-fast 串 1–8；`FETCH=$REPO/data_fetching`） |
+| **② 编排器** | ⚠️ `pipeline/daily_update.sh` 已废弃（与 `DAILY_UPDATE_GUIDE.md` 分叉、缺步骤、无硬门槛）；日更由 agent 按 `data_fetching/DAILY_UPDATE_GUIDE.md` 执行 |
 | **③ 新股建库分支** | ❌ 见坑② —— **日更正确性必需**（唯一未建件） |
 | labels 增量回填 | ⚠️ `ml/labels.py` 有构建函数，"末 N+1 天回填"待确认/补 |
 
@@ -81,7 +81,7 @@ python ml/labels.py                            # 8. labels 回填(末N+1天)    
 去重 unique `(action, cache_key, params)` → 每个 `REDUCER_BY_ACTION[action].from_step(step)` +
 `MinuteAggregateEngine(reducer).refresh_cache(all_instruments(CS))`。**spec = 在用 superset 的唯一真相源。**
 
-**② `pipeline/daily_update.sh`** ✅：`set -e` 串起 §2 全部步骤（数据线在 data_fetching/、因子线本仓，cd 切换），逐步打印 + 失败即停。因子循环用限定路径 `<pub>/<group>/<factor>`（存盘叠加 bug 已修）。
+**② `pipeline/daily_update.sh`** ⚠️ 已废弃：与 `data_fetching/DAILY_UPDATE_GUIDE.md` 严重分叉（缺 A7 行业指数 / A8 new_stock_mask / A10 ret20_panel；因子线无硬门槛、静默过期；step 3b 曾误带 `--full` 重写全史分钟文件）。文件保留为墓碑（打印废弃提示 + exit 1），防止从 git 历史恢复旧危险版本。**日更请让 agent 按 `data_fetching/DAILY_UPDATE_GUIDE.md` 执行**（A 数据线 → 硬门槛校验 → B 因子线，失败即停）。
 
 **③ 新股建库分支** ✅ 已建：`refresh_cache` 在主增量（pass1）后自动执行 pass2。
 pass2 先读近 10 日 raw 的 order_book_id 列过滤掉僵尸标的（永无数据的远古退市股），

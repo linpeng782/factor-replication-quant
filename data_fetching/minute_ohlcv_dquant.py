@@ -21,7 +21,7 @@ A 股【原始(不复权)】1 分钟 bar 按日分片构建 / 日更 —— dqua
     不重复初始化（与 stock-data-fetching/build/build_full_*_dquant.py 同款 fork 方案）。
 
 用法：
-  python minute_ohlcv_dquant.py                 # 增量日更（补缺日）
+  python minute_ohlcv_dquant.py                 # 增量日更（补缺日；终点=latest_trading_date）
   python minute_ohlcv_dquant.py --full          # 全量（2005~今；已存在日文件也重写）
   python minute_ohlcv_dquant.py --start 2024-01-01 --end 2024-01-31   # 指定区间（回填/测试）
   python minute_ohlcv_dquant.py --workers 64    # fork 并行进程数（128 核机建议 48~64）
@@ -135,17 +135,21 @@ def _trading_days(start: str, end: str) -> list[str]:
 
 def build(full: bool, start: str | None, end: str | None, workers: int,
           raw_dir: Path | None = None) -> None:
+    from data_fetching.dquant_source import latest_trading_date
+
     raw_dir = raw_dir or _raw_dir()
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     start = start or FULL_START
-    end = end or (pd.Timestamp.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    # 与 A1/A2 对齐：默认终点=最近已收盘交易日（17:00 前退前一交易日）
+    # 旧逻辑 end=昨天会在「交易日当天 17:00 后」漏掉当日
+    end = end or latest_trading_date()
 
     days = _trading_days(start, end)   # 父进程先触达 dquant（fork 前）
     if not full:
         days = [d for d in days if not (raw_dir / f"{d}.parquet").exists()]
     if not days:
-        logger.success(f"已最新，无需更新 | 输出 {raw_dir}")
+        logger.success(f"已最新（到 {end}），无需更新 | 输出 {raw_dir}")
         return
 
     logger.info(
@@ -187,7 +191,10 @@ def main() -> None:
     )
     ap.add_argument("--full", action="store_true", help="全量重下（默认增量补缺日）")
     ap.add_argument("--start", default=None, help="起始日 YYYY-MM-DD（默认 2005-01-01）")
-    ap.add_argument("--end", default=None, help="结束日 YYYY-MM-DD（默认昨天）")
+    ap.add_argument(
+        "--end", default=None,
+        help="结束日 YYYY-MM-DD（默认 latest_trading_date：最近已收盘交易日）",
+    )
     ap.add_argument("--workers", type=int, default=48, help="fork 并行进程数（默认 48）")
     ap.add_argument("--raw-dir", type=Path, default=None, help="输出目录(测试用)")
     a = ap.parse_args()

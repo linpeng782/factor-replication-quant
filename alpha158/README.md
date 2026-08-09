@@ -59,7 +59,7 @@ alpha158 的**源目录 + 产出目录**由 `ALPHA158_DATA_BACKEND` 决定（缺
 ## 4. 日常怎么用（命令，仓库根执行，先 `source venv`）
 
 ```bash
-# 默认 dquant 后端（生产）；上游数据线须先更新到目标日（见 pipeline/daily_update.sh 步 1-2）
+# 默认 dquant 后端（生产）；上游数据线须先更新到目标日（见 data_fetching/DAILY_UPDATE_GUIDE.md A 段）
 PYTHONPATH=. python alpha158/daily_update.py        # 增量日更：自动补 (基线末日, 源末日]
 PYTHONPATH=. python alpha158/build.py --full        # 全量重建（罕见：重置基线/周期对账）
 PYTHONPATH=. python alpha158/build.py --only KMID MA20   # 只算指定因子
@@ -71,7 +71,7 @@ PYTHONPATH=. python alpha158/plot.py --workers 4    # 出评估图
 ALPHA158_DATA_BACKEND=rq PYTHONPATH=. python alpha158/daily_update.py
 ```
 
-> `daily_update.py` 在编排器 `pipeline/daily_update.sh` 步 7c 被自动调用（零 API，失败仅告警）。
+> `daily_update.py` 在日更流程中由 agent 按 `data_fetching/DAILY_UPDATE_GUIDE.md` B 段调用（零 API，失败即停）。
 
 ---
 

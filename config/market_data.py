@@ -14,6 +14,8 @@ __all__ = [
     "LABELS_DIR",
     "INDUSTRY_PANEL_ZX_PATH",
     "MARKET_CAP_PANEL_PATH",
+    "TURNOVER_RATE_PANEL_PATH",
+    "NORMAL_DAY_PANEL_PATH",
     "INDUSTRY_INDEX_RETURN_PATH",
     "INDEX_DIR",
     "INDEX_SEGMENTS_PATH",
@@ -37,6 +39,12 @@ LABELS_DIR = _MKT / "labels"
 # dquant 版中信一级行业（新版分类，如"电子"而非旧版"电子元器件"）；industry_dquant.py 产出
 INDUSTRY_PANEL_ZX_PATH = _MKT / "industry-dquant/industry_panel_zx_dquant.parquet"
 MARKET_CAP_PANEL_PATH = _MKT / "market_cap/market_cap_panel.parquet"
+# 日换手率面板（T×N，单位 %，dquant get_turnover_rate 的 today 列）
+# turnover_rate_dquant.py 产出；改进动量因子（wgt_return 系）的权重源
+TURNOVER_RATE_PANEL_PATH = _MKT / "turnover-dquant/turnover_rate_panel.parquet"
+# 正常交易日 mask 宽表（T×N，1=非停牌且未触涨跌停；normal_day_dquant.py 产出）
+# 长端动量因子按研报要求剔除涨跌停/停牌日数据用
+NORMAL_DAY_PANEL_PATH = _MKT / "limit-dquant/normal_day_panel.parquet"
 # 中信一级行业指数日收益面板（T×33；联合动量因子用，data_fetching/industry_index.py 产出）
 INDUSTRY_INDEX_RETURN_PATH = _MKT / "industry/industry_index_return.parquet"
 

@@ -21,6 +21,9 @@ __all__ = [
     "NEU_FACTOR_BASE",
     "ALPHA158_RAW_BASE",
     "RET20_PANEL_PATH",
+    "RET1_PANEL_PATH",
+    "AMP_PANEL_PATH",
+    "AMP_HL_PANEL_PATH",
     "OUTPUT_DIR",
 ]
 
@@ -44,6 +47,13 @@ ALPHA158_RAW_BASE = (
 # 辅助面板（跨因子共享，不属三阶段产物，存 helpers/ 下）
 # Ret20：20日后复权收益面板（宽表），APM 截面回归去动量用（scripts/build_ret20_panel.py 产出）
 RET20_PANEL_PATH = _FACTORS / "helpers" / "ret20_panel.parquet"
+# Ret1：日频后复权收益面板（宽表），改进动量因子（wgt_return 系）的收益源
+# （scripts/build_ret20_panel.py --window 1 产出）
+RET1_PANEL_PATH = _FACTORS / "helpers" / "ret1_panel.parquet"
+# 日振幅面板（长端动量因子的切割指标，scripts/build_amplitude_panels.py 产出）
+# amp = (high−low)/前收（开源 2.0 口径）；amp_hl = high/low−1（开源 1.0 口径）
+AMP_PANEL_PATH = _FACTORS / "helpers" / "amp_panel.parquet"
+AMP_HL_PANEL_PATH = _FACTORS / "helpers" / "amp_hl_panel.parquet"
 
 # 项目内输出目录（相对项目代码，不受 _DATA_ROOT 影响）：报告、图片等评估输出。
 # ⚠️【生产隔离轴】MINUTE=dquant 时改用 output-dquant/

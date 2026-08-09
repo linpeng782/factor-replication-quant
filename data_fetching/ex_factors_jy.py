@@ -268,7 +268,7 @@ def run_stage_b(workers: int = NUM_WORKERS) -> None:
 
     # stack 取 keep 位置的原值
     piv_keep = piv.where(keep_mask)
-    keep_long = piv_keep.stack(dropna=True)      # 不用 future_stack (pandas 兼容)
+    keep_long = piv_keep.stack().dropna()        # 新版 stack 会保留 NaN 行, 必须显式 dropna(否则逐股表被全日历 NaN 淹没)
     changes_df = keep_long.reset_index()
     if list(changes_df.columns) == [0, 'date', 'order_book_id']:
         changes_df = changes_df.drop(columns=[0])

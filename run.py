@@ -211,19 +211,6 @@ def main() -> None:
     if args.workers is not None:
         os.environ["FETCHER_WORKERS"] = str(args.workers)
 
-    # ── 运行日志落盘：sources/<pub>/<group>/output/<factor>/run_<timestamp>.log ──
-    try:
-        from core.spec_resolver import resolve_output_dir
-        log_dir = resolve_output_dir(args.factor)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_path = log_dir / f"run_{ts}.log"
-        logger.add(log_path, level="DEBUG", encoding="utf-8",
-                   format="{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {message}")
-        logger.info(f"📝 运行日志: {log_path}")
-    except Exception:
-        pass  # log 落盘失败不影响主流程
-
     if args.yolo_only:
         mode = "yolo"
     elif args.evaluate_only:

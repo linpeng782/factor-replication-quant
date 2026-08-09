@@ -27,6 +27,9 @@ __all__ = [
     # 基本面原料
     "FUNDAMENTALS_DIR",
     "INDUSTRY_PANEL_ZX_DQUANT_PATH",
+    # jy 分单资金流原料
+    "CAPITAL_FLOW_JY_DIR",
+    "CAPITAL_FLOW_JY_PANEL_DIR",
     # 分钟原料
     "MINUTE_RAW_DIR",
     "MINUTE_EX_FACTORS_DIR",
@@ -62,6 +65,18 @@ FUNDAMENTALS_DIR = _MKT / ("fundamentals-dquant" if FUNDAMENTAL_BACKEND == "dqua
 # dquant 中信一级行业日频宽面板（industry_dquant.py 产出；因子生产 fetch custom 用。
 # 评估中性化仍用 INDUSTRY_PANEL_ZX_PATH，消费轴不受此开关影响）
 INDUSTRY_PANEL_ZX_DQUANT_PATH = _MKT / "industry-dquant/industry_panel_zx_dquant.parquet"
+
+# ============================================================
+# jy 分单资金流（开源系列12 大单/小单资金流因子原料）
+# ============================================================
+# 三层结构（data_fetching/capital_flow_jy.py 产出）：
+#   per-month/  原始长表按月分片（4 档 × buy/sell × 量/额，增量基线）
+#   per-stock/  逐股宽表（源真相，与 stock-ohlcv-dquant 同构）
+#   panels/     衍生宽面板（lb/sb × net/gross value，因子管线直接消费）
+# value_range 实测映射（scripts/verify_jy_capital_flow_tiers.py 结构性验证，
+# 与 dquant docstring 相反）：1=小单(<4万) 2=中单(4-20万) 3=大单(20-100万) 4=特大单(>100万)
+CAPITAL_FLOW_JY_DIR = _MKT / "capital-flow-jy"
+CAPITAL_FLOW_JY_PANEL_DIR = CAPITAL_FLOW_JY_DIR / "panels"
 
 # ============================================================
 # 分钟级因子数据（生产隔离轴，随 MINUTE_BACKEND）

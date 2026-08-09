@@ -22,7 +22,12 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from loguru import logger
 
-from config import FUNDAMENTALS_DIR, FUNDAMENTAL_BACKEND, INDUSTRY_PANEL_ZX_DQUANT_PATH
+from config import (
+    CAPITAL_FLOW_JY_PANEL_DIR,
+    FUNDAMENTALS_DIR,
+    FUNDAMENTAL_BACKEND,
+    INDUSTRY_PANEL_ZX_DQUANT_PATH,
+)
 
 from . import Context, OpRegistry
 
@@ -182,6 +187,10 @@ def _fetch_custom(ctx: Context, fetcher: Any, step: Dict) -> pd.DataFrame:
     if not command:
         raise ValueError("fetch api=custom 时必须指定 command")
 
+    # jy 分单资金流：读本地衍生面板（capital_flow_jy.py Stage C 产出），零 API
+    if command == "__internal__capital_flow_jy":
+        return _capital_flow_jy_from_local(ctx, step)
+
     # dquant 后端：行业分类读本地日频面板（industry_dquant.py 产出），零 rqdatac
     if command == "__internal__zx2019_industry" and FUNDAMENTAL_BACKEND == "dquant":
         return _zx_industry_from_local(ctx)
@@ -195,6 +204,43 @@ def _fetch_custom(ctx: Context, fetcher: Any, step: Dict) -> pd.DataFrame:
         return df
 
     raise ValueError(f"fetch api=custom: 未规范化的 command={command!r}")
+
+
+def _capital_flow_jy_from_local(ctx: Context, step: Dict) -> pd.DataFrame:
+    """jy 分单资金流衍生面板 → long (order_book_id, date, *fields)。
+
+    fields = output_columns 的 key（即面板文件名，如 lb_net_value / sb_gross_value）。
+    面板由 data_fetching/capital_flow_jy.py Stage C 产出：存续期内缺口已填 0
+    （无行=停牌=零资金流），存续期外 NaN → dropna(how='all') 后不进长表。
+    """
+    fields = list(_resolve_output_columns(step).keys())
+    if not (ctx.start_date and ctx.end_date):
+        raise ValueError("__internal__capital_flow_jy 需要 ctx.start_date+end_date")
+
+    start, end = pd.Timestamp(ctx.start_date), pd.Timestamp(ctx.end_date)
+    universe = set(ctx.universe)
+    series = []
+    for f in fields:
+        p = CAPITAL_FLOW_JY_PANEL_DIR / f"{f}.parquet"
+        if not p.exists():
+            raise FileNotFoundError(
+                f"资金流面板缺失: {p}\n先运行: python data_fetching/capital_flow_jy.py"
+            )
+        w = pd.read_parquet(p)
+        w.index = pd.to_datetime(w.index)
+        w = w.loc[(w.index >= start) & (w.index <= end)]
+        cols = [c for c in w.columns if c in universe]
+        s = w[cols].stack()          # MultiIndex (date, order_book_id)；pandas3 stack 保留 NaN 格
+        s.name = f
+        series.append(s)
+    long = pd.concat(series, axis=1).reset_index()
+    long.columns = ["date", "order_book_id"] + fields
+    long = long.dropna(subset=fields, how="all").reset_index(drop=True)
+    long["date"] = pd.to_datetime(long["date"])
+    logger.info(
+        f"[fetch] 读本地 jy 资金流面板 {fields} × [{start.date()},{end.date()}] → {len(long):,} 行"
+    )
+    return long
 
 
 def _zx_industry_from_local(ctx: Context) -> pd.DataFrame:

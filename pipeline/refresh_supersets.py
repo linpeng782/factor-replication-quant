@@ -24,7 +24,6 @@ from loguru import logger
 import core.yolo_engine  # noqa: F401 触发所有 reducer 注册
 from core.operators.minute_engine import REDUCER_BY_ACTION, MinuteAggregateEngine
 
-ACCOUNTS = ("13522652015", "123456")
 SPEC_GLOB = "sources/*/*/specs/*/spec.yaml"
 
 
@@ -119,10 +118,12 @@ def main():
                 logger.info(f"  --rebuild: {cdir.name} 不存在，跳过删除")
 
     # ── 刷新 ──
-    import rqdatac
-    rqdatac.init(*ACCOUNTS)
-    universe = sorted(rqdatac.all_instruments(type="CS")["order_book_id"].tolist())
-    logger.info(f"universe(all_instruments CS) = {len(universe)} 只；开始逐个刷新…")
+    # universe 取本地逐股 OHLCV 目录文件名（零 API；新股 IPO 当天即有文件 → 自动纳入）。
+    # rqdatac.all_instruments(CS) 比本地多 42 只均为远古退市/从未上市（僵尸股），
+    # refresh_cache 的 first_appearance_map 会自动过滤无 minute raw 的股，结果等价。
+    import config
+    universe = sorted(p.stem for p in config.RAW_OHLCV_DIR.glob("*.parquet"))
+    logger.info(f"universe(本地 OHLCV 目录) = {len(universe)} 只；开始逐个刷新…")
 
     for reducer, action, _ in configs:
         logger.info(f"▶ 刷新 {reducer.cache_key}  (action={action})")

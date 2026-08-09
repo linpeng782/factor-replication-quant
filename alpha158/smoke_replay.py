@@ -57,7 +57,7 @@ def _load_one(stock: str, raw_dir: str, ex_dir: str) -> pd.DataFrame | None:
     ex_path = Path(ex_dir) / f"{stock}.parquet"
     if ex_path.exists():
         ex = pd.read_parquet(ex_path)
-        cum = ex["ex_cum_factor"].reindex(raw.index, method="ffill").fillna(1.0)
+        cum = ex["ex_cum_factor"].dropna().reindex(raw.index, method="ffill").fillna(1.0)
     else:
         cum = pd.Series(1.0, index=raw.index)
     adj = raw[["open", "high", "low", "close", "volume", "total_turnover"]].copy()

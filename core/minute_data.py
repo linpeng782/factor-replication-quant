@@ -45,7 +45,7 @@ def _cum_factor_series(stock: str) -> pd.Series | None:
         return None
     ex = pd.read_parquet(p, columns=["ex_cum_factor"])
     ex.index = pd.to_datetime(ex.index)
-    return ex["ex_cum_factor"].sort_index()
+    return ex["ex_cum_factor"].dropna().sort_index()
 
 
 def _post_adjust(df: pd.DataFrame, stock: str) -> pd.DataFrame:

@@ -57,7 +57,7 @@ def adjust_ohlcv(raw, ex):
     if ex is None or ex.empty:
         cum_factor = pd.Series(1.0, index=raw.index, name="ex_cum_factor")
     else:
-        cum_factor = ex["ex_cum_factor"].reindex(raw.index, method="ffill").fillna(1.0)
+        cum_factor = ex["ex_cum_factor"].dropna().reindex(raw.index, method="ffill").fillna(1.0)
 
     adj = raw.copy()
     for col in config.PRICE_FIELDS:
@@ -95,7 +95,7 @@ def _worker_load_adjusted(stock, raw_dir, ex_dir, start, end, fields):
     ex_path = Path(ex_dir) / f"{stock}.parquet"
     if ex_path.exists():
         ex = pd.read_parquet(ex_path)
-        cum_factor = ex["ex_cum_factor"].reindex(raw.index, method="ffill").fillna(1.0)
+        cum_factor = ex["ex_cum_factor"].dropna().reindex(raw.index, method="ffill").fillna(1.0)
     else:
         cum_factor = pd.Series(1.0, index=raw.index)
 

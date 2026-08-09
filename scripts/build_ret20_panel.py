@@ -1,15 +1,16 @@
 """
-预计算 Ret20 后复权面板（APM 截面回归去动量用）
+预计算 RetN 后复权收益面板
 ============================================================
 从 stock-ohlcv（原始不复权）× stock-ex-factors（ex_cum_factor）→
-后复权 close → 20 日滚动收益率宽表。
+后复权 close → N 日滚动收益率宽表。
 
-输出: factors/helpers/ret20_panel.parquet（date × order_book_id, float32）
-  值 = close_t_post / close_{t-20}_post - 1
+输出（date × order_book_id, float32），值 = close_t_post / close_{t-N}_post - 1：
+  --window 20（默认）→ factors/helpers/ret20_panel.parquet  APM 截面回归去动量用
+  --window 1          → factors/helpers/ret1_panel.parquet   改进动量因子（wgt_return 系）收益源
 
 用法:
   PYTHONPATH=. python scripts/build_ret20_panel.py
-  PYTHONPATH=. python scripts/build_ret20_panel.py --workers 64  # 并行加速
+  PYTHONPATH=. python scripts/build_ret20_panel.py --window 1 --workers 64
 """
 from __future__ import annotations
 
@@ -22,9 +23,10 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from config import EX_FACTORS_DIR, RAW_OHLCV_DIR, RET20_PANEL_PATH
+from config import EX_FACTORS_DIR, RAW_OHLCV_DIR, RET1_PANEL_PATH, RET20_PANEL_PATH
 
-WINDOW = 20   # 20 日滚动收益
+# 窗口 → 输出面板路径（每个窗口一份独立 helpers 面板）
+WINDOW_TO_PATH = {1: RET1_PANEL_PATH, 20: RET20_PANEL_PATH}
 DTYPE  = "float32"
 
 
@@ -41,7 +43,7 @@ def _post_close_series(stock: str) -> tuple[str, pd.Series | None]:
     if ex_path.exists():
         ex = pd.read_parquet(ex_path, columns=["ex_cum_factor"])
         ex.index = pd.to_datetime(ex.index)
-        cf = ex["ex_cum_factor"].reindex(close_raw.index, method="ffill").fillna(1.0)
+        cf = ex["ex_cum_factor"].dropna().reindex(close_raw.index, method="ffill").fillna(1.0)
     else:
         cf = pd.Series(1.0, index=close_raw.index)
 
@@ -49,12 +51,14 @@ def _post_close_series(stock: str) -> tuple[str, pd.Series | None]:
     return stock, close_post
 
 
-def build(workers: int = 32) -> None:
-    out_path = RET20_PANEL_PATH
+def build(workers: int = 32, window: int = 20) -> None:
+    if window not in WINDOW_TO_PATH:
+        raise ValueError(f"window={window} 无对应输出路径；可选 {sorted(WINDOW_TO_PATH)}")
+    out_path = WINDOW_TO_PATH[window]
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     stocks = sorted(p.stem for p in RAW_OHLCV_DIR.glob("*.parquet"))
-    logger.info(f"构建 Ret20 面板: {len(stocks)} 只股票, workers={workers}")
+    logger.info(f"构建 Ret{window} 面板: {len(stocks)} 只股票, workers={workers}")
 
     all_series: dict[str, pd.Series] = {}
     with ProcessPoolExecutor(max_workers=workers) as ex:
@@ -69,22 +73,23 @@ def build(workers: int = 32) -> None:
     logger.info(f"合并 {len(all_series)} 只股票 close 序列...")
     wide_close = pd.DataFrame(all_series).sort_index()  # date × stock
 
-    # 20 日滚动收益 = close_t / close_{t-20} - 1
-    ret20 = (wide_close / wide_close.shift(WINDOW) - 1.0).astype(DTYPE)
-    ret20.index.name = "date"
-    ret20.columns.name = "order_book_id"
+    # N 日滚动收益 = close_t / close_{t-N} - 1
+    ret = (wide_close / wide_close.shift(window) - 1.0).astype(DTYPE)
+    ret.index.name = "date"
+    ret.columns.name = "order_book_id"
 
-    ret20.to_parquet(out_path)
+    ret.to_parquet(out_path)
     size_mb = out_path.stat().st_size / 1024**2
     logger.success(
-        f"Ret20 面板已保存: {out_path}\n"
-        f"  shape={ret20.shape} | range={ret20.index.min().date()}~{ret20.index.max().date()} "
-        f"| NaN={ret20.isna().values.mean():.1%} | {size_mb:.1f}MB"
+        f"Ret{window} 面板已保存: {out_path}\n"
+        f"  shape={ret.shape} | range={ret.index.min().date()}~{ret.index.max().date()} "
+        f"| NaN={ret.isna().values.mean():.1%} | {size_mb:.1f}MB"
     )
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="预计算 Ret20 后复权面板")
+    ap = argparse.ArgumentParser(description="预计算 RetN 后复权收益面板")
     ap.add_argument("--workers", type=int, default=32)
+    ap.add_argument("--window", type=int, default=20, help="滚动窗口（1 或 20）")
     a = ap.parse_args()
-    build(workers=a.workers)
+    build(workers=a.workers, window=a.window)

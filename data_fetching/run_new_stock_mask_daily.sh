@@ -9,11 +9,11 @@
 # 幂等：new_stock 已追平 combo_mask 末日时秒退，重复跑无副作用。
 #
 # crontab 示例（每交易日 19:30；是否交易日由脚本内 latest_trading_date 兜底）：
-#   30 19 * * 1-5 /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new/data_fetching/run_new_stock_mask_daily.sh
+#   30 19 * * 1-5 /nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new/data_fetching/run_new_stock_mask_daily.sh
 # ===================================================================
 
-PROJECT_ROOT="/nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new"
-VENV_PATH="/nfs/volume-1593-1/peterzhenglinpeng/peterdidi"
+PROJECT_ROOT="/nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new"
+VENV_PATH="/nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi"
 LOG_DIR="${PROJECT_ROOT}/data_fetching/logs"
 
 DATE_STR=$(date +"%Y%m%d_%H%M%S")

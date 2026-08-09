@@ -190,7 +190,7 @@ rest500 = ens_rank 排序后取 top-500 去掉已在 top-100 的
 
 ### 回测配置文件
 
-`/nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline/config/config_ensemble_quota_50_50.yaml`
+`/nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline/config/config_ensemble_quota_50_50.yaml`
 
 ### 回测参数全表
 
@@ -222,7 +222,7 @@ rest500 = ens_rank 排序后取 top-500 去掉已在 top-100 的
 ### 回测目录
 
 ```
-/nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline/results/
+/nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline/results/
   ensemble_quota_50_50_20200103_20260630_topk100_netting_vwapam_shift1_interval5/
     account_history.csv       # 每日账户净值、收益率、基准
     trade_history.csv         # 逐笔交易明细
@@ -392,12 +392,12 @@ rest500 = ens_rank 排序后取 top-500 去掉已在 top-100 的
 
 ```bash
 # 1. 生成集成信号
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
-cd /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new
 python -m ml_core.ensemble_quota
 
 # 2. 回测
-cd /nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline
 BACKTEST_CONFIG_PATH=config/config_ensemble_quota_50_50.yaml python batch_runner.py
 
 # 3. 查看结果

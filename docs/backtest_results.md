@@ -249,7 +249,7 @@
 批量回测使用 `daily-realtime-backtest-pipeline/compare_signals.py`：
 
 ```bash
-cd /nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline
 python compare_signals.py \
   --signals cxl_a158_p27_raw_v2 cxl_a158_p27_raw_shap_v2 \
             cxl_a158_p27_guosen_neu_v1 cxl_a158_p27_guosen_neu_shap_v1 \

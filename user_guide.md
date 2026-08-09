@@ -31,7 +31,7 @@ ML 选股管线（统一在 `ml_core/`，配置驱动，LGBM / MLP 一套切换�
 ## 二、环境准备
 
 ```bash
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate
 ```
 
 **数据后端主开关 `DATA_BACKEND`**（默认 `dquant`，一处切换消费侧数据源）：
@@ -104,7 +104,7 @@ PYTHONPATH=. python -c "import pandas as pd; from core import config as c; f=lam
 
 > ⚠️ 后端要点：alpha158 认 `ALPHA158_DATA_BACKEND`（默认 dquant）→ 写 `alpha158-dquant`；p27 分钟因子认 `MINUTE_DATA_BACKEND`，**默认已是 dquant**，无需显式 export，产物落 `factors/*-dquant/` + `output-dquant/`，模型可直接读到。仅复现旧 rq 基线时才 `export MINUTE_DATA_BACKEND=rq`。两者是独立轴。
 > 细节与全链路（掩码/信号/回测）见 `docs/server_daily_production.md`；alpha158 线总览见 `alpha158/README.md`。
-> `pipeline/daily_update.sh` 是日更编排器（不设 `MINUTE_DATA_BACKEND`，跟随默认）；**默认翻转后它现在也产 dquant 分钟/p27**。要用它跑旧 rq 基线，需先 `export MINUTE_DATA_BACKEND=rq` 再执行。
+> 日更编排：让 agent 按 `data_fetching/DAILY_UPDATE_GUIDE.md` 执行（A 数据线 → B 因子线，失败即停）。`pipeline/daily_update.sh` 已废弃（与 guide 分叉、缺步骤、无硬门槛），勿用。
 
 ---
 

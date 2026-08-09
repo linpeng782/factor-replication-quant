@@ -20,7 +20,7 @@ import yaml
 from loguru import logger
 
 REPO = Path(__file__).parent.parent
-VENV_PYTHON = "/nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/python"
+VENV_PYTHON = "/nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/python"
 BASE_CONFIG = Path(__file__).parent / "rolling_config.yaml"
 LOG_DIR = Path(__file__).parent / "logs"
 

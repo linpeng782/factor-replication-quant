@@ -1,4 +1,4 @@
-/nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new/ml# LightGBM 因子合成训练流水线 — 可执行计划
+/nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new/ml# LightGBM 因子合成训练流水线 — 可执行计划
 
 > 参考：国金证券《之十：机器学习全流程重构》《之十三：特征筛选、SHAP、中性化》。
 > 定位：本流水线**消费** factor-rep 的因子库 + 标签 + mask，**产出**合成选股信号 ŷ。

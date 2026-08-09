@@ -8,7 +8,7 @@
 
 ```bash
 # 远端 SSH 机器（高频因子产线，65 GB 分钟数据所在）
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate   # Python 3.11
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate   # Python 3.11
 
 # ⚠️ /tmp 是 overlay 只有 20G，经常被占满（实测 83%+）。所有临时文件、缓存、
 # 中间产物一律放 /nfs/ofs-prediction/ 下（90T，12T 可用），不要写 /tmp。
@@ -27,13 +27,82 @@ export FACTOR_REPL_DATA_ROOT=/Users/didi/DATA                      # 数据根�
 
 数据根 `<DATA_ROOT>` 下**两个角色桶**：`factors/`（因子产出）+ `market-data/`（评估输入）。
 
-| 变量 | 路径 | 说明 |
+> **路径常量速查（config/ 子模块 → 实际路径；DATA_BACKEND=dquant 默认口径）**
+> 搞不清数据在哪时看这里，不用每次探测。所有常量由 `config/` 解析，`import config` 即可取。
+
+### market-data/ 评估输入（`config/market_data.py`）
+
+| 常量 | 实际路径（dquant 默认） | 内容 |
 |------|------|------|
-| `RAW_FACTOR_BASE` / `CLEANED_FACTOR_BASE` / `NEU_FACTOR_BASE` | `<DATA_ROOT>/factors/{raw,cleaned,neu}/<source>/<group>/` | 因子三阶段；namespace=`<source>/<group>` 由 spec 路径推导（cxl/cross_section_regress/...） |
-| `COMBO_MASK_PATH` / `NEW_STOCK_MASK_PATH` | `<DATA_ROOT>/market-data/masks/` | 交易状态 mask，评估**零 API 调用** |
-| `VWAP_PANEL_PATH` / `VWAP_POST_PATH` / `LABELS_DIR` | `<DATA_ROOT>/market-data/{prices,labels}/` | PIT vwap + 远期收益 labels |
-| `INDUSTRY_PANEL_ZX_PATH` / `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/market-data/{industry,market_cap}/` | 中信行业 + 总市值面板（data_fetching/ 产出，中性化用） |
-| `OUTPUT_DIR` | `factor-repilcation-quant/output/<source>/<group>/<factor>/` | 评估产物（两张 PNG） |
+| `COMBO_MASK_PATH` | `<DATA_ROOT>/backtest_engine/cache_dir_dquant/combo_mask_long.parquet` | 交易状态长表（ST/停牌/涨停/新股），评估零 API |
+| `NEW_STOCK_MASK_PATH` | `<DATA_ROOT>/backtest_engine/cache_dir_dquant/new_stock_mask_long.parquet` | 新股 mask 长表 |
+| `VWAP_PANEL_PATH` | `<DATA_ROOT>/market-data/labels/vwap_panel.parquet` | PIT vwap 宽表（T×N），labels 缺 horizon 时 fallback 现算 |
+| `LABELS_DIR` | `<DATA_ROOT>/market-data/labels/` | `forward_return_{1,2,5,10,20}d.parquet` 预算远期收益 |
+| `INDUSTRY_PANEL_ZX_PATH` | `<DATA_ROOT>/market-data/industry-dquant/industry_panel_zx_dquant.parquet` | 中信一级行业日频宽表（中性化/画像用） |
+| `MARKET_CAP_PANEL_PATH` | `<DATA_ROOT>/market-data/market_cap/market_cap_panel.parquet` | 总市值日频宽表（中性化/大小盘画像用） |
+| `TURNOVER_RATE_PANEL_PATH` | `<DATA_ROOT>/market-data/turnover-dquant/turnover_rate_panel.parquet` | 日换手率宽表（T×N，%，dquant `get_turnover_rate.today`；改进动量因子权重源） |
+| `NORMAL_DAY_PANEL_PATH` | `<DATA_ROOT>/market-data/limit-dquant/normal_day_panel.parquet` | 正常交易日 mask（T×N，1=非停牌且未触涨跌停；长端动量剔除无效日用） |
+| `INDUSTRY_INDEX_RETURN_PATH` | `<DATA_ROOT>/market-data/industry/industry_index_return.parquet` | 中信一级行业指数日收益（T×33，联合动量因子用） |
+| `INDEX_SEGMENTS_PATH` | `<DATA_ROOT>/market-data/index/000985_segments.parquet` | 000985 中证全指日频四段收益（APM 回归市场参照） |
+
+### factors/ 因子三阶段产物（`config/factors_output.py`，随 MINUTE_BACKEND 生产隔离轴）
+
+| 常量 | 实际路径（dquant 默认） | 内容 |
+|------|------|------|
+| `RAW_FACTOR_BASE` | `<DATA_ROOT>/factors/raw-dquant/<source>/<group>/` | 因子 raw 阶段；namespace=`<source>/<group>` |
+| `CLEANED_FACTOR_BASE` | `<DATA_ROOT>/factors/cleaned-dquant/<source>/<group>/` | 因子 cleaned 阶段（MAD+zscore+mask） |
+| `NEU_FACTOR_BASE` | `<DATA_ROOT>/factors/neu-dquant/<source>/<group>/` | 因子 neu 阶段（强制行业市值中性化） |
+| `ALPHA158_RAW_BASE` | `<DATA_ROOT>/factors/raw-dquant/alpha158-dquant/` | alpha158 raw 产物（消费轴随 ALPHA158_BACKEND） |
+| `RET20_PANEL_PATH` | `<DATA_ROOT>/factors/helpers/ret20_panel.parquet` | 20 日后复权收益面板（APM 截面回归去动量用） |
+| `RET1_PANEL_PATH` | `<DATA_ROOT>/factors/helpers/ret1_panel.parquet` | 日频后复权收益面板（改进动量因子收益源） |
+| `AMP_PANEL_PATH` / `AMP_HL_PANEL_PATH` | `<DATA_ROOT>/factors/helpers/{amp,amp_hl}_panel.parquet` | 日振幅面板：(H−L)/前收（长端动量 2.0）/ H÷L−1（1.0） |
+| `OUTPUT_DIR` | `<repo>/output-dquant/<source>/<group>/<factor>/` | 评估产物（两张 PNG，项目相对路径） |
+
+### 因子产线原料（`config/factors_input.py`）
+
+| 常量 | 实际路径（dquant 默认） | 内容 |
+|------|------|------|
+| `RAW_OHLCV_DIR` | `<DATA_ROOT>/market-data/daily-dquant/stock-ohlcv-dquant/` | 逐股原始日频 OHLCV（不复权） |
+| `EX_FACTORS_DIR` | `<DATA_ROOT>/market-data/daily-dquant/stock-ex-factors-jy/` | 逐股稀疏复权因子（jy adjfactor） |
+| `FUNDAMENTALS_DIR` | `<DATA_ROOT>/market-data/fundamentals-dquant/` | 基本面 PIT 字段快照（cxl 生产原料） |
+| `INDUSTRY_PANEL_ZX_DQUANT_PATH` | `<DATA_ROOT>/market-data/industry-dquant/industry_panel_zx_dquant.parquet` | dquant 中信一级行业面板（因子生产 fetch custom 用） |
+| `MINUTE_RAW_DIR` | `<DATA_ROOT>/market-data/minute-dquant/raw/` | 分钟原始（不复权）按日分片 `<YYYY-MM-DD>.parquet` |
+| `MINUTE_EX_FACTORS_DIR` | `<DATA_ROOT>/market-data/daily-dquant/stock-ex-factors-jy/` | 分钟复权因子（与 alpha158-dquant 同源） |
+| `INTERMEDIATE_CACHE_DIR` | `<DATA_ROOT>/intermediate-cache-dquant/` | 分钟→日频特征中间缓存（可再生） |
+
+### ML 训练/预测产物（`config/ml.py`）
+
+| 常量 | 实际路径 | 内容 |
+|------|------|------|
+| `ML_MODELS_DIR` | `<DATA_ROOT>/ml/models/<run_id>/` | LGBM 模型 + scaler_x + run_meta.json + selected_features.json |
+| `ML_PREDICTIONS_DIR` | `<DATA_ROOT>/ml/predictions/<run_id>/` | `pred_panel_live.parquet`（T×N 分数面板）+ `signals/` 每日 txt |
+| `ML_DATASETS_DIR` | `<DATA_ROOT>/ml/datasets/` | (可选) train/valid/test 矩阵 |
+| `ML_LOGS_DIR` | `<repo>/ml_core/logs/` | 训练日志（repo 内，.gitignore 排除） |
+
+### 分析产物（`config/analysis.py`）
+
+| 常量 | 实际路径 | 内容 |
+|------|------|------|
+| `INVENTORY_ROOT` | `<DATA_ROOT>/factor-inventory/` | 因子总账/IC序列/相关性/对比等分析产物 |
+
+### 横切参数（`config/params.py`）
+
+| 常量 | 值 | 说明 |
+|------|------|------|
+| `DEFAULT_START_DATE` | `20100101` | fetch 区间起点（给 8 期 PIT 滚动因子留 warm-up） |
+| `DEFAULT_END_DATE` | `20260527` | fetch 区间终点 |
+| `DEFAULT_EVAL_START_DATE` | `20160101` | 评估区间起点（IC/ICIR 对齐历史） |
+| `DEFAULT_EVAL_END_DATE` | `20251231` | 评估区间终点 |
+
+### 后端开关（`config/base.py`）
+
+| 环境变量 | 默认 | 可选值 | 影响 |
+|------|------|------|------|
+| `FACTOR_REPL_DATA_ROOT` | `/nfs/ofs-prediction/peterzhenglinpeng` | 本机路径 | 数据根重定向 |
+| `DATA_BACKEND` | `dquant` | `dquant`/`rq` | 主开关：alpha158/基本面/mask 整体后端 |
+| `MINUTE_DATA_BACKEND` | `dquant` | `dquant`/`rq` | 生产隔离轴：分钟+三阶段产物整体重定向到 `-dquant` 并行目录 |
+
+> ⚠️ `MINUTE_DATA_BACKEND` 故意不随主开关——dquant 把整个 `factors/{raw,cleaned,neu}` + `output` 重定向到并行 `-dquant` 目录，与消费轴语义不同，强行合并会静默破坏因子发现。
 
 `<DATA_ROOT>` 默认 `/nfs/ofs-prediction/peterzhenglinpeng`；预计算数据已更新到 2026-05-15。
 
@@ -105,6 +174,12 @@ python scripts/build_factor_inventory.py
 
 # 因子相关性：BLAS GEMM 一次算 N² + 层次聚类，输出矩阵/热力图/summary
 python scripts/factor_correlation.py --pattern 'pj_*' --name paper_33   # ~10s for 18 因子
+
+# 错过赢家 SHAP 月度诊断（模型风格洞监控，参数在脚本顶部改，~3 分钟）
+# 自动找期间涨幅 top20 → 判定抓住/错过 → 对错过者逐日 SHAP 解剖（拖累因子定位）
+# 产出: 控制台报告 + ml/diagnostics/missed_winners_shap/ 落盘 audit trail
+# 建议每月跑一次（改 PERIOD_START/END），监控"错过赢家占比"与拖累因子族是否漂移
+PYTHONPATH=. python scripts/diagnose_missed_winners_shap.py
 ```
 
 **CLI 设计原则**：
@@ -200,6 +275,7 @@ core/
   spec_resolver.py   因子标识符 → 路径解析
   operators/         fetch / compute / filter / rank / rolling / transform / merge /
                      row_aggregate / row_polyfit / row_correlate /
+                     rolling_weighted_mean / rolling_sorted_subset / load_panel /
                      minute_intraday_aggregate / cross_section_regress
   evaluation.py      单因子评估编排（清洗→强制行业市值中性化→cleaned/neu 各评一版）
   eval_plots.py      评估可视化（2×2 报告 PNG，本地审美）

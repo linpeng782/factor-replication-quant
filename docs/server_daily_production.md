@@ -11,24 +11,24 @@
 ## 0. 环境 & 固定路径
 
 ```bash
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate   # Python 3.11（勿用裸 python）
-cd     /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new   # 本仓（因子线 + 数据线）
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate   # Python 3.11（勿用裸 python）
+cd     /nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new   # 本仓（因子线 + 数据线）
 ```
 
 | 名称 | 路径 |
 |---|---|
-| venv (py3.11) | `/nfs/volume-1593-1/peterzhenglinpeng/peterdidi` |
-| 因子仓（本仓） | `/nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new` |
+| venv (py3.11) | `/nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi` |
+| 因子仓（本仓） | `/nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new` |
 | 数据根 `FACTOR_REPL_DATA_ROOT` | `/nfs/ofs-prediction/peterzhenglinpeng`（**代码默认值，单独跑 python 时无需设**） |
 | 因子面板 | `<数据根>/factors/raw/<source>/<group>/<factor>.parquet` |
 | 基本面 PIT 库 | `<数据根>/market-data/fundamentals/<field>.parquet` |
 | 掩码 | `<数据根>/market-data/masks/{combo_mask_long,new_stock_mask_long}.parquet` |
 | ML 模型 / 信号 | `<数据根>/ml/models/<run_id>/` ・ `<数据根>/ml/signals/<run_id>/` |
 | 掩码来源（**另一项目产出**） | `<数据根>/backtest_engine/cache_dir/` |
-| 回测仓 | `/nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline` |
+| 回测仓 | `/nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline` |
 | 当前生产模型 run_id | `cxl_a158_p27_raw_shap_v2`（如有多个模型，对每个重复 C/D 段） |
 
-> ⚠️ **`daily_update.sh` 会 `export FACTOR_REPL_DATA_ROOT`**（已设为服务器默认）。**单独跑某个 python 命令**时不要乱设这个变量——代码默认值就是对的。
+> ⚠️ **单独跑某个 python 命令**时不要乱设 `FACTOR_REPL_DATA_ROOT`——代码默认值就是对的（`/nfs/ofs-prediction/peterzhenglinpeng`）。
 
 ---
 
@@ -36,7 +36,7 @@ cd     /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new   # 本
 
 | 段 | 做什么 | 自动化程度 |
 |---|---|---|
-| **A. 因子生产** | 数据线 + 因子面板 + labels | ✅ 一条命令 `daily_update.sh` |
+| **A. 因子生产** | 数据线 + 因子面板 + labels | ⚠️ 让 agent 按 `data_fetching/DAILY_UPDATE_GUIDE.md` 执行（A 数据线 → B 因子线，失败即停） |
 | **B. 掩码更新** | 从 backtest_engine 拷 combo/new_stock 掩码 | ⚠️ 手动 + **必须先验证对齐** |
 | **C. 信号生产** | 用模型推理 → 导出每日 top-N 选股 | 手动 2 条命令 |
 | **D. 回测** | 跑回测看收益/IC | 手动 1 条命令 |
@@ -45,33 +45,32 @@ cd     /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new   # 本
 
 ---
 
-## 2. A. 因子生产（一条命令）
+## 2. A. 因子生产（agent 按 guide 执行）
 
-```bash
-cd /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new
-bash pipeline/daily_update.sh
-```
-
-`daily_update.sh` 自动按序跑（数据线 fail-fast；因子线失败仅告警）：
+> `pipeline/daily_update.sh` 已废弃（与 guide 分叉、缺 A7/A8/A10 步骤、无硬门槛、曾误带 `--full`）。
+> 日更由 agent 按 `data_fetching/DAILY_UPDATE_GUIDE.md` 执行：**A 数据线 → A 段末硬门槛校验 → B 因子线**，失败即停。
+> 下表是 guide 对应的步骤概览（ authoritative 以 guide 为准）：
 
 | 步 | 内容 | 说明 |
 |---|---|---|
-| 1–5 | ex_factors / raw_ohlcv / minute_ohlcv(+--full) / industry / market_cap | 数据线，拉当日数据（需 rqdatac）|
-| 5b | **fundamentals** | 基本面 PIT 快照 append 当日（cxl 因子线读它）+ `--audit` 重述审计（只告警）|
-| 6 | **refresh_supersets `--cache-key prv_v3`** | 只刷 paper_27 用的 prv_v3 superset（含 pass2 新股回填）。**默认不刷** apm/sm/tide/dazzle（那些是别的 paper 用的，本生产不更新）|
-| 7a | **批量 L3** `refresh_factors_batch.py`（paper_27/superset 因子）| **读 prv_v3 superset 一次、算 23 个因子**（~14× 快，~3-4 min）。产出与逐个 run.py **bit 一致**。增量 append；不安全/非 superset 因子自动跳过 |
-| 7b | **run.py 并行**（cxl，22 个，读本地基本面）| L3 增量。**自动判定**：面板已存在→增量（尾窗只算新日）；cxl 5 个因子（`reg_pb_gshe`/`reg_pe_hist` filter→rolling、`roic_ttm_*8` change_on）→全量重算（确定性，**正常非 bug**，见 §6）|
-| 7c | **alpha158**（`alpha158/daily_update.py`）| ⚠️ alpha158 **无 spec、glob 扫不到**，必须独立这步；否则下游信号被 alpha158 旧日期卡死。读本地 raw_ohlcv、零 API |
-| 8 | ml/labels.py | 标签回填（失败不阻塞）|
+| A1–A6 | ex_factors / raw_ohlcv / minute_ohlcv / industry / market_cap / ln_market_cap | 数据线，拉当日数据（需 rqdatac）|
+| A7 | **industry_index** | 中信一级行业指数日收益（联合动量因子用）|
+| A8 | **new_stock_mask**（依赖 combo_mask 已刷新）| 新股 mask 长表 append；combo_mask 落后则跳过 |
+| A9 | **fundamentals** | 基本面 PIT 快照 append 当日（cxl 因子线读它）+ `--audit` 重述审计（只告警）|
+| A10 | **ret20_panel** | 20 日后复权收益面板（APM 截面回归去动量用）|
+| B1 | **refresh_supersets `--cache-key prv_v3`** | 只刷 paper_27 用的 prv_v3 superset（含 pass2 新股回填）。**默认不刷** apm/sm/tide/dazzle |
+| B2 | **批量 L3** `refresh_factors_batch.py`（paper_27/superset 因子）| **读 prv_v3 superset 一次、算 23 个因子**（~14× 快，~3-4 min）。产出与逐个 run.py **bit 一致**。增量 append；不安全/非 superset 因子自动跳过 |
+| B3 | **run.py 并行**（cxl，22 个，读本地基本面）| L3 增量。**自动判定**：面板已存在→增量；cxl 5 个因子→全量重算（确定性，**正常非 bug**，见 §6）|
+| B4 | **alpha158**（`alpha158/daily_update.py`）| ⚠️ alpha158 **无 spec、glob 扫不到**，必须独立这步；否则下游信号被 alpha158 旧日期卡死。读本地 raw_ohlcv、零 API |
+| B5 | **labels**（`data_fetching/update_labels.py`）| vwap_panel + forward_return 回填（失败即停）|
 
 > **范围 = 生产模型 `cxl_a158_p27_raw_shap_v2` 用到的源**：alpha158 + cxl(22) + kysec/paper_27(23)。
-> **不更新** founder / guosen / 其它 kysec paper。要更全：把 `MINUTE_FACTOR_GLOB`（superset 因子，走 7a 批量）
-> 与 `RUNPY_FACTOR_GLOB`（非 superset 因子，走 7b run.py）改宽，并置 `SUPERSET_KEY=`（刷全部 superset）。例：
-> `MINUTE_FACTOR_GLOB='sources/*/*/specs/*' RUNPY_FACTOR_GLOB='sources/cxl/*/specs/*' SUPERSET_KEY= bash pipeline/daily_update.sh`
+> **不更新** founder / guosen / 其它 kysec paper。要更全：agent 在 guide B1 置 `SUPERSET_KEY=`（刷全部 superset）、
+> B2/B3 改宽 factor-glob 即可（guide 命令均支持参数覆盖）。
 
 **耗时参考**（128核/800G，单个新交易日）：数据线 ~5–10min；refresh prv_v3 ~5min；
-7a 批量 paper_27 ~3–4min；7b cxl 并行 ~3–5min；7c alpha158（158 面板写盘）~3–8min；labels ~1–3min。
-→ **A 段合计 ≈ 20–35min**（B 掩码 + C 信号 + D 回测 另 ~10min）。落后多天则数据线/superset 按天数增加。
+B2 批量 paper_27 ~3–4min；B3 cxl 并行 ~3–5min；B4 alpha158（158 面板写盘）~3–8min；labels ~1–3min。
+→ **A+B 段合计 ≈ 20–35min**（掩码 + 信号 + 回测 另 ~10min）。落后多天则数据线/superset 按天数增加。
 
 **验收 A**：
 ```bash
@@ -154,8 +153,8 @@ PYTHONPATH=. python -m ml.export_signal --run-id "$RUN" --source live --layout d
 ## 5. D. 回测
 
 ```bash
-cd /nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate
 python compare_signals.py --signals cxl_a158_p27_raw_shap_v2      # 单信号
 # 多信号对比： python compare_signals.py --signals <run_a> <run_b>
 ```
@@ -184,7 +183,7 @@ python compare_signals.py --signals cxl_a158_p27_raw_shap_v2      # 单信号
 | 信号推不到最新交易日 | 掩码没更新（B 段）；查 predict_live 日志的 filters 末日 |
 | 回测 `results/latest` 报错 | 并行竞态；一次只跑一个 `--signals` |
 | 某 cxl 因子每天"全量重算" | 正常（§6.2）|
-| `minute/raw 为空` / superset 报错 | 数据线（A 段 step 3）未跑或失败，先补数据线 |
+| `minute/raw 为空` / superset 报错 | 数据线（guide A3）未跑或失败，先补数据线 |
 | 重述审计告警「本地 vs API 不一致」 | 记录即可，**不要** `--full` 覆盖（除非人工决策重定基）|
 
 ---

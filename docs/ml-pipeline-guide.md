@@ -9,7 +9,7 @@
 ### Step 1: 训练（Training）
 
 ```bash
-cd /nfs/volume-1593-1/peterzhenglinpeng/factor-replication-quant-new
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/factor-replication-quant-new
 
 # GBDT 版
 python -m ml.run \
@@ -62,8 +62,8 @@ python -m ml.export_signal \
 ### Step 4: 回测对比（Backtest）
 
 ```bash
-cd /nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate
 
 # 单信号回测
 python compare_signals.py --signals <run_id>
@@ -83,8 +83,8 @@ python compare_signals.py --signals <run_id_a> <run_id_b>
 `new_stock_mask_long.parquet` 目前**不是** combo_mask 日更的一部分。发现新股漏网时，需要手动重新生成：
 
 ```bash
-cd /nfs/volume-1593-1/peterzhenglinpeng/stock-data-fetching
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
+cd /nfs/ofs-prediction/peterzhenglinpeng-code/stock-data-fetching
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate
 python build/build_new_stock_mask_rq_only.py
 
 # 然后复制到两个目录
@@ -124,7 +124,7 @@ cp backtest_engine/cache_dir/new_stock_mask_rq_YYYYMMDD.parquet \
 
 ```bash
 # 激活虚拟环境
-source /nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/activate
+source /nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/activate
 
 # 确认 rqdatac 可用（生成 new_stock_mask 时需要）
 python -c "import rqdatac; print('ok')"

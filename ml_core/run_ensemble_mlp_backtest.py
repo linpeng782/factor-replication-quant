@@ -2,8 +2,8 @@
 import subprocess, os, yaml
 from pathlib import Path
 
-BT_DIR = Path("/nfs/volume-1593-1/peterzhenglinpeng/daily-realtime-backtest-pipeline")
-PYTHON = "/nfs/volume-1593-1/peterzhenglinpeng/peterdidi/bin/python"
+BT_DIR = Path("/nfs/ofs-prediction/peterzhenglinpeng-code/daily-realtime-backtest-pipeline")
+PYTHON = "/nfs/ofs-prediction/peterzhenglinpeng-code/peterdidi/bin/python"
 
 SCHEMES = [
     "ensemble_mlp_a_50_50",

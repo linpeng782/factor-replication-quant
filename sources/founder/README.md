@@ -2,7 +2,7 @@
 
 > 评估日期：2026-05-18
 > 评估范围：方正证券多因子选股系列研报，共 8 篇
-> 数据来源：`/nfs/volume-1593-1/peterzhenglinpeng/research-paper-reproduction/parsed_output/方正证券/`
+> 数据来源：`/nfs/ofs-prediction/peterzhenglinpeng-code/research-paper-reproduction/parsed_output/方正证券/`
 
 ---
 

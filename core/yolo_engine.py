@@ -49,7 +49,11 @@ from .operators import minute_tide  # noqa: F401
 from .operators import minute_smartmoney  # noqa: F401
 from .operators import minute_dazzle  # noqa: F401
 from .operators import minute_apm_segments  # noqa: F401
+from .operators import minute_hlvol  # noqa: F401
+from .operators import rolling_group_ratio  # noqa: F401
 from .operators import rolling_ts_regress  # noqa: F401
+from .operators import rolling_weighted_mean  # noqa: F401
+from .operators import rolling_sorted_subset  # noqa: F401
 from .operators import load_panel  # noqa: F401
 from .operators import industry_co_momentum  # noqa: F401
 

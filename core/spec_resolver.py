@@ -162,14 +162,19 @@ def resolve_namespace(arg: str) -> str:
       factors/<stage>/<publisher>/<group>/<factor>.parquet
       output/<publisher>/<group>/<factor>/
 
-    基本面后端 dquant 时（config.FUNDAMENTAL_BACKEND），cxl 产物统一映射到
-    cxl-dquant/（raw/cleaned/neu/output 四处自动并行隔离，不覆盖 rq 基线）。
+    dquant 后端时，以下 source 产物统一映射到 <source>-dquant/（raw/cleaned/neu/output
+    四处自动并行隔离，不覆盖 rq 基线）：
+      · cxl   —— 基本面因子，随 FUNDAMENTAL_BACKEND=dquant
+      · kysec —— 分钟因子，随 _IS_MINUTE_DQUANT（MINUTE_DATA_BACKEND=dquant）
+    ML 训练 SOURCES 配置（如 "kysec-dquant/paper_27_microstructure"）与此映射对齐。
     """
     spec_path = resolve_spec_path(arg)
     ns = "/".join(spec_path.relative_to(SOURCES_DIR).parts[:2])
     import config
     if config.FUNDAMENTAL_BACKEND == "dquant" and ns.startswith("cxl/"):
         ns = "cxl-dquant/" + ns[len("cxl/"):]
+    if config._IS_MINUTE_DQUANT and ns.startswith("kysec/"):
+        ns = "kysec-dquant/" + ns[len("kysec/"):]
     return ns
 
 
@@ -182,27 +187,103 @@ def resolve_namespace_safe(factor_name: str, default: str = "_misc/_misc") -> st
 
 
 _TEMPORAL_TRANSFORM_METHODS = {"diff", "shift", "yoy", "qoq"}
+# 带 window 参数的滚动类算子（warmup 由 window 决定）
+_ROLLING_ACTIONS = {
+    "rolling", "rolling_weighted_mean", "rolling_sorted_subset",
+    "rolling_group_ratio", "rolling_ts_regress",
+}
+# 自建列、不消费 ctx 已有列的 action → 产出列 warmup 记 0（跨日回看由各自内部负责）：
+#   fetch / load_panel        —— 直接读源数据/外部面板
+#   minute_* / industry_*     —— 分钟聚合的跨日 warmup 由 minute_engine 的 reducer.warmup
+#                                + per-stock superset 缓存自管，不属于 L3 尾窗职责
+_BASE_ACTIONS = {"fetch", "load_panel", "industry_co_momentum"}
+# _collect_source_columns 认不出（键名不以 source_column 开头）、但确实引用 ctx 列的键。
+# 漏了会低估 warmup —— reg_pb_gshe 的 group_column=ep_group 就携带 252 日窗口，
+# 曾在本函数重构时把 W2 从 252 打到 1（已由下方 floor 护栏兜住）。
+_EXTRA_SOURCE_KEYS = ("weight_column", "mask_column", "group_column", "change_on")
+
+
+def _step_output_columns(step: dict) -> list[str]:
+    """该 step 产出的列名（output_column / output_columns / minute features / merge columns）。"""
+    if step.get("output_columns"):
+        return list(step["output_columns"].values())
+    if step.get("action") == "merge":
+        return list(step.get("columns") or [])
+    if step.get("features"):                       # minute_* 聚合：features 即产出列
+        return list(step["features"])
+    out = step.get("output_column")
+    return [out] if out else []
+
+
+def _step_input_columns(step: dict) -> list[str]:
+    """该 step 消费的列名（source_column[s] / source_column_<role> / weight / mask）。"""
+    from core.spec_schema import _collect_source_columns
+
+    try:
+        cols = list(_collect_source_columns(step, loc="warmup"))
+    except Exception:                              # 无 source_* 声明（自建列类 action）
+        cols = []
+    cols += [step[k] for k in _EXTRA_SOURCE_KEYS if step.get(k)]
+    return cols
+
+
+def _step_own_lookback(step: dict) -> int:
+    """该 step 自身引入的回看长度（交易日）；非时序算子为 0。"""
+    act = step.get("action")
+    if act in _ROLLING_ACTIONS and step.get("window") is not None:
+        return int(step["window"])
+    if act == "transform" and step.get("method") in _TEMPORAL_TRANSFORM_METHODS:
+        default = 4 if step.get("method") == "yoy" else 1
+        return int(step.get("periods", default))
+    return 0
 
 
 def max_warmup_window(spec_yaml: dict) -> int:
-    """W = spec 中最大时序回看窗口（交易日）；无时序步骤默认 1（禁硬编码）。
+    """W = 算出 factor.column 所需的回看长度（交易日），**按依赖链求和**；无时序步骤默认 1。
 
     L3 增量回读窗口由此推导：fetch_start = last − (W + buffer) 交易日。
-    覆盖两类时序算子（新研报写 window/periods，引擎解析即自动生效，无需改代码）：
-      · rolling：window
-      · transform 的时序 method（diff/shift/yoy/qoq）：periods
-    注：当前各 spec 每条依赖链至多一个时序算子 → 取 max 正确；若未来在同一链上**叠加**
-        多个时序算子（如 rolling 后再 diff），真实 warmup 需按链求和，应改为求和（over-warmup 安全）。
+
+    做法：沿 calculation_steps 顺序传播「每列所需回看」符号表 w[col]：
+      · 自建列 action（fetch / load_panel / minute_* / industry_co_momentum）→ w[out] = 0
+      · 时序算子   → w[out] = max(w[输入列]) + 自身窗口（rolling.window / transform.periods）
+      · 非时序算子 → w[out] = max(w[输入列])            （compute / rank / row_* / merge 等）
+    最终取 w[factor.column]。并行链天然取 max，串行链天然求和。
+
+    ⚠️ 2026-08 修复：旧实现取「spec 内单个最大 window」，对**同一链上叠加多个时序算子**的 spec
+    会低估。首个触发者 dongwu/pct_turn20：链为 rolling(40)→shift(1)→rolling(20)，真实 warmup
+    61 日而旧实现返回 40 → 增量补数时前 5 个新交易日整天全空，且不报错不告警
+    （见 sources/dongwu/paper_07_stable_turnover/docs/pct_turn20.md）。
+    over-warmup 是安全的（只是回读窗口变长、增量稍慢），under-warmup 会静默产出空洞。
     """
-    wins = [1]
-    for step in (spec_yaml.get("calculation_steps") or []):
+    steps = spec_yaml.get("calculation_steps") or []
+    w: dict[str, int] = {}
+
+    for step in steps:
         act = step.get("action")
-        if act == "rolling" and step.get("window") is not None:
-            wins.append(int(step["window"]))
-        elif act == "transform" and step.get("method") in _TEMPORAL_TRANSFORM_METHODS:
-            default = 4 if step.get("method") == "yoy" else 1
-            wins.append(int(step.get("periods", default)))
-    return max(wins)
+        if act == "filter":                        # 只删行、不增列
+            continue
+        outs = _step_output_columns(step)
+        if act in _BASE_ACTIONS or (act or "").startswith("minute_"):
+            for c in outs:
+                w[c] = 0
+            continue
+        if act == "merge":                         # 跨表搬列，warmup 随列继承（已在符号表里）
+            continue
+        base = max((w.get(c, 0) for c in _step_input_columns(step)), default=0)
+        for c in outs:
+            w[c] = base + _step_own_lookback(step)
+
+    # floor 护栏：结果**永不低于**「spec 内单个最大窗口」（= 旧实现语义）。
+    # 依赖链靠 source_column 等键推导，若将来新增算子用了本函数不认识的列引用键，
+    # 链会断在那里、warmup 被低估 → 静默产出空洞（最难查的一类 bug）。
+    # 有此 floor，最坏情况退化成旧行为，绝不会比旧实现更差。
+    floor = max([1] + [_step_own_lookback(s) for s in steps])
+
+    factor_column = (spec_yaml.get("factor") or {}).get("column")
+    if factor_column in w:
+        return max(floor, w[factor_column])
+    # 目标列没追踪到（异常 spec）→ 全部时序窗口求和，宁可 over-warmup
+    return max(floor, sum(_step_own_lookback(s) for s in steps))
 
 
 def incremental_safe(spec_yaml: dict) -> bool:

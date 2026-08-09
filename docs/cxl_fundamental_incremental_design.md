@@ -200,9 +200,21 @@ raw 增量落地后对增量段走 `run.py <factor> --evaluate-only` 即可，�
 > ⚠️ **W2 解析教训**：`max_warmup_window` 必须覆盖 `transform`(diff/shift/yoy/qoq) 的 `periods`，
 > 否则 reg_pe_hist(diff60)/pe_ttm_delta60(diff60)/roic 等会少 warmup 算错（阶段3 发现并修复）。
 
+> ✅ **2026-08 已修复：W2 改为按依赖链求和**（原「取单个最大 window」）。触发者
+> `dongwu/pct_turn20`：链 `rolling(40)→shift(1)→rolling(20)` 真实 warmup 61 日、旧实现返回 40
+> → 增量补数时前 5 个新交易日整天全空，**不报错不告警**。
+> 实现改为沿 steps 传播 `w[col]` 符号表（并行链取 max、串行链求和），并加两道护栏：
+> ① 补齐 `_collect_source_columns` 认不出的列引用键（`group_column` / `change_on` /
+> `weight_column` / `mask_column`——漏 `group_column` 会把 reg_pb_gshe 的 W2 从 252 打到 1）；
+> ② **floor 护栏**：结果永不低于「spec 内单个最大窗口」= 旧实现语义，最坏退化成旧行为。
+> 同时补进 `_ROLLING_ACTIONS` 的 `rolling_ts_regress` / `rolling_group_ratio`——旧实现完全忽略
+> 这两个算子的 window，使 apm 系 / hl_volume_surge 系 8 个因子的 W2 长期是 1（真实 20）。
+> 全仓 108 个 spec 回归对比：95 不变 / 13 变大 / **0 变小**；已只读核查 raw 面板，
+> 全空日均在历史起点（正常 warm-up），近期增量边界无空洞 → 历史数据未受损。
+> 验证脚本：`scripts/verify_warmup_window_fix.py`（纯只读，不碰因子数据）。
+
 ### 13.2 待确认 / 风险
 - **PIT 实测**：bootstrap 前后用 `get_factor` 拉同一老窗口与现有基线对比，量化重述幅度（决定审计频率）。
-- **链式时序算子**：当前各 spec 每条依赖链至多一个时序算子 → W2 取 max 正确；若未来同链叠加多个（如
-  rolling 后再 diff），需改为按链求和（`max_warmup_window` docstring 已注）。
+- ~~**链式时序算子**：W2 取 max~~ → 已改为按链求和（见 §13.1 的 2026-08 修复记录）。
 - **全量重算因子的成本**：5 个全量因子每日 run.py 全史重算（读本地 1.6GB → 截面计算），实测样本秒级；
   全 universe 待编排时确认在可接受耗时内。

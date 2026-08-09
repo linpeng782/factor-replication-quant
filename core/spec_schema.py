@@ -26,7 +26,7 @@ NO_OUTPUT_ACTIONS = frozenset({"filter"})
 
 # 增列的 action（必须显式声明 output_column）
 COLUMN_ADDING_ACTIONS = frozenset({
-    "transform", "compute", "rank", "rolling",
+    "transform", "compute", "rank", "rolling", "rolling_group_ratio",
     "row_aggregate", "row_polyfit", "row_correlate",
     "cross_section_regress",
 })
@@ -102,12 +102,16 @@ def validate_spec(spec_yaml: dict) -> None:
             _validate_fetch(step, sym, loc)
         elif action == "merge":
             _validate_merge(step, sym, loc)
-        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate", "minute_tide", "minute_smartmoney", "minute_dazzle", "minute_apm_segments"):
+        elif action in ("minute_intraday_aggregate", "minute_pricejump_aggregate", "minute_tide", "minute_smartmoney", "minute_dazzle", "minute_apm_segments", "minute_hlvol"):
             # 分钟级聚合算子契约：cache_key + features（std_window/threshold 可选）。
             # TODO(1000规模): 此枚举 + yolo_engine 导入清单应改为按 REDUCER_BY_ACTION 自动发现。
             _validate_minute_intraday_aggregate(step, sym, loc)
         elif action == "rolling_ts_regress":
             _validate_rolling_ts_regress(step, sym, loc)
+        elif action == "rolling_weighted_mean":
+            _validate_rolling_weighted_mean(step, sym, loc)
+        elif action == "rolling_sorted_subset":
+            _validate_rolling_sorted_subset(step, sym, loc)
         elif action == "load_panel":
             _validate_load_panel(step, sym, loc)
         elif action == "industry_co_momentum":
@@ -306,11 +310,63 @@ def _validate_rolling_ts_regress(step: dict, sym: _SymbolTable, loc: str) -> Non
     sym.add(target_df, out, loc)
 
 
-def _validate_load_panel(step: dict, sym: _SymbolTable, loc: str) -> None:
-    """load_panel：无 source_columns（读外部文件），只需 panel_config + output_column。"""
+def _validate_rolling_weighted_mean(step: dict, sym: _SymbolTable, loc: str) -> None:
+    """rolling_weighted_mean：source_column + weight_column 都须存在，window 必填。"""
     target_df = step.get("output_dataframe", "data")
     if not sym.has_df(target_df):
         raise SpecError(f"{loc}: DataFrame {target_df!r} 未被定义")
+    for key in ("source_column", "weight_column"):
+        col = step.get(key)
+        if not col:
+            raise SpecError(f"{loc}: {key} 必填")
+        sym.require(target_df, col, loc, role=key)
+    window = step.get("window")
+    if not isinstance(window, int) or window <= 0:
+        raise SpecError(f"{loc}: window 必填且为正整数，实际 {window!r}")
+    decay = step.get("decay_scale")
+    if decay is not None and (not isinstance(decay, (int, float)) or decay <= 0):
+        raise SpecError(f"{loc}: decay_scale 必须是正数，实际 {decay!r}")
+    out = step.get("output_column")
+    if not out:
+        raise SpecError(f"{loc}: output_column 必填")
+    sym.add(target_df, out, loc)
+
+
+def _validate_rolling_sorted_subset(step: dict, sym: _SymbolTable, loc: str) -> None:
+    """rolling_sorted_subset：值列/排序列（+可选 mask 列）须存在，window 必填。"""
+    target_df = step.get("output_dataframe", "data")
+    if not sym.has_df(target_df):
+        raise SpecError(f"{loc}: DataFrame {target_df!r} 未被定义")
+    for key in ("source_column", "source_column_sort"):
+        col = step.get(key)
+        if not col:
+            raise SpecError(f"{loc}: {key} 必填")
+        sym.require(target_df, col, loc, role=key)
+    if step.get("mask_column"):
+        sym.require(target_df, step["mask_column"], loc, role="mask_column")
+    window = step.get("window")
+    if not isinstance(window, int) or window <= 0:
+        raise SpecError(f"{loc}: window 必填且为正整数，实际 {window!r}")
+    frac = step.get("frac", 0.7)
+    if not isinstance(frac, (int, float)) or not 0 < frac <= 1:
+        raise SpecError(f"{loc}: frac 必须在 (0,1]，实际 {frac!r}")
+    if step.get("select", "low") not in ("low", "high"):
+        raise SpecError(f"{loc}: select 只能是 low / high，实际 {step.get('select')!r}")
+    if step.get("agg", "sum") not in ("sum", "mean"):
+        raise SpecError(f"{loc}: agg 只能是 sum / mean，实际 {step.get('agg')!r}")
+    out = step.get("output_column")
+    if not out:
+        raise SpecError(f"{loc}: output_column 必填")
+    sym.add(target_df, out, loc)
+
+
+def _validate_load_panel(step: dict, sym: _SymbolTable, loc: str) -> None:
+    """load_panel：无 source_columns（读外部文件），只需 panel_config + output_column。
+
+    DataFrame 不存在时由算子用面板自建主表，故这里 create 而非 require。
+    """
+    target_df = step.get("output_dataframe", "data")
+    sym.create(target_df)
     if not step.get("panel_config"):
         raise SpecError(f"{loc}: panel_config 必填（config 属性名或绝对路径）")
     out = step.get("output_column")

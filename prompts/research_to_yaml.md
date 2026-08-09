@@ -118,6 +118,46 @@ calculation_steps:
   # fill_method: ffill | bfill | none
 ```
 
+### `rolling_weighted_mean`
+逐股滚动窗口的**归一化加权平均** `Σ(d_i·w·v)/Σ(d_i·w)`，可带指数时间衰减
+`d_i = exp(-i/decay_scale)`（i=0 即当日）。典型用途：换手率加权动量。
+```yaml
+- action: rolling_weighted_mean
+  source_column: <被加权的值列，如日收益率>
+  weight_column: <权重列，如日换手率；须非负>
+  output_column: <新增列>
+  window: 60
+  decay_scale: 12                  # 可选；不写 = 不衰减
+  min_periods: 30                  # 可选；默认 window // 2
+  group_by: order_book_id
+```
+值/权重任一为 NaN 的日子整体不进分子分母，也不计有效天数。
+
+### `rolling_sorted_subset`
+滚动窗口内**按另一列排序切割子集后聚合**：剔除 mask 无效日 → 按 sort 列升序 →
+取最低/最高 `frac` 比例的 `k = floor(n_valid × frac)` 天 → 对值列 sum/mean。
+```yaml
+- action: rolling_sorted_subset
+  source_column: alpha_ret         # 被聚合的值
+  source_column_sort: amp          # 排序键（如日振幅）
+  mask_column: normal_day          # 可选，> 0 为有效日（如剔涨跌停/停牌）
+  window: 160
+  frac: 0.7
+  select: low                      # low（默认）/ high
+  agg: sum                         # sum（默认）/ mean
+  min_valid: 80                    # 可选，默认 window // 2
+  output_column: alpha_ret_low
+```
+
+### `load_panel`
+从本地宽表面板（date × order_book_id）取一列 merge 进主表；**主表不存在时用该面板
+创建主表**（按 universe + fetch 区间裁剪）——纯面板型因子的起手式。
+```yaml
+- action: load_panel
+  panel_config: RET1_PANEL_PATH    # config 属性名或绝对路径
+  output_column: ret1
+```
+
 ### `merge`
 显式跨 DataFrame 合并。
 ```yaml

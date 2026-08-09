@@ -3,7 +3,7 @@
 # 重活全在 ml_core.pipeline.run_train；run.py 读本文件 → 配模型/选策略 → 训练 → 落盘 → 报 IC。
 # 训完可选自动推理+导信号（predict.after_train=true），一步到位，不用再跑 ml_core.predict。
 
-run_id: lgbm_shap128_csrank5_dq     # 同 lgbm_shap128_csrank_dq，唯一差异：clip 3 → 5
+run_id: lgbm_shap128_a158_size_kymom_htmom_mkt10_csrank5_dq   # 基线128 + 市场层广播特征10（实验 B4）
 model: lgbm                         # lgbm | mlp  ← 换模型只改这一行（超参各自见下方 lgbm:/mlp: 段）
 
 # ── 标签口径（仅 lgbm 线生效；mlp 固定 BinaryMedian）──
@@ -15,10 +15,14 @@ label_clip: 5.0              # csrank 系专用：截尾阈值；3=尾部压得�
 # ── 数据与因子 ──
 sources:
   - alpha158-dquant
-  - kysec-dquant/paper_27_microstructure
   - style-dquant/size
   - kysec-dquant/paper_67_long_momentum
   - htsec/paper_04_momentum
+  - market-dquant              # 市场层广播特征 10 个（vol/regime/breadth/alphaenv）
+# 5 源 179 因子：Alpha158(158) + size(1) + ky长动量(2) + ht动量(8) + 市场广播(10)
+# ⚠️ market-dquant 是「每日单值广播到全市场」的特征，只能配 model: lgbm。
+#    MLP 线的 DailyCrossSectionMAD 逐日截面 zscore 会把当日恒定的列静默抹成全 0 且不报错。
+#    详见 docs/20260807_market_broadcast_features_design.md §6.1
 neu_sources: null            # 从 factors/neu 读的因子源（与 sources 互补）；null=不用
 horizon: 20                  # 远期收益天数
 
@@ -32,10 +36,32 @@ horizon: 20                  # 远期收益天数
 #   - ridge_relative_vwap
 exclude_features: null
 
+# ── 固定因子集（与 select_method 互斥；启用时跳过 Stage-1 重新选因子）──
+# 用途：在既有 run 的入选因子上「原样继承 + 追加新因子」做增量实验，
+#      旧因子集一字不动 → 新旧模型差异只来自追加的那几个因子（干净的 A/B）。
+# inherit_from：继承该 run_id 的入选清单（selected_features.json，退化 feature_names.json）
+# features    ：直接给定基础清单（与 inherit_from 二选一）
+# append      ：追加因子（须落在上方 sources 覆盖范围内，否则 build_feature_matrix 会报缺失）
+# remove      ：从基础清单剔除因子（消融实验：只拿掉这几个，其余一字不动；先于 append 生效）
+feature_set:                    # 实验 B4：继承基线入选的 128 个（一字不动）+ 追加 10 个市场广播特征
+  inherit_from: lgbm_shap128_a158_size_kymom_htmom_csrank5_dq
+  append:
+    - mkt_disp20_pct            # vol      全市场截面离散度（选股环境好坏）
+    - mkt_avgcorr20_pct         # vol      平均两两相关性（抱团/羊群度）
+    - mkt_rv20_pct              # vol      市场已实现波动
+    - mkt_rv_ts                 # vol      波动期限结构 RV20/RV60-1
+    - ind_disp20_pct            # vol      行业收益离散度
+    - mkt_dd250                 # regime   距250日高点回撤
+    - mkt_amt_exp               # regime   量能扩张
+    - mkt_adl_div               # breadth  ADL广度背离
+    - mkt_median_gap20          # breadth  赚钱效应偏离
+    - fac_absic20               # alphaenv alpha环境强度（12代表因子|IC|，PIT滞后22日）
+
 # ── 两阶段选因子 ──
 # 内部都用 GBDT 选 top_k：对 LGBM 是经典「筛选→合成」；
 # 对 MLP 同样有益（MLP 自身不选因子，先用 GBDT 降维去噪再喂 MLP）。
-select_method: shap           # null=单阶段全特征 | shap | gbdt
+select_method: null            # ⚠️ B4 走 feature_set 固定集，必须关掉 SHAP 重选（与 feature_set 互斥）
+                               #    否则新旧模型差异不只来自追加的 10 个广播特征，A/B 不干净
 top_k: 128                   # 入选因子数（select_method=null 时忽略）
 
 # ── 时间切分（embargo 月不落入任何段；[起, 止]，null 表示开口）──

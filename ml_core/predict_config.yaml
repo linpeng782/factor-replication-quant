@@ -3,12 +3,12 @@
 # 模型口径（model/sources/策略/feature_order）由训练产物 run_meta.json 自带，predict 直读 → 零漂移；
 # 本文件只决定「用哪个模型 + 哪段区间 + 怎么导信号」。
 
-model_run_id: lgbm_a158_p27_style_shap_dq   # 精简三源：alpha158 + p27 + style ln_market_cap
+model_run_id: lgbm_shap128_csrank5_dq   # baseline（5源，含p27微观结构）
 
 # ── 区间（同一条推理路径的两种用法）──
 # 日更增量（老模型）：latest_n 设整数（如 1），只算最近 N 个交易日，append-only 自动补缺、冻结历史。
 # 全量重生成（新模型）：latest_n: null，用 start/end；end: null = 自动到入选因子共同覆盖末日。
-latest_n: 3
+latest_n: 1
 start: "2020-01-01"
 end: null
 

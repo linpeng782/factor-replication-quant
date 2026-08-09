@@ -173,6 +173,18 @@ def _run(pc: dict) -> None:
     )
     panel = predict_live(model_dir, adapter, sx, cfg, start=start, end=end)
 
+    # 增量模式与旧面板合并（冻结历史、重叠日以新算为准），防 latest_n 窗口整写截断全量历史
+    pred_dir = config.ML_PREDICTIONS_DIR / run_id
+    panel_path = pred_dir / "pred_panel_live.parquet"
+    if panel_path.exists() and not pc.get("rebuild", False):
+        old = pd.read_parquet(panel_path)
+        frozen = old.loc[~old.index.isin(panel.index)]
+        n_new = len(panel)
+        panel = pd.concat([frozen, panel]).sort_index().sort_index(axis=1)
+        logger.info(
+            f"[predict] 面板合并：冻结历史 {len(frozen)} 日 + 本次推理 {n_new} 日 → 共 {len(panel)} 日"
+        )
+
     _coverage_guard(
         panel,
         pc.get("coverage_recent", 10),
@@ -181,10 +193,9 @@ def _run(pc: dict) -> None:
     )
 
     # 存预测面板（供集成等下游消费；信号 txt 只有排名丢了分数，面板保留连续分）
-    pred_dir = config.ML_PREDICTIONS_DIR / run_id
     pred_dir.mkdir(parents=True, exist_ok=True)
-    panel.to_parquet(pred_dir / "pred_panel_live.parquet")
-    logger.info(f"[predict] 面板已存 → {pred_dir / 'pred_panel_live.parquet'}")
+    panel.to_parquet(panel_path)
+    logger.info(f"[predict] 面板已存 → {panel_path}")
 
     signal_dir = pc.get("signal_dir") or (
         config.ML_PREDICTIONS_DIR / run_id / "signals"

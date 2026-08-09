@@ -1,0 +1,60 @@
+# 论文：国盛"量价淘金"系列④ 高/低位放量（paper.md §3.4 图表30）
+# 综合因子 = zscore(日频_高位波动占比) + zscore(日频_高波价格占比)（论文为月底合成，
+# 此处日频逐日截面 zscore，为日频产线口径；论文月频口径见 scripts/hl_volume_surge_verify.py）
+# 论文目标（全A，2014/01-2023/10，月频）：IC -0.066, 年化ICIR -3.00, RankIC -0.091,
+#   年化RankICIR -4.13, 5分组多空年化 24.68%, IR 2.90, 月度胜率 78.38%, 最大回撤 7.70%
+factor:
+  name: hl_volume_surge_combo
+  name_cn: 高低位放量综合因子
+  category: 量价
+  direction: -1
+  column: hl_volume_surge_combo
+  description: 高位波动占比与高波价格占比各自截面 zscore 后等权相加。刻画"高位放量"
+    （价格高位伴随波动放大 → 主力出货）强度，因子值越高未来收益越低。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、reduce 到日频（日内波动率 + 日收盘价）
+    action: minute_hlvol
+    cache_key: hlv_v1
+    features:
+      - intraday_vol
+      - close_d
+    output_dataframe: data
+  - name: 20 日内按收盘价排序取最高组的波动率占比
+    action: rolling_group_ratio
+    source_column: intraday_vol
+    source_column_sort: close_d
+    output_column: highpos_vol
+    window: 20
+    n_groups: 5
+    select: high
+    group_by: order_book_id
+  - name: 20 日内按波动率排序取最高组的收盘价占比
+    action: rolling_group_ratio
+    source_column: close_d
+    source_column_sort: intraday_vol
+    output_column: highvol_price
+    window: 20
+    n_groups: 5
+    select: high
+    group_by: order_book_id
+  - name: 高位波动占比 截面 zscore
+    action: transform
+    method: zscore
+    source_column: highpos_vol
+    output_column: z_highpos_vol
+    group_by: date
+  - name: 高波价格占比 截面 zscore
+    action: transform
+    method: zscore
+    source_column: highvol_price
+    output_column: z_highvol_price
+    group_by: date
+  - name: 等权合成综合因子
+    action: compute
+    source_columns:
+      - z_highpos_vol
+      - z_highvol_price
+    formula: z_highpos_vol + z_highvol_price
+    output_column: hl_volume_surge_combo

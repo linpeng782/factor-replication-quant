@@ -1,0 +1,55 @@
+# 开源证券 2022-11-26「开源量化评论（67）：长端动量 2.0」表2（full.md line 198）
+# 因子定义 + 复现口径见 sources/kysec/paper_67_long_momentum/paper.md
+factor:
+  name: long_mom_2
+  name_cn: 长端动量2.0
+  category: 量价
+  direction: 1
+  column: long_mom_2
+  description: >
+    过去 160 个交易日剔除涨跌停/停牌日后，按日振幅（(high−low)/前收）升序取最低 70%
+    的交易日，其日超额收益（个股日收益 − 全市场日收益均值）加总为 AlphaRet_low，
+    再对 Ret20 做截面回归取残差（20 日反转中性）。
+    研报 RankIC 6.92% / RankICIR 2.75（2013-01~2022-10，市值行业中性化）。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 加载日收益率面板（后复权 close 日收益）
+    action: load_panel
+    panel_config: RET1_PANEL_PATH
+    output_column: ret1
+  - name: 加载日振幅面板（2.0 口径：(high−low)/前收）
+    action: load_panel
+    panel_config: AMP_PANEL_PATH
+    output_column: amp
+  - name: 加载正常交易日 mask（1=非停牌且未触涨跌停）
+    action: load_panel
+    panel_config: NORMAL_DAY_PANEL_PATH
+    output_column: normal_day
+  - name: 日超额收益（个股日收益 − 全市场当日等权均值）
+    action: transform
+    method: cs_demean
+    source_column: ret1
+    output_column: alpha_ret
+    group_by: date
+  - name: 160日内（剔涨跌停停牌）低振幅70%交易日的超额收益加总
+    action: rolling_sorted_subset
+    source_column: alpha_ret
+    source_column_sort: amp
+    mask_column: normal_day
+    window: 160
+    frac: 0.7
+    select: low
+    agg: sum
+    output_column: alpha_ret_low
+  - name: 加载Ret20（20日反转中性用）
+    action: load_panel
+    panel_config: RET20_PANEL_PATH
+    output_column: ret20
+  - name: 截面回归剥离20日反转 → 残差即长端动量2.0
+    action: cross_section_regress
+    source_column_y: alpha_ret_low
+    source_columns_x: [ret20]
+    add_intercept: true
+    min_samples: 30
+    output_column: long_mom_2

@@ -1,0 +1,28 @@
+# 华泰证券 2016-12-20「多因子系列之四：单因子测试之动量类因子」
+# 因子定义 + 复现口径选择见 sources/htsec/paper_04_momentum/paper.md（原文 full.md line 213）
+factor:
+  name: exp_wgt_return_1m
+  name_cn: 指数衰减换手率加权1月动量
+  category: 量价
+  direction: -1
+  column: exp_wgt_return_1m
+  description: >
+    最近 20 个交易日（1 个月）以「日换手率 × exp(-x_i/4)」为权重的归一化加权平均日收益率；x_i 为距截面日的交易日数（当日=0），衰减尺度 4N=4 日。A 股呈反转效应，方向为负。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 加载日收益率面板（后复权 close 日收益）
+    action: load_panel
+    panel_config: RET1_PANEL_PATH
+    output_column: ret1
+  - name: 加载日换手率面板（dquant get_turnover_rate 的 today，单位 %）
+    action: load_panel
+    panel_config: TURNOVER_RATE_PANEL_PATH
+    output_column: turnover
+  - name: 20日 指数衰减×换手率 加权平均日收益
+    action: rolling_weighted_mean
+    source_column: ret1
+    weight_column: turnover
+    window: 20
+    decay_scale: 4
+    output_column: exp_wgt_return_1m

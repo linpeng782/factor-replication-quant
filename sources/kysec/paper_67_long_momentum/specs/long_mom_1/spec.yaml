@@ -1,0 +1,32 @@
+# 开源证券 2022-11-26「开源量化评论（67）：长端动量 2.0」表1（full.md line 174）
+# 因子定义 + 复现口径见 sources/kysec/paper_67_long_momentum/paper.md
+factor:
+  name: long_mom_1
+  name_cn: 长端动量1.0
+  category: 量价
+  direction: 1
+  column: long_mom_1
+  description: >
+    过去 160 个交易日中，按日振幅（最高价/最低价−1）升序取最低 70% 的交易日，
+    其日涨跌幅加总。剔除高振幅（过度反应）交易日后，长端涨跌幅由反转转为动量。
+    研报 RankIC 4.01% / RankICIR 1.76（2013-01~2022-10，市值行业中性化）。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 加载日收益率面板（后复权 close 日收益）
+    action: load_panel
+    panel_config: RET1_PANEL_PATH
+    output_column: ret1
+  - name: 加载日振幅面板（1.0 口径：high/low−1）
+    action: load_panel
+    panel_config: AMP_HL_PANEL_PATH
+    output_column: amp_hl
+  - name: 160日内低振幅70%交易日的涨跌幅加总
+    action: rolling_sorted_subset
+    source_column: ret1
+    source_column_sort: amp_hl
+    window: 160
+    frac: 0.7
+    select: low
+    agg: sum
+    output_column: long_mom_1

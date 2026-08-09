@@ -1,0 +1,58 @@
+# 大单残差资金流强度（开源系列12 §3 L179-189）
+# 大单 S3 与 Ret20 同步正相关（R²高）→ 截面回归 S = a + b*Ret20 + ε 取残差，
+# 剥离资金流强度中反转暴露带来的负 alpha（alpha 切分, L215）
+# 论文（全A 五分组月调仓 2013.1-2021.4）: IC均值 0.054, 多空 IR 3.96, 年化 23.22%（表2 L201）
+# direction=+1：同等涨跌幅下大单净流入越强 → 未来收益越高
+# ⚠️ 复现实测无 alpha（IC5d≈0, 分层反单调）——jy 数据语义与研报 Wind 口径不同
+# （见 lb_flow_s3 spec 注释），残差化后原 S3 携带的反转信息也被剥掉，几乎无残余信号。
+# 年度 IC 符号漂移大（2013/14/21-23/25 为正, 其余为负）。详见 docs/lb_flow_resid.md
+factor:
+  name: lb_flow_resid
+  name_cn: 大单残差资金流强度
+  category: 微观结构
+  direction: 1
+  column: lb_flow_resid
+  description: 大单残差资金流强度（开源系列12）。大单S3 截面回归 Ret20 取残差，
+    剥离涨跌幅（反转）暴露。论文 IC 0.054, IR 3.96。开源微观结构12§3。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 加载大单净流入面板
+    action: fetch
+    api: custom
+    command: __internal__capital_flow_jy
+    output_columns:
+      lb_net_value: lb_net
+  - name: 净流入绝对值
+    action: compute
+    source_columns: [lb_net]
+    formula: abs(lb_net)
+    output_column: lb_net_abs
+  - name: 20日净流入之和
+    action: rolling
+    source_column: lb_net
+    agg: sum
+    window: 20
+    output_column: lb_net_sum20
+    group_by: order_book_id
+  - name: 20日净流入绝对值之和
+    action: rolling
+    source_column: lb_net_abs
+    agg: sum
+    window: 20
+    output_column: lb_abs_sum20
+    group_by: order_book_id
+  - name: S3标准化
+    action: compute
+    source_columns: [lb_net_sum20, lb_abs_sum20]
+    formula: lb_net_sum20 / lb_abs_sum20
+    output_column: lb_flow_s3
+  - name: 加载Ret20（剥离涨跌幅用）
+    action: load_panel
+    panel_config: RET20_PANEL_PATH
+    output_column: ret20
+  - name: 截面回归去Ret20 → 残差
+    action: cross_section_regress
+    source_column_y: lb_flow_s3
+    source_columns_x: [ret20]
+    output_column: lb_flow_resid

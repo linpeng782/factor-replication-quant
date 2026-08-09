@@ -1,0 +1,31 @@
+# 论文：国盛"量价淘金"系列④ 高/低位放量（paper.md §3.1 图表14/15/17）
+# 论文目标（全A，2014/01-2023/10，市值中性化，月频）：IC -0.057, 年化ICIR -2.98,
+#   RankIC -0.080, 年化RankICIR -3.99, 5分组多空年化 20.32%, IR 2.71
+factor:
+  name: d_highpos_vol_ratio
+  name_cn: 日频_高位波动占比
+  category: 量价
+  direction: -1
+  column: d_highpos_vol_ratio
+  description: 过去 20 个交易日按日收盘价从低到高等分 5 组，收盘价最高组的日内波动率
+    （当日 1 分钟收益率 std）均值 / 20 日波动率均值。高位放量（波动放大）预示主力出货，
+    因子值越高未来收益越低。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、reduce 到日频（日内波动率 + 日收盘价）
+    action: minute_hlvol
+    cache_key: hlv_v1
+    features:
+      - intraday_vol
+      - close_d
+    output_dataframe: data
+  - name: 20 日内按收盘价排序取最高组的波动率占比
+    action: rolling_group_ratio
+    source_column: intraday_vol
+    source_column_sort: close_d
+    output_column: d_highpos_vol_ratio
+    window: 20
+    n_groups: 5
+    select: high
+    group_by: order_book_id

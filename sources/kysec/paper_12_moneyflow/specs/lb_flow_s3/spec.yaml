@@ -1,0 +1,49 @@
+# 大单资金流强度 S3（开源系列12 §2 表1 L155）
+# S3 = Σ20(buy-sell) / Σ20|buy-sell|，净流入金额绝对值标准化（研报三种标准化中最优）
+# 论文（全A 五分组月调仓 2013.1-2021.4）: IC均值 0.042, 多空 IR 2.69, 年化 17.14%（表2 L201）
+# direction=+1：大单净流入越强 → 未来收益越高（大单资金的预见性, L143）
+# 数据: jy 分单资金流 value_range=3（20-100万, 实测映射见 paper.md 复现口径差异）
+# ⚠️ 复现实测方向为负（dir=-1, 20d IC≈-0.035, 与研报相反）——jy 按单笔成交金额分档
+# （恒生电子口径, 外盘主买/内盘主卖单侧计数, 不配平），研报 Wind 按挂单金额双边分档，语义不同。
+# 反向使用: IC5d 0.026 / 多空 Sharpe 1.35（主动买入反转信号）。详见 docs/lb_flow_s3.md
+factor:
+  name: lb_flow_s3
+  name_cn: 大单资金流强度S3
+  category: 微观结构
+  direction: 1
+  column: lb_flow_s3
+  description: 大单资金流强度（开源系列12）。近20日大单净流入 / 近20日大单净流入绝对值之和。
+    净流入绝对值标准化（S3, 研报最优）。论文 IC 0.042, IR 2.69。开源微观结构12§2。
+universe:
+  primary_index: ALL
+calculation_steps:
+  - name: 加载大单净流入面板
+    action: fetch
+    api: custom
+    command: __internal__capital_flow_jy
+    output_columns:
+      lb_net_value: lb_net
+  - name: 净流入绝对值
+    action: compute
+    source_columns: [lb_net]
+    formula: abs(lb_net)
+    output_column: lb_net_abs
+  - name: 20日净流入之和
+    action: rolling
+    source_column: lb_net
+    agg: sum
+    window: 20
+    output_column: lb_net_sum20
+    group_by: order_book_id
+  - name: 20日净流入绝对值之和
+    action: rolling
+    source_column: lb_net_abs
+    agg: sum
+    window: 20
+    output_column: lb_abs_sum20
+    group_by: order_book_id
+  - name: S3标准化
+    action: compute
+    source_columns: [lb_net_sum20, lb_abs_sum20]
+    formula: lb_net_sum20 / lb_abs_sum20
+    output_column: lb_flow_s3

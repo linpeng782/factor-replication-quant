@@ -1,0 +1,31 @@
+# 论文：国盛"量价淘金"系列④ 高/低位放量（paper.md §3.3 图表21/23/24）
+# 论文目标（全A，2014/01-2023/10，市值中性化，月频）：IC 0.045, 年化ICIR 1.91,
+#   RankIC 0.074, 年化RankICIR 3.17, 5分组多空年化 17.11%, IR 1.89
+factor:
+  name: d_lowvol_price_ratio
+  name_cn: 日频_低波价格占比
+  category: 量价
+  direction: 1
+  column: d_lowvol_price_ratio
+  description: 过去 20 个交易日按日内波动率（当日 1 分钟收益率 std）从低到高等分 5 组，
+    波动率最低组的日收盘价均值 / 20 日收盘价均值。波动率处于低位时价格越高（低位缩量盘稳），
+    因子值越高未来收益越高。
+universe:
+  primary_index: MINUTE_DIR
+calculation_steps:
+  - name: 加载分钟、reduce 到日频（日内波动率 + 日收盘价）
+    action: minute_hlvol
+    cache_key: hlv_v1
+    features:
+      - intraday_vol
+      - close_d
+    output_dataframe: data
+  - name: 20 日内按波动率排序取最低组的收盘价占比
+    action: rolling_group_ratio
+    source_column: close_d
+    source_column_sort: intraday_vol
+    output_column: d_lowvol_price_ratio
+    window: 20
+    n_groups: 5
+    select: low
+    group_by: order_book_id

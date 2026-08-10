@@ -37,19 +37,10 @@ horizon: 20                  # 远期收益天数
 #   - ridge_relative_vwap
 exclude_features: null
 
-# ── 固定因子集（与 select_method 互斥；启用时跳过 Stage-1 重新选因子）──
-# 用途：在既有 run 的入选因子上「原样继承 + 追加新因子」做增量实验，
-#      旧因子集一字不动 → 新旧模型差异只来自追加的那几个因子（干净的 A/B）。
-# inherit_from：继承该 run_id 的入选清单（selected_features.json，退化 feature_names.json）
-# features    ：直接给定基础清单（与 inherit_from 二选一）
-# append      ：追加因子（须落在上方 sources 覆盖范围内，否则 build_feature_matrix 会报缺失）
-# remove      ：从基础清单剔除因子（消融实验：只拿掉这几个，其余一字不动；先于 append 生效）
-feature_set: null              # null=不启用（走下方 select_method 的原有逻辑）
-
 # ── 两阶段选因子 ──
 # 内部都用 GBDT 选 top_k：对 LGBM 是经典「筛选→合成」；
 # 对 MLP 同样有益（MLP 自身不选因子，先用 GBDT 降维去噪再喂 MLP）。
-select_method: shap          # shap | gbdt | null（null=单阶段全因子）；⚠️ 与 feature_set 互斥
+select_method: shap          # shap | gbdt | null（null=单阶段全因子）
 top_k: 128                   # 入选因子数（select_method=null 时忽略）
 
 # ── 时间切分（embargo 月不落入任何段；[起, 止]，null 表示开口）──

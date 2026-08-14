@@ -135,3 +135,208 @@ python batch_runner.py
 回测结果路径：
 - 简单模型：`backtest_engine/results/dr/lgbm_shap128_a158_size_kymom_htmom_csrank5_dq_*`
 - baseline：`backtest_engine/results/dr/lgbm_shap128_csrank5_dq_*`
+
+---
+
+## 附录 A. baseline 模型 `lgbm_shap128_csrank5_dq` 因子清单与研报出处
+
+> 模型产物路径：`<DATA_ROOT>/ml/models/lgbm_shap128_csrank5_dq/`
+> 入选因子清单：`selected_features.json`（SHAP top-128，按 mean(|SHAP|) 降序）
+
+### A.1 因子来源总览
+
+baseline 从 **5 个因子源、192 个候选因子**中经 SHAP 选出 **128 个**：
+
+| 源 | 来源目录 | 候选数 | 入选数 | 研报出处 |
+|------|------|------|------|------|
+| alpha158-dquant | `factors/raw-dquant/alpha158-dquant/` | 158 | 99 | Microsoft Qlib Alpha158（开源量价技术因子库） |
+| kysec-dquant/paper_27_microstructure | `factors/raw-dquant/kysec-dquant/paper_27_microstructure/` | 23 | 18 | 开源证券《高频成交量的峰、岭、谷信息》（市场微观结构系列 27，2025-07-20） |
+| style-dquant/size | `factors/raw-dquant/style-dquant/size/` | 1 | 1 | 风格因子（市值因子，无特定研报，Barra 风格体系） |
+| kysec-dquant/paper_67_long_momentum | `factors/raw-dquant/kysec-dquant/paper_67_long_momentum/` | 2 | 2 | 开源证券《长端动量 2.0：长期、低换手、多头显著的量价因子》（开源量化评论 67，2022-11-26） |
+| htsec/paper_04_momentum | `factors/raw-dquant/htsec/paper_04_momentum/` | 8 | 8 | 华泰证券《多因子系列之四：单因子测试之动量类因子》（2016-12-20） |
+
+### A.2 各源因子定义与计算方法
+
+#### A.2.1 Alpha158（99/158 入选）
+
+**研报出处**：Microsoft Qlib 开源框架的 Alpha158 量价技术因子集（非券商研报，为学术界/工业界标准因子库）。
+**引擎代码**：`alpha158/engine/factors.py`，输入为后复权日频 OHLCV + vwap 宽表面板。
+
+158 个因子分 4 组：
+
+| 组 | 因子类 | 数量 | 公式概述 |
+|------|------|------|------|
+| K线形态 | KMID, KLEN, KMID2, KUP, KUP2, KLOW, KLOW2, KSFT, KSFT2 | 9 | 当日 K 线形态：实体/影线相对开盘价或全振幅的比值 |
+| 价格 | OPEN0, HIGH0, LOW0, VWAP0 | 4 | 当日 open/high/low/vwap 相对 close 的比值 |
+| Rolling | ROC, MA, STD, BETA, RSQR, RESI, MAX, MIN, QTLU, QTLD, RANK, RSV, IMAX, IMIN, IMXD, CORR, CORD, CNTP, CNTN, CNTD, SUMP, SUMN, SUMD | 23×5=115 | 过去 N 日（N=5,10,20,30,60）的滚动统计：收益率/均线/波动/回归斜率/R²/残差/极值/分位/排名/位置/相关/涨跌天数/累计收益等 |
+| 成交量 | VMA, VSTD, WVMA, VSUMP, VSUMN, VSUMD | 6×5=30 | 过去 N 日成交量统计：均值/标准差/加权均值/正收益日量累计/负收益日量累计/收益方向量累计 |
+
+**入选 99 个分布**：
+- K线形态 3 个：KLOW, KLEN, KUP
+- 价格 3 个：VWAP0, LOW0, HIGH0
+- Rolling 79 个（23 类×5 窗口中入选的部分），按窗口分布：5日15个 / 10日15个 / 20日18个 / 30日17个 / 60日28个（长窗口入选更多）
+- 成交量 14 个：VMA×4, VSTD×4, WVMA×3, VSUMP/VSUMN/VSUMD 各1
+
+**关键公式示例**（完整定义见 `alpha158/engine/factors.py`）：
+- `KMID = (close - open) / open`（实体相对开盘）
+- `VWAP0 = vwap / close`（vwap 偏离收盘）
+- `STD60 = Std(close, 60) / close`（60日波动率归一化）
+- `CORR5 = RollingCorr(close, log(volume+1), 5)`（5日价量相关性）
+- `RSV60 = (close - Min(low,60)) / (Max(high,60) - Min(low,60))`（60日随机指标）
+- `BETA30 = Slope(close, 30) / close`（30日趋势斜率归一化）
+
+#### A.2.2 p27 微观结构因子（18/23 入选）
+
+**研报出处**：开源证券《高频成交量的峰、岭、谷信息——市场微观结构研究系列（27）》
+- 作者：魏建榕、王志豪
+- 日期：2025-07-20
+- paper.md：`sources/kysec/paper_27_microstructure/paper.md`
+
+**核心思想**：对个股日内分钟成交量按"过去 20 日同时点 ±1σ"划分为三种状态：
+- **量峰**（peak）：孤立喷发成交量（前后分钟均温和）→ 知情交易者大额成交
+- **量岭**（ridge）：连续喷发成交量 → 散户跟随交易
+- **量谷**（valley）：温和成交量 → 情绪低迷时点
+
+**数据依赖**：分钟级 OHLCV（`market-data/minute-dquant/raw/`），后复权口径。
+**算子**：`minute_intraday_aggregate`（cache_key=`prv_v3`，std_window=20，std_threshold=1.0）→ 日频 reduce → 20 日 rolling。
+
+入选 18 个因子（按 SHAP 重要性降序）：
+
+| 因子 | 中文名 | 方向 | 公式 | 研报 IC/LS |
+|------|------|------|------|------|
+| eruption_followup_ratio | 喷发成交额跟随比例 | -1 | 20日 Σ下一分钟成交额 / Σ喷发分钟成交额 | IC -10.59% LS 30.09% |
+| peak_ridge_turnover_ratio | 峰岭成交比 | +1 | 20日 Σ峰成交额 / Σ岭成交额 | IC +10.28% LS 27.13% |
+| valley_relative_vwap | 量谷相对加权价 | +1 | 20日 (谷vwap / 日vwap) 均值 | IC +8.69% LS 25.35% |
+| valley_weighted_quantile | 量谷加权价格分位点 | +1 | 20日 谷vwap 在日内[min(H,L,prevC),max(...)] 分位点均值 | IC +6.34% LS 20.22% |
+| valley_ridge_price_ratio__mp10 | 谷岭加权价格比(mp10) | +1 | 20日 (谷vwap/岭vwap) 均值，min_periods=10放宽缺失 | IC +6.98% LS 15.83% |
+| ridge_minute_return | 量岭分钟收益 | -1 | 20日 量岭分钟1-min收益累计和 | IC -6.29% LS 14.98% |
+| peak_interval_std | 量峰间隔标准差 | -1 | 20日 pooled 峰间隔标准差 | IC -8.57% LS 25.66% |
+| peak_minute_count | 量峰分钟数 | +1 | 20日 量峰分钟数均值 | IC +10.62% LS 31.58% |
+| ridge_minute_count | 量岭分钟数 | -1 | 20日 量岭分钟数均值 | IC -9.04% LS 26.20% |
+| peak_interval_skew | 量峰间隔偏度 | +1 | 20日 pooled 峰间隔分布偏度 | IC +7.68% LS 24.56% |
+| eruption_turnover_sensitivity | 喷发成交额敏感度 | -1 | 20日 pooled OLS slope(下一分钟成交额 ~ 喷发分钟成交额) | IC -7.14% LS 15.61% |
+| eruption_turnover_corr | 喷发成交额相关性 | -1 | 20日 Pearson(喷发分钟成交额, 下一分钟成交额) | IC -10.94% LS 29.72% |
+| peak_weighted_quantile | 量峰加权价格分位点 | +1 | 20日 峰vwap 在日内价格区间分位点均值 | IC +3.47% LS 11.20% |
+| peak_ridge_price_ratio__mp10 | 峰岭加权价格比(mp10) | +1 | 20日 (峰vwap/岭vwap) 均值，min_periods=10 | IC +4.70% LS 10.31% |
+| valley_ridge_price_ratio | 谷岭加权价格比 | +1 | 20日 (谷vwap/岭vwap) 均值 | IC +6.98% LS 15.83% |
+| peak_ridge_minute_corr | 同时点峰岭数相关性 | -1 | 20日 同时点峰数与岭数 Pearson 相关 | IC -6.67% LS 22.78% |
+| ridge_interval_skew | 量岭间隔偏度 | -1 | 20日 pooled 岭间隔分布偏度 | IC -8.08% LS 22.19% |
+| peak_interval_kurt | 量峰间隔峰度 | +1 | 20日 pooled 峰间隔分布峰度 | IC +7.19% LS 23.30% |
+
+> `__mp10` 变体：原版 min_periods=20 导致 ~78% 缺失（峰/岭/谷天然稀疏），放宽到 10 以提升覆盖率。
+
+#### A.2.3 市值因子 size（1/1 入选）
+
+**研报出处**：无特定研报，属 Barra 风格因子体系的标准规模因子。
+**构建脚本**：`data_fetching/style_ln_market_cap.py`
+
+| 因子 | 公式 | 用途 |
+|------|------|------|
+| ln_market_cap | ln(market_cap_3)，单位亿元，市值≤0置NaN | 大小盘画像 / regime 切分 / 市值中性化控制变量 |
+
+**原料**：`market-data/market_cap/market_cap_panel.parquet`（总市值日频宽表，米筐 `market_cap_3` 口径）。
+**性质**：风格暴露，不走 cleaned/neu 三阶段（对 size 做市值中性化是自我抵消）。
+
+#### A.2.4 长端动量因子 p67（2/2 入选）
+
+**研报出处**：开源证券《长端动量 2.0：长期、低换手、多头显著的量价因子》（开源量化评论 67，2022-11-26）
+- paper.md：`sources/kysec/paper_67_long_momentum/paper.md`
+
+**核心思想**：A 股长端涨跌幅（Ret160）整体呈反转，因为高振幅日（过度反应日）主导了长端收益。剥离高振幅日、只取低振幅 70% 交易日的超额收益，即可露出真正的动量效应。
+
+| 因子 | 方向 | 公式 |
+|------|------|------|
+| long_mom_1 | +1 | 长端动量 1.0：回溯160日 → 每日振幅=H/L−1 → 取低振幅70%交易日涨跌幅加总 |
+| long_mom_2 | +1 | 长端动量 2.0：在 1.0 基础上四处改进——剔除涨跌停/停牌日、振幅改(H−L)/前收、日超额收益(减市场均值)、20日反转中性(截面回归取残差) |
+
+**研报绩效**：长端动量 2.0 RankIC 6.92%，RankICIR 2.75，多空年化 18.09%。
+**数据依赖**：后复权日频 OHLCV + `normal_day_panel`（涨跌停/停牌剔除）+ `RET20_PANEL_PATH`（20日反转中性回归）。
+
+#### A.2.5 改进动量因子 ht p04（8/8 入选）
+
+**研报出处**：华泰证券《多因子系列之四：单因子测试之动量类因子》（2016-12-20）
+- paper.md：`sources/htsec/paper_04_momentum/paper.md`
+
+**核心思想**：传统 N 月收益率（return_Nm）在 A 股呈反转效应。引入换手率信息加权可加强信号——换手率高的交易日信息含量更大。
+
+| 因子 | 方向 | 公式 |
+|------|------|------|
+| wgt_return_1m | -1 | 过去20交易日：Σ(换手率ᵢ × 日收益ᵢ) / Σ(换手率ᵢ) |
+| wgt_return_3m | -1 | 过去60交易日同上 |
+| wgt_return_6m | -1 | 过去120交易日同上 |
+| wgt_return_12m | -1 | 过去240交易日同上 |
+| exp_wgt_return_1m | -1 | 过去20日：权重 = 换手率ᵢ × exp(−xᵢ/(4×20))，xᵢ=距截面日天数 |
+| exp_wgt_return_3m | -1 | 过去60日同上，decay_scale=4×60 |
+| exp_wgt_return_6m | -1 | 过去120日同上，decay_scale=4×120 |
+| exp_wgt_return_12m | -1 | 过去240日同上，decay_scale=4×240 |
+
+**研报结论**：exp_wgt_return_3m 和 exp_wgt_return_6m 综合表现最好；改进动量因子额外引入换手率信息，与传统反转因子正相关性强。
+**数据依赖**：后复权日频 close + `turnover_rate_panel`（dquant 流通股换手率）。
+
+---
+
+### A.3 训练过程
+
+#### A.3.1 标签
+
+- **标签类型**：`csrank_normcdf_robust`（截面秩正态化稳健Z）
+- **horizon**：20 日远期收益
+- **计算步骤**：逐日截面 → 20日远期收益 → 截面平均秩 → 正态分位 `norm.ppf` → 稳健Z（MAD去极值）→ clip ±5.0
+- **目的**：高波动日不再垄断 L2 梯度，目标近似标准正态，日内排序与原始收益完全等价（Spearman≡1）
+
+#### A.3.2 特征标准化
+
+- **标准化器**：`WholeSetRobustZ`（全集 per-feature RobustZScore）
+- **计算**：train 段拟合 median + MAD×1.4826 → 全段 transform → 落盘 `scaler_x.parquet`
+- **注意**：LGBM 对单调变换不敏感，标准化主要为了 scaler 落盘一致性 + MLP 兼容
+
+#### A.3.3 两阶段因子筛选（SHAP）
+
+**Stage-1（选因子）**：
+1. 在 train+valid 段（192 个全特征）上训一棵 LGBM（参数同最终模型，valid 早停）
+2. 对 train+valid 合并样本随机采样 100,000 行（random_state=0）
+3. 用 SHAP TreeExplainer 计算 mean(|SHAP value|) 作为因子重要性
+4. 按重要性降序取 top-128
+
+**Stage-2（合成模型）**：
+1. 仅用入选 128 因子重训 LGBM（valid 早停）
+2. 落盘 `model.txt` + `selected_features.json` + `scaler_x.parquet` + `run_meta.json`
+
+#### A.3.4 时间切分
+
+| 段 | 区间 | 用途 |
+|------|------|------|
+| train | 起始 ~ 2017-11-30 | 训练（含 Stage-1 选因子 + Stage-2 合成） |
+| embargo | 2017-12-01 ~ 2017-12-31 | 空档（防 20 日标签重叠泄漏） |
+| valid | 2018-01-01 ~ 2019-11-30 | 早停 + SHAP 采样 |
+| embargo | 2019-12-01 ~ 2019-12-31 | 空档（防 20 日标签重叠泄漏） |
+| test | 2020-01-01 ~ 因子共同覆盖末日 | 评估（IC/回测，全程不可见于训练） |
+
+#### A.3.5 LGBM 超参
+
+| 参数 | 值 |
+|------|------|
+| objective | regression（MSE） |
+| learning_rate | 0.05 |
+| num_leaves | 31 |
+| min_child_samples | 200 |
+| feature_fraction | 0.8 |
+| bagging_fraction | 0.8 |
+| bagging_freq | 1 |
+| num_boost_round | 1000（上限） |
+| early_stopping_rounds | 200 |
+| num_threads | 64 |
+| seed | 42 |
+| deterministic | True |
+
+#### A.3.6 样本池
+
+- **训练候选池**：`eligible_today`（T日因子有效）& `can_buy`（T+1可成交=label可实现）& `has_label`（20日远期收益存在）
+- **has_factor_policy**：`none`（LGBM 不要求所有因子都有值，天然处理 NaN）
+- **demean 基准池**：`eligible_today & can_buy`（与投资域同口径）
+
+#### A.3.7 训练后推理
+
+- `predict.after_train = true`：训完自动 reload 模型 → predict_live → export_panel
+- 推理区间：2020-01-01 ~ 因子共同覆盖末日
+- 每日取预测分 top-500 导出信号（回测只用排序，不用分数）
